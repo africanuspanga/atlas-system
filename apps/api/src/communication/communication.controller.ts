@@ -35,13 +35,16 @@ export class CommunicationController {
       });
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { data, error } = await this.supabase.admin.rpc('queue_announcement', {
-      p_tenant_id: req.tenant.tenantId,
-      p_actor: req.user.id,
-      p_audience_type: parsed.data.audienceType,
-      p_class_section_id: parsed.data.classSectionId ?? null,
-      p_body: parsed.data.body,
-    });
+    const { data, error } = await this.supabase.admin.rpc(
+      'queue_announcement',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_audience_type: parsed.data.audienceType,
+        p_class_section_id: parsed.data.classSectionId ?? null,
+        p_body: parsed.data.body,
+      },
+    );
     if (error) {
       const match = KNOWN_ERRORS.find((code) => error.message.includes(code));
       if (match) {

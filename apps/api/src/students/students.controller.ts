@@ -80,6 +80,9 @@ export class StudentsController {
       p_rows: rows,
     });
     if (error) {
+      if (error.message.includes('IMPORT_SECTION_NOT_FOUND')) {
+        throw new BadRequestException({ code: 'IMPORT_SECTION_NOT_FOUND' });
+      }
       throw new InternalServerErrorException({
         code: 'STUDENT_IMPORT_FAILED',
         message: error.message,

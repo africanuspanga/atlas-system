@@ -141,7 +141,6 @@ export function StudentsView({
 	lang: Lang;
 }) {
 	const t = getDict(lang);
-	const router = useRouter();
 
 	return (
 		<div className="flex flex-col gap-4">

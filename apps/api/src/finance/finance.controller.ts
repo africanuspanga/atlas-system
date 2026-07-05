@@ -118,10 +118,13 @@ export class FinanceController {
   @RequirePermission('finance.invoices.create')
   async sendReminders(@Req() req: TenantRequest) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { data, error } = await this.supabase.admin.rpc('queue_fee_reminders', {
-      p_tenant_id: req.tenant.tenantId,
-      p_actor: req.user.id,
-    });
+    const { data, error } = await this.supabase.admin.rpc(
+      'queue_fee_reminders',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+      },
+    );
     if (error) {
       throw new InternalServerErrorException({
         code: 'REMINDERS_FAILED',
@@ -162,7 +165,11 @@ export class FinanceController {
         'PAYMENT_EXCEEDS_BALANCE',
       ]);
     }
-    return data as { paymentId: string; receiptNumber: string; balance: number };
+    return data as {
+      paymentId: string;
+      receiptNumber: string;
+      balance: number;
+    };
   }
 
   @Post('payments/:id/reverse')

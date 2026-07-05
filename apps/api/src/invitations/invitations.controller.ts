@@ -15,6 +15,7 @@ import type { AuthenticatedRequest } from '../auth/auth.guard';
 import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import { resolveWebOrigin } from '../config';
 
 const INVITABLE_ROLES = [
   'director',
@@ -71,9 +72,8 @@ export class InvitationsController {
       });
     }
 
-    const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
     return {
-      inviteUrl: `${webOrigin}/invite/${token}`,
+      inviteUrl: `${resolveWebOrigin()}/invite/${token}`,
       email: parsed.data.email,
       roleKeys: parsed.data.roleKeys,
     };

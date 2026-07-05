@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/safe-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,8 +52,7 @@ export function LoginForm() {
 			setError(error.message);
 			return;
 		}
-		const next = searchParams.get("next");
-		router.push(next?.startsWith("/") ? next : "/");
+		router.push(safeNext(searchParams.get("next")));
 		router.refresh();
 	}
 

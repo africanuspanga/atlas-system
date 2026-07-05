@@ -49,12 +49,21 @@ export class AttendanceController {
     }
 
     // Re-submitting an existing register is a correction: separate permission.
-    const { data: existing } = await this.supabase.admin
+    // Scoped by tenant, and fails CLOSED — a DB error must not let a plain
+    // marker slip a correction through (AUD-004).
+    const { data: existing, error: existingError } = await this.supabase.admin
       .from('attendance_sessions')
       .select('id')
+      .eq('tenant_id', req.tenant.tenantId)
       .eq('class_section_id', parsed.data.classSectionId)
       .eq('session_date', parsed.data.date)
       .maybeSingle();
+    if (existingError) {
+      throw new InternalServerErrorException({
+        code: 'ATTENDANCE_LOOKUP_FAILED',
+        message: existingError.message,
+      });
+    }
     if (
       existing &&
       !req.tenant.isOwner &&

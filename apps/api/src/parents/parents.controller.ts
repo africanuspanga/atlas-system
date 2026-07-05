@@ -17,6 +17,7 @@ import type { AuthenticatedRequest } from '../auth/auth.guard';
 import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import { resolveWebOrigin } from '../config';
 
 @Controller('guardians')
 export class GuardiansController {
@@ -59,8 +60,10 @@ export class GuardiansController {
         message: error.message,
       });
     }
-    const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
-    return { inviteUrl: `${webOrigin}/invite/${token}`, email: guardian.email };
+    return {
+      inviteUrl: `${resolveWebOrigin()}/invite/${token}`,
+      email: guardian.email as string,
+    };
   }
 }
 
@@ -140,7 +143,7 @@ export class PortalController {
         ]);
 
       const attendanceCounts: Record<string, number> = {};
-      for (const record of attendance ?? []) {
+      for (const record of (attendance ?? []) as Array<{ status: string }>) {
         attendanceCounts[record.status] =
           (attendanceCounts[record.status] ?? 0) + 1;
       }
@@ -166,10 +169,18 @@ export class PortalController {
           ? `${enrolment.class_sections.grade_levels?.name ?? ''} ${enrolment.class_sections.name}`.trim()
           : null,
         balance:
-          (invoices ?? []).reduce((sum, i) => sum + Number(i.total), 0) -
-          (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0),
+          ((invoices ?? []) as Array<{ total: number }>).reduce(
+            (sum, i) => sum + Number(i.total),
+            0,
+          ) -
+          ((payments ?? []) as Array<{ amount: number }>).reduce(
+            (sum, p) => sum + Number(p.amount),
+            0,
+          ),
         attendance: attendanceCounts,
-        terms: (terms ?? []).map((t) => ({ id: t.id, name: t.name })),
+        terms: ((terms ?? []) as Array<{ id: string; name: string }>).map(
+          (t) => ({ id: t.id, name: t.name }),
+        ),
       });
     }
 

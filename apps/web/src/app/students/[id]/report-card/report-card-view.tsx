@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { PrinterIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { getDict, type Lang, type DictKey } from "@/i18n";
@@ -70,14 +70,19 @@ export function ReportCardView({
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const load = useCallback(
-		async (term: string) => {
+	// Fetch when the term changes. `ignore` discards a stale response if the
+	// user switches terms mid-request, avoiding a flicker to the wrong card.
+	useEffect(() => {
+		if (!termId) return;
+		let ignore = false;
+		void (async () => {
 			setLoading(true);
 			setError(null);
 			const response = await apiFetch(
-				`/api/v1/assessments/report-card?studentId=${studentId}&termId=${term}`,
+				`/api/v1/assessments/report-card?studentId=${studentId}&termId=${termId}`,
 				{ tenantId },
 			);
+			if (ignore) return;
 			setLoading(false);
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);
@@ -86,13 +91,11 @@ export function ReportCardView({
 				return;
 			}
 			setReport(await response.json());
-		},
-		[studentId, tenantId],
-	);
-
-	useEffect(() => {
-		if (termId) void load(termId);
-	}, [termId, load]);
+		})();
+		return () => {
+			ignore = true;
+		};
+	}, [termId, studentId, tenantId]);
 
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4">

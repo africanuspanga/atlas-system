@@ -80,28 +80,39 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
     if (!rows || rows.length === 0) break;
 
     for (const row of rows as OutboxRow[]) {
+      // Claim the row BEFORE sending: only the drainer whose conditional
+      // update actually flips pending→sent proceeds to deliver. A second
+      // drainer (or an overlapping pass) gets zero rows back and skips it,
+      // so a message is never billed twice. Trade-off: a crash between claim
+      // and send loses that one message (at-most-once) — acceptable for SMS,
+      // where a duplicate charge is worse than a rare miss.
+      const { data: claimed } = await supabase
+        .from("notification_outbox")
+        .update({
+          status: "sent",
+          attempts: row.attempts + 1,
+          sent_at: new Date().toISOString(),
+        })
+        .eq("id", row.id)
+        .eq("status", "pending")
+        .select("id");
+      if (!claimed || claimed.length === 0) continue; // another drainer won it
+
       const body = renderBody(row.template, row.payload);
       try {
         await driver.send({ recipient: row.recipient, body });
-        const { data: updated } = await supabase
-          .from("notification_outbox")
-          .update({
-            status: "sent",
-            attempts: row.attempts + 1,
-            sent_at: new Date().toISOString(),
-          })
-          .eq("id", row.id)
-          .eq("status", "pending")
-          .select("id");
-        if (updated && updated.length > 0) sent += 1;
+        sent += 1;
       } catch (err) {
         const attempts = row.attempts + 1;
         const exhausted = attempts >= MAX_ATTEMPTS;
+        // Release the claim: back to pending for another attempt, or failed.
         await supabase
           .from("notification_outbox")
-          .update({ attempts, ...(exhausted ? { status: "failed" } : {}) })
-          .eq("id", row.id)
-          .eq("status", "pending");
+          .update({
+            status: exhausted ? "failed" : "pending",
+            sent_at: null,
+          })
+          .eq("id", row.id);
         if (exhausted) failed += 1;
         logger.error(
           { id: row.id, tenantId: row.tenant_id, attempts, err: (err as Error).message },
@@ -122,12 +133,20 @@ async function main() {
   const result = await drainOnce();
   logger.info(result, "outbox drain pass complete");
   if (once) return;
+  // A `running` guard prevents overlapping passes when a drain takes longer
+  // than POLL_MS (which would otherwise double-process the same rows).
+  let running = false;
   setInterval(() => {
+    if (running) return;
+    running = true;
     drainOnce()
       .then((r) => {
         if (r.sent > 0 || r.failed > 0) logger.info(r, "outbox drain pass complete");
       })
-      .catch((err) => logger.error({ err: (err as Error).message }, "outbox drain pass errored"));
+      .catch((err) => logger.error({ err: (err as Error).message }, "outbox drain pass errored"))
+      .finally(() => {
+        running = false;
+      });
   }, POLL_MS);
 }
 

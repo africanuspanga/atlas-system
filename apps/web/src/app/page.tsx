@@ -32,8 +32,9 @@ export default async function Home() {
 		redirect("/onboarding");
 	}
 
-	const today = new Date().toISOString().slice(0, 10);
-	const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+	const now = new Date();
+	const today = now.toISOString().slice(0, 10);
+	const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 		.toISOString()
 		.slice(0, 10);
 

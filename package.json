@@ -26,6 +26,11 @@
       "msgpackr-extract",
       "sharp",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+      "multer": ">=2.2.0",
+      "postcss": ">=8.5.10"
+    }
   }
 }

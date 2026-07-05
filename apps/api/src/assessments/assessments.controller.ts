@@ -104,7 +104,10 @@ export class SubjectsController {
         });
       }
     }
-    return { created: missing.length, skipped: presets.length - missing.length };
+    return {
+      created: missing.length,
+      skipped: presets.length - missing.length,
+    };
   }
 }
 
