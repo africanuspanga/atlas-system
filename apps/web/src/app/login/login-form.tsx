@@ -15,6 +15,13 @@ import {
 
 type Mode = "signin" | "signup";
 
+/**
+ * Public demo school ("Chief Sarwatt School") seeded by
+ * apps/api/scripts/seed-demo.mjs. Deliberately visible — it is a demo.
+ */
+const DEMO_EMAIL = "demo@chiefsarwatt.sc.tz";
+const DEMO_PASSWORD = "DemoAtlas2026!";
+
 export function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -30,25 +37,44 @@ export function LoginForm() {
 	);
 	const [notice, setNotice] = useState<string | null>(null);
 
-	async function handleSubmit(event: React.FormEvent) {
-		event.preventDefault();
+	async function signIn(signInEmail: string, signInPassword: string) {
 		setError(null);
 		setNotice(null);
 		setPending(true);
 		const supabase = createClient();
-
-		if (mode === "signin") {
-			const { error } = await supabase.auth.signInWithPassword({ email, password });
-			setPending(false);
-			if (error) {
-				setError(error.message);
-				return;
-			}
-			const next = searchParams.get("next");
-			router.push(next?.startsWith("/") ? next : "/");
-			router.refresh();
+		const { error } = await supabase.auth.signInWithPassword({
+			email: signInEmail,
+			password: signInPassword,
+		});
+		setPending(false);
+		if (error) {
+			setError(error.message);
 			return;
 		}
+		const next = searchParams.get("next");
+		router.push(next?.startsWith("/") ? next : "/");
+		router.refresh();
+	}
+
+	function demoSignIn() {
+		// Fill the form so the visitor sees the credentials, then sign in.
+		setMode("signin");
+		setEmail(DEMO_EMAIL);
+		setPassword(DEMO_PASSWORD);
+		void signIn(DEMO_EMAIL, DEMO_PASSWORD);
+	}
+
+	async function handleSubmit(event: React.FormEvent) {
+		event.preventDefault();
+		setError(null);
+		setNotice(null);
+
+		if (mode === "signin") {
+			await signIn(email, password);
+			return;
+		}
+		setPending(true);
+		const supabase = createClient();
 
 		const { data, error } = await supabase.auth.signUp({
 			email,
@@ -131,19 +157,38 @@ export function LoginForm() {
 						{pending ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
 					</Button>
 				</form>
-				<button
-					className="mt-4 text-sm text-muted-foreground underline-offset-4 hover:underline"
-					onClick={() => {
-						setMode(mode === "signin" ? "signup" : "signin");
-						setError(null);
-						setNotice(null);
-					}}
-					type="button"
-				>
-					{mode === "signin"
-						? "New school? Create an account"
-						: "Already have an account? Sign in"}
-				</button>
+				<div className="mt-4 flex flex-col gap-3">
+					<div className="flex items-center gap-3 text-xs text-muted-foreground">
+						<span className="h-px flex-1 bg-border" />
+						demo
+						<span className="h-px flex-1 bg-border" />
+					</div>
+					<Button
+						disabled={pending}
+						onClick={demoSignIn}
+						type="button"
+						variant="outline"
+					>
+						Try the demo — Chief Sarwatt School
+					</Button>
+					<p className="text-center text-xs text-muted-foreground">
+						Jaribu mfumo na shule ya mfano yenye taarifa kamili. Credentials fill in
+						automatically.
+					</p>
+					<button
+						className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+						onClick={() => {
+							setMode(mode === "signin" ? "signup" : "signin");
+							setError(null);
+							setNotice(null);
+						}}
+						type="button"
+					>
+						{mode === "signin"
+							? "New school? Create an account"
+							: "Already have an account? Sign in"}
+					</button>
+				</div>
 			</CardContent>
 		</Card>
 	);
