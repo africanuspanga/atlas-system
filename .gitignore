@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+dist/
+out/
+build/
+.turbo/
+
+# env — never commit secrets
+.env
+.env.*
+!.env.example
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+
+# misc
+.DS_Store
+*.log
+coverage/
+.vercel/
+
+# editor
+.idea/
+.vscode/*
+!.vscode/extensions.json

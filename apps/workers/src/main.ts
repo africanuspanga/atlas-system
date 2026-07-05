@@ -1,0 +1,57 @@
+import { Worker, type Job, type RedisOptions } from "bullmq";
+import pino from "pino";
+import { QUEUES, type TenantJob } from "./queues.js";
+
+const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+
+const redisUrl = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
+const connection: RedisOptions = {
+  host: redisUrl.hostname,
+  port: Number(redisUrl.port || 6379),
+  username: redisUrl.username || undefined,
+  password: redisUrl.password || undefined,
+  db: redisUrl.pathname.length > 1 ? Number(redisUrl.pathname.slice(1)) : 0,
+  maxRetriesPerRequest: null,
+};
+
+function assertTenantContext(job: Job): asserts job is Job<TenantJob> {
+  const data = job.data as Partial<TenantJob> | undefined;
+  if (!data?.context?.tenantId) {
+    throw new Error(`Job ${job.id} on ${job.queueName} is missing tenant context`);
+  }
+}
+
+const workers = Object.values(QUEUES).map(
+  (queueName) =>
+    new Worker(
+      queueName,
+      async (job) => {
+        assertTenantContext(job);
+        logger.info(
+          { queue: queueName, jobId: job.id, name: job.name, tenantId: job.data.context.tenantId },
+          "job received",
+        );
+        // Job processors are registered per-queue as modules are implemented.
+        // Until a processor exists, unknown jobs fail loudly instead of silently succeeding.
+        throw new Error(`No processor registered for job "${job.name}" on queue "${queueName}"`);
+      },
+      { connection, concurrency: 5 },
+    ),
+);
+
+for (const worker of workers) {
+  worker.on("failed", (job, err) => {
+    logger.error({ queue: worker.name, jobId: job?.id, err: err.message }, "job failed");
+  });
+}
+
+logger.info({ queues: Object.values(QUEUES) }, "ATLAS workers started");
+
+async function shutdown() {
+  logger.info("shutting down workers");
+  await Promise.all(workers.map((w) => w.close()));
+  process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
