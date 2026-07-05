@@ -15,6 +15,7 @@ export const studentRowSchema = z.object({
     .object({
       fullName: z.string().trim().min(1).max(200),
       phone: z.string().trim().max(30).optional(),
+      email: z.string().trim().email().max(200).optional(),
       relationship: z
         .enum(['mother', 'father', 'guardian', 'sponsor', 'other'])
         .default('guardian'),

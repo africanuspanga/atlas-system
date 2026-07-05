@@ -21,6 +21,14 @@ export default async function Home() {
 		.select("id, name, status")
 		.limit(1);
 	if (!tenants || tenants.length === 0) {
+		// Linked parents are not tenant members — route them to their portal.
+		const { data: guardianLinks } = await supabase
+			.from("guardians")
+			.select("id")
+			.limit(1);
+		if (guardianLinks && guardianLinks.length > 0) {
+			redirect("/portal");
+		}
 		redirect("/onboarding");
 	}
 

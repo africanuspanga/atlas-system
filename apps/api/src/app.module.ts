@@ -16,6 +16,10 @@ import {
 } from './assessments/assessments.controller';
 import { FinanceController } from './finance/finance.controller';
 import { CommunicationController } from './communication/communication.controller';
+import {
+  GuardiansController,
+  PortalController,
+} from './parents/parents.controller';
 
 @Module({
   imports: [
@@ -36,6 +40,8 @@ import { CommunicationController } from './communication/communication.controlle
     SubjectsController,
     FinanceController,
     CommunicationController,
+    GuardiansController,
+    PortalController,
   ],
   providers: [AppService, SupabaseService],
 })

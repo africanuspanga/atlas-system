@@ -113,6 +113,24 @@ export class FinanceController {
     return data as { invoiceId: string; invoiceNumber: string; total: number };
   }
 
+  /** Queues one SMS per unpaid invoice to the primary guardian (deduped). */
+  @Post('reminders')
+  @RequirePermission('finance.invoices.create')
+  async sendReminders(@Req() req: TenantRequest) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc('queue_fee_reminders', {
+      p_tenant_id: req.tenant.tenantId,
+      p_actor: req.user.id,
+    });
+    if (error) {
+      throw new InternalServerErrorException({
+        code: 'REMINDERS_FAILED',
+        message: error.message,
+      });
+    }
+    return data as { queued: number };
+  }
+
   @Post('invoices/:id/payments')
   @RequirePermission('finance.payments.receive')
   async recordPayment(

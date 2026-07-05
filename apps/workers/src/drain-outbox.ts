@@ -42,6 +42,15 @@ function renderBody(template: string, payload: Record<string, unknown>): string 
       `hakuhudhuria shuleni tarehe ${payload.date}. Asante.`
     );
   }
+  if (template === "fees.reminder") {
+    const due = payload.dueOn ? ` kabla ya tarehe ${payload.dueOn}` : "";
+    return (
+      `Habari ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
+      `Salio la ada kwa ${payload.studentName} (${payload.studentNumber}) ` +
+      `ni TZS ${Number(payload.balance ?? 0).toLocaleString("en-US")} ` +
+      `(ankara ${payload.invoiceNumber}). Tafadhali lipa${due}. Asante.`
+    );
+  }
   return JSON.stringify(payload);
 }
 

@@ -44,7 +44,13 @@ export interface StudentListRow {
 	}>;
 	student_guardians: Array<{
 		is_primary: boolean;
-		guardians: { full_name: string; phone: string | null } | null;
+		guardians: {
+			id: string;
+			full_name: string;
+			phone: string | null;
+			email: string | null;
+			user_id: string | null;
+		} | null;
 	}>;
 }
 
@@ -59,6 +65,7 @@ const TEMPLATE_HEADERS = [
 	"stream",
 	"guardianName",
 	"guardianPhone",
+	"guardianEmail",
 	"guardianRelationship",
 ];
 
@@ -73,6 +80,7 @@ const TEMPLATE_EXAMPLE = [
 	"A",
 	"Mary Joseph",
 	"+255700000001",
+	"mary@example.com",
 	"mother",
 ];
 
@@ -87,6 +95,7 @@ interface RawRow {
 	stream?: string;
 	guardianName?: string;
 	guardianPhone?: string;
+	guardianEmail?: string;
 	guardianRelationship?: string;
 }
 
@@ -108,6 +117,7 @@ function toImportRow(raw: RawRow) {
 			? {
 					fullName: clean(raw.guardianName) ?? "",
 					phone: clean(raw.guardianPhone),
+					email: clean(raw.guardianEmail),
 					relationship: (clean(raw.guardianRelationship)?.toLowerCase() ?? "guardian") as
 						| "mother"
 						| "father"
@@ -183,12 +193,21 @@ export function StudentsView({
 												<Badge variant="outline">{s.status}</Badge>
 											</TableCell>
 											<TableCell className="text-right">
-												<Link
-													className="text-sm font-medium text-primary hover:underline"
-													href={`/students/${s.id}/report-card`}
-												>
-													{t("students.reportCard")}
-												</Link>
+												<span className="flex items-center justify-end gap-3">
+													{guardian?.email && !guardian.user_id && (
+														<InviteParentButton
+															guardianId={guardian.id}
+															lang={lang}
+															tenantId={tenantId}
+														/>
+													)}
+													<Link
+														className="text-sm font-medium text-primary hover:underline"
+														href={`/students/${s.id}/report-card`}
+													>
+														{t("students.reportCard")}
+													</Link>
+												</span>
 											</TableCell>
 										</TableRow>
 									);
@@ -199,6 +218,65 @@ export function StudentsView({
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+function InviteParentButton({
+	tenantId,
+	guardianId,
+	lang,
+}: {
+	tenantId: string;
+	guardianId: string;
+	lang: Lang;
+}) {
+	const t = getDict(lang);
+	const [pending, setPending] = useState(false);
+	const [link, setLink] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	async function invite() {
+		setPending(true);
+		setError(null);
+		const response = await apiFetch(`/api/v1/guardians/${guardianId}/invite`, {
+			method: "POST",
+			tenantId,
+		});
+		setPending(false);
+		if (!response.ok) {
+			const body = await response.json().catch(() => null);
+			setError(body?.code ?? `HTTP ${response.status}`);
+			return;
+		}
+		const body = await response.json();
+		setLink(body.inviteUrl);
+	}
+
+	if (error) return <span className="text-xs text-destructive">{error}</span>;
+	if (link) {
+		return (
+			<button
+				className="text-sm font-medium text-primary hover:underline"
+				onClick={() => {
+					void navigator.clipboard.writeText(link);
+					setCopied(true);
+				}}
+				type="button"
+			>
+				{copied ? t("common.copied") : t("common.copy")}
+			</button>
+		);
+	}
+	return (
+		<button
+			className="text-sm font-medium text-muted-foreground hover:text-primary hover:underline"
+			disabled={pending}
+			onClick={() => void invite()}
+			type="button"
+		>
+			{pending ? t("common.loading") : t("students.inviteParent")}
+		</button>
 	);
 }
 
@@ -226,6 +304,7 @@ function AddStudentDialog({
 		classSectionId: "",
 		guardianName: "",
 		guardianPhone: "",
+		guardianEmail: "",
 		relationship: "guardian",
 	});
 
@@ -252,6 +331,7 @@ function AddStudentDialog({
 					? {
 							fullName: form.guardianName,
 							phone: form.guardianPhone || undefined,
+							email: form.guardianEmail || undefined,
 							relationship: form.relationship,
 						}
 					: undefined,
@@ -335,6 +415,13 @@ function AddStudentDialog({
 						placeholder={t("students.guardianPhone")}
 						value={form.guardianPhone}
 						onChange={(e) => set("guardianPhone", e.target.value)}
+					/>
+					<Input
+						className="col-span-2"
+						placeholder={t("students.guardianEmail")}
+						type="email"
+						value={form.guardianEmail}
+						onChange={(e) => set("guardianEmail", e.target.value)}
 					/>
 					<select
 						className={selectClass}

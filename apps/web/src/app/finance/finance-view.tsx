@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PlusIcon, ReceiptIcon } from "lucide-react";
+import { BellRingIcon, PlusIcon, ReceiptIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { getDict, type Lang, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,7 @@ export function FinanceView({
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h1 className="text-xl font-semibold">{t("finance.title")}</h1>
 				<div className="flex gap-2">
+					<SendRemindersButton lang={lang} tenantId={tenantId} />
 					<FeeItemsDialog feeItems={feeItems} lang={lang} tenantId={tenantId} />
 					<CreateInvoiceDialog
 						feeItems={feeItems}
@@ -151,6 +152,37 @@ export function FinanceView({
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+function SendRemindersButton({ tenantId, lang }: { tenantId: string; lang: Lang }) {
+	const t = getDict(lang);
+	const [pending, setPending] = useState(false);
+	const [message, setMessage] = useState<string | null>(null);
+
+	async function send() {
+		setPending(true);
+		setMessage(null);
+		const response = await apiFetch("/api/v1/finance/reminders", {
+			method: "POST",
+			tenantId,
+		});
+		setPending(false);
+		const body = await response.json().catch(() => null);
+		setMessage(
+			response.ok
+				? `${body.queued} ${t("finance.remindersQueued")}`
+				: (body?.code ?? `HTTP ${response.status}`),
+		);
+	}
+
+	return (
+		<span className="flex items-center gap-2">
+			{message && <span className="text-sm text-muted-foreground">{message}</span>}
+			<Button disabled={pending} onClick={() => void send()} size="sm" variant="outline">
+				<BellRingIcon /> {pending ? t("common.loading") : t("finance.sendReminders")}
+			</Button>
+		</span>
 	);
 }
 

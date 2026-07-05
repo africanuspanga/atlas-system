@@ -23,7 +23,7 @@ export default async function StudentsPage() {
 			.select(
 				`id, student_number, first_name, middle_name, last_name, status,
 				 class_enrolments(class_sections(name, grade_levels(name))),
-				 student_guardians(is_primary, guardians(full_name, phone))`,
+				 student_guardians(is_primary, guardians(id, full_name, phone, email, user_id))`,
 			)
 			.order("created_at", { ascending: false })
 			.limit(300),

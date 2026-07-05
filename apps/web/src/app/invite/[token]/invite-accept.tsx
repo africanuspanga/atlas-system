@@ -26,8 +26,9 @@ export function InviteAccept({ token, lang }: { token: string; lang: Lang }) {
 			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
 			return;
 		}
+		const body = await response.json().catch(() => null);
 		setAccepted(true);
-		router.push("/");
+		router.push(body?.portal === "parent" ? "/portal" : "/");
 		router.refresh();
 	}
 
