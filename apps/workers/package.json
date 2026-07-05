@@ -7,9 +7,12 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "drain": "node dist/drain-outbox.js",
+    "drain:once": "node dist/drain-outbox.js --once",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
     "bullmq": "^5.34.0",
     "pino": "^9.6.0"
   },

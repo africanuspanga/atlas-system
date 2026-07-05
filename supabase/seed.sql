@@ -28,7 +28,8 @@ insert into public.permissions (key, module, description) values
   ('settings.manage',          'settings',   'Manage school settings'),
   ('members.invite',           'settings',   'Invite staff members'),
   ('members.manage',           'settings',   'Manage members and roles'),
-  ('audit.view',               'audit',      'View audit logs')
+  ('audit.view',               'audit',      'View audit logs'),
+  ('communication.send',       'communication', 'Send announcements and SMS')
 on conflict (key) do nothing;
 
 -- System roles (tenant_id null)
@@ -63,11 +64,11 @@ cross join lateral unnest(case r.key
     'guardians.view', 'guardians.manage', 'academics.manage',
     'attendance.view', 'attendance.mark', 'attendance.correct', 'attendance.approve',
     'exams.create', 'marks.enter', 'marks.moderate', 'results.publish',
-    'members.invite', 'audit.view']
+    'members.invite', 'audit.view', 'communication.send']
   when 'school_admin' then array[
     'students.view', 'students.create', 'students.update', 'students.archive',
     'guardians.view', 'guardians.manage',
-    'attendance.view', 'members.invite']
+    'attendance.view', 'members.invite', 'communication.send']
   when 'academic_master' then array[
     'students.view', 'academics.manage', 'attendance.view',
     'exams.create', 'marks.enter', 'marks.moderate', 'results.publish']
