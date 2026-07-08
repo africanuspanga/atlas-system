@@ -82,7 +82,7 @@ Severity per the CTO rubric. Status: FIXED (this pass) · OPEN · WONTFIX(justif
 | AUD-013 | List endpoints without pagination (`/staff`, `/invitations`) | API | P3 | Fine for pilot sizes; add cursor pagination before large schools. |
 | AUD-014 | Portal `/children` is N+1 and reads attendance unbounded | API | P3 | Batch queries + aggregate counts in SQL. |
 | AUD-015 | Dashboard/accounting/finance server reads unbounded (no `.limit()`) | Web | P3 | Latency grows with history; cap or aggregate in SQL/RPC. |
-| AUD-016 | No rate limiting (esp. `POST /onboarding` tenant creation) | API | P3 | Add `@nestjs/throttler`; gate tenant creation behind the (unbuilt) platform layer. |
+| AUD-016 | ~~No rate limiting (esp. `POST /onboarding` tenant creation)~~ **FIXED 2026-07-08**: `@nestjs/throttler` global (300/min) + per-IP onboarding limit (`ONBOARD_RATE_LIMIT`, default 6/min); tenant creation now also auto-subscribes to the trial plan and every request is entitlement-checked (mig 0013). Test: `smoke-platform.mjs` step 7. | API | P3→FIXED | — |
 | AUD-017 | Loose UUID regex → 500 instead of 400 on malformed ids | API | P3 | `tenant.guard.ts:47`, `parents.controller.ts` termId. Use `z.string().uuid()`. |
 | AUD-018 | Ignored errors on list/select queries mask outages as empty results | API | P3 | Surface DB errors as 500s distinct from empty sets. |
 | AUD-019 | `nav-user.tsx` floating `getUser().then()` (no catch) | Web | P3 | Add `.catch`. |

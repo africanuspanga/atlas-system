@@ -19,19 +19,30 @@ because they are genuinely different bars:
 | 7 | Integration tests pass | 7 module smokes green | ✅ | ✅ |
 | 8 | RLS / isolation tests pass | `smoke-isolation` green | ✅ | ✅ |
 | 9 | E2E workflow tests | via smokes (API-level), no browser E2E | 🟡 | 🟡 |
-| 10 | Import tests pass | students only (`smoke-students`) | 🟡 | ❌ staging pipeline unbuilt |
+| 10 | Import tests pass | staged pipeline BUILT (mig 0011); `smoke-imports` written, needs mig live | 🟡 | 🟡 |
 | 11 | Payment tests pass | `smoke-finance` + immutability | ✅ | 🟡 no webhook layer yet |
-| 12 | Accounting reconciliation | ledger balanced asserts in smokes + demo | ✅ | ✅ |
-| 13 | AI permission tests | ❌ AI unbuilt | N/A | ❌ |
-| 14 | PDF/CSV exports | ❌ unbuilt | 🟡 print-only | ❌ |
-| 15 | Owner dashboard workflows | ❌ unbuilt | 🟡 operator runs onboarding | ❌ |
+| 12 | Accounting reconciliation | ledger balanced asserts + report RPCs now REFUSE on mismatch (mig 0012) | ✅ | ✅ |
+| 13 | AI permission tests | BUILT (mig 0014); `smoke-ai` (mock) + `eval-ai` (real) written, need mig live | 🟡 | 🟡 eval suite must pass at full size |
+| 14 | PDF/CSV exports | BUILT (mig 0012); `smoke-reports` written, needs mig live | 🟡 | 🟡 |
+| 15 | Owner dashboard workflows | BUILT (mig 0013, /platform + enforcement); `smoke-platform` written, needs mig live | 🟡 | 🟡 |
 | 16 | Mobile responsiveness | shadcn responsive; not device-tested | 🟡 | 🟡 |
-| 17 | Staging restore tested | ❌ not performed | ❌ | ❌ |
-| 18 | Monitoring & alerts active | ❌ pino logs only, no APM | 🟡 | ❌ |
+| 17 | Staging restore tested | ✅ PERFORMED 2026-07-08, all gates passed (ATLAS_RESTORE_RUNBOOK.md) | ✅ | 🟡 repeat quarterly |
+| 18 | Monitoring & alerts active | health endpoints + structured logs + heartbeats live; Sentry DSN + uptime checks are ops steps (ATLAS_MONITORING.md) | 🟡 | 🟡 |
 | 19 | Rollback documented | tag `v0.1.0-pre-audit` + migration notes | 🟡 | 🟡 |
 | 20 | Pilot data imported in staging | ❌ | ❌ | ❌ |
 | 21 | School approved imported totals | ❌ | ❌ | ❌ |
 | 22 | Written sign-off | this document | 🟡 | ❌ |
+
+## One pending operator decision (2026-07-08)
+
+Migrations **0011–0014** (imports, reporting, platform, AI) are written,
+additive-only, and verified against a schema-identical shadow restore of the
+live DB — but have **not been applied to the Supabase project** (operator
+approval required for production DDL). Until they are applied and the API is
+restarted, the four new modules exist in code but their live smoke suites
+(`smoke-imports`, `smoke-reports`, `smoke-platform`, `smoke-ai`) cannot run,
+and the new UI pages will fail on their missing tables. Apply order:
+0011 → 0012 → 0013 → 0014, then run all smokes.
 
 ## Blocking gaps
 

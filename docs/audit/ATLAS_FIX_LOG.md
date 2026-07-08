@@ -42,3 +42,29 @@ function replacements; the four `create trigger` statements are new objects.
 P3 items AUD-011…AUD-023 are left open with rationale in the bug register — none
 blocks a controlled pilot, and several (pagination, aggregation, rate limiting)
 are better solved alongside the platform/reporting build rather than piecemeal.
+
+---
+
+# Build phase — 2026-07-08 (post-audit pillars)
+
+Executed in the CTO-recommended order. Every phase gated by
+`pnpm turbo run lint typecheck test build` (10/10 green throughout) and each
+migration verified against a schema-identical local shadow DB. **Live smokes
+for the new modules require migrations 0011–0014 on the Supabase project —
+held for operator approval** (see ATLAS_RELEASE_READINESS.md).
+
+| Order | Phase | Change | Key files | Verified by |
+|------:|-------|--------|-----------|-------------|
+| 13 | Tier-1 ops | Health endpoints (`/health{,/database,/redis,/workers,/outbox}`), structured request logs (request_id/tenant_id/duration), worker heartbeats + failed-job metrics, Sentry hook behind `SENTRY_DSN` | `api/src/health`, `api/src/observability`, `workers/src/observability.ts` | `smoke-health.mjs` **run green live** |
+| 14 | Tier-1 ops | Restore test PERFORMED (dump → local PG17 → object/row parity exact, ledgers balanced, immutability triggers fire) + runbooks | `ATLAS_RESTORE_RUNBOOK.md`, `ATLAS_PILOT_RUNBOOK.md`, `ATLAS_MONITORING.md` | executed 2026-07-08 |
+| 15 | Imports | Migration 0011: staging tables, private bucket, idempotent `import_commit_chunk`; API upload→map→dry-run→approve; worker (BullMQ+poller); web wizard; students + opening-balances domains (invoice+journal-backed) | `migrations/0011`, `api/src/imports`, `workers/src/process-imports.ts`, `web/app/imports` | `smoke-imports.mjs` (pending mig) |
+| 16 | Reporting | Migration 0012: `report_jobs` + ledger-RECONCILING `report_*` SQL fns (mismatch ⇒ no report); worker PDF/CSV/XLSX (formula-injection-safe, A4, page numbers); API catalogue/jobs/signed downloads; web /reports | `migrations/0012`, `api/src/reports`, `workers/src/{process-reports,report-formats}.ts`, `web/app/reports` | `smoke-reports.mjs` (pending mig) |
+| 17 | Platform | Migration 0013: plans seeded, entitlements + overview RPCs, `platform_audit_logs`; TenantGuard enforces suspension/expiry per request (fails closed); caps (students/staff) in API; onboarding trial + rate limit (closes **AUD-016**); `/platform` control centre | `migrations/0013`, `api/src/platform`, `tenant.guard.ts`, `web/app/platform` | `smoke-platform.mjs` (pending mig) |
+| 18 | AI | Migration 0014: AI audit tables; 9-tool read-only catalogue (server-verified tenant ctx, same RPCs as reports); Moonshot provider + deterministic mock; /assistant chat UI; eval harness (CTO §11 categories) | `migrations/0014`, `api/src/ai`, `web/app/assistant`, `scripts/eval-ai.mjs` | `smoke-ai.mjs` (pending mig), `eval-ai.mjs` (real provider, pre-GA gate) |
+
+## Rollback (build phase)
+
+- Code: each phase is one commit on `audit/production-readiness`.
+- DB: migrations 0011–0014 are additive only (new tables/functions/buckets +
+  plan seeds); no existing table is altered except `ensure_ledger_accounts`
+  gaining account 3000. Rollback = drop the new objects; no data migration.

@@ -2,7 +2,7 @@
   "name": "@atlas/workers",
   "version": "0.1.0",
   "private": true,
-  "description": "ATLAS background workers — BullMQ queues for reports, notifications, imports and billing",
+  "description": "ATLAS background workers \u2014 BullMQ queues for reports, notifications, imports and billing",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/main.ts",
@@ -18,7 +18,7 @@
     "ioredis": "^5.11.1",
     "pdfkit": "^0.19.1",
     "pino": "^9.6.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
