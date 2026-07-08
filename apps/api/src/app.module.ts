@@ -22,6 +22,8 @@ import {
 } from './parents/parents.controller';
 import { HealthController } from './health/health.controller';
 import { RedisService } from './observability/redis.service';
+import { ImportsController } from './imports/imports.controller';
+import { ImportQueueService } from './imports/import-queue.service';
 
 @Module({
   imports: [
@@ -45,7 +47,8 @@ import { RedisService } from './observability/redis.service';
     GuardiansController,
     PortalController,
     HealthController,
+    ImportsController,
   ],
-  providers: [AppService, SupabaseService, RedisService],
+  providers: [AppService, SupabaseService, RedisService, ImportQueueService],
 })
 export class AppModule {}

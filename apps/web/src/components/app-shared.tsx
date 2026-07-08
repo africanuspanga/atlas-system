@@ -19,6 +19,7 @@ import {
 	BarChart3Icon,
 	SettingsIcon,
 	LifeBuoyIcon,
+	UploadIcon,
 } from "lucide-react";
 import { getDict, type Translator } from "@/i18n";
 
@@ -86,6 +87,7 @@ export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 		{
 			label: t("nav.group.system"),
 			items: [
+				{ title: t("nav.imports"), path: "/imports", icon: <UploadIcon /> },
 				{ title: t("nav.reports"), path: "/reports", icon: <BarChart3Icon /> },
 				{ title: t("nav.settings"), path: "/settings", icon: <SettingsIcon /> },
 			],
