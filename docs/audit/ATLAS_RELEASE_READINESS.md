@@ -22,7 +22,7 @@ because they are genuinely different bars:
 | 10 | Import tests pass | staged pipeline BUILT (mig 0011); `smoke-imports` written, needs mig live | 🟡 | 🟡 |
 | 11 | Payment tests pass | `smoke-finance` + immutability | ✅ | 🟡 no webhook layer yet |
 | 12 | Accounting reconciliation | ledger balanced asserts + report RPCs now REFUSE on mismatch (mig 0012) | ✅ | ✅ |
-| 13 | AI permission tests | BUILT (mig 0014); `smoke-ai` (mock) + `eval-ai` (real) written, need mig live | 🟡 | 🟡 eval suite must pass at full size |
+| 13 | AI permission tests | ✅ `smoke-ai` green live; `eval-ai` (real provider) **28/28, security categories 100%** | ✅ | 🟡 grow eval set to full CTO §11 size before AI GA |
 | 14 | PDF/CSV exports | BUILT (mig 0012); `smoke-reports` written, needs mig live | 🟡 | 🟡 |
 | 15 | Owner dashboard workflows | BUILT (mig 0013, /platform + enforcement); `smoke-platform` written, needs mig live | 🟡 | 🟡 |
 | 16 | Mobile responsiveness | shadcn responsive; not device-tested | 🟡 | 🟡 |
@@ -33,16 +33,22 @@ because they are genuinely different bars:
 | 21 | School approved imported totals | ❌ | ❌ | ❌ |
 | 22 | Written sign-off | this document | 🟡 | ❌ |
 
-## One pending operator decision (2026-07-08)
+## Live verification — 2026-07-08 (operator approved)
 
-Migrations **0011–0014** (imports, reporting, platform, AI) are written,
-additive-only, and verified against a schema-identical shadow restore of the
-live DB — but have **not been applied to the Supabase project** (operator
-approval required for production DDL). Until they are applied and the API is
-restarted, the four new modules exist in code but their live smoke suites
-(`smoke-imports`, `smoke-reports`, `smoke-platform`, `smoke-ai`) cannot run,
-and the new UI pages will fail on their missing tables. Apply order:
-0011 → 0012 → 0013 → 0014, then run all smokes.
+Migrations **0011–0014 applied to the Supabase project** and recorded in
+migration history (14/14). Full smoke pass on the migrated DB with the new
+API build: **all 13 suites green** — the 9 original suites (onboarding,
+students, attendance, assessments, finance, communication, parents,
+isolation, health) confirm the entitlement-enforcing TenantGuard broke
+nothing, and the 4 new suites (imports, reports, platform, ai) verify the
+new pillars end-to-end, including: idempotent import re-run, opening-balance
+ledger reconciliation, CSV formula-injection escaping, tampered-ledger report
+refusal, suspend/reactivate lockout, plan caps, onboarding 429, AI permission
+denial without leakage, prompt-injection refusal, and full audit trails.
+Two live-only bugs found by the smokes and fixed during the pass
+(class_sections `stream`→`name` column in the imports validator and the
+outstanding-balances SQL; permission-catalogue FK for the two new permission
+keys — migration files corrected for fresh deploys).
 
 ## Blocking gaps
 
@@ -57,13 +63,19 @@ layer**, the **staging-based import pipeline**, **payment webhooks with
 idempotency**, the **reporting/export system**, and the **AI assistant with its
 eval suite** — all specced in this folder, none built.
 
-## Recommendation
+## Recommendation (updated 2026-07-08)
 
-Do **not** call the system production-ready yet. It is **pilot-capable pending
-the three ops steps above**. Keep the feature freeze until: staging restore is
-proven, monitoring is live, and one real school's imported totals are signed
-off. Treat the platform/AI/reporting pillars as the next build epics, each
-gated by its spec's test bar.
+The system is **pilot-ready from an engineering standpoint**: restore test
+performed, monitoring endpoints live, all 13 smoke suites green against the
+migrated database, the AI eval starter set at 100%, and every former
+greenfield pillar built and live-verified. What remains before a real pilot
+school goes live is **operational, not code**: (i) set a Sentry DSN + point
+uptime checks at the health endpoints (ATLAS_MONITORING.md), (ii) run the
+pilot school's real data through the staging rehearsal and obtain the written
+sign-off (ATLAS_PILOT_RUNBOOK.md). Before **self-serve SaaS**: marketing
+website + registration flow, payment webhooks with idempotency, the full
+230-question AI eval suite, and closure of the P3 backlog (pagination,
+backoff, tenant switcher).
 
 ## Accounting & academic integrity (verified invariants)
 

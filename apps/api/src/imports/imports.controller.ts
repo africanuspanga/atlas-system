@@ -575,16 +575,17 @@ export class ImportsController {
     mapping: Record<string, string | null>,
   ) {
     // Tenant context: class sections + existing students for duplicate checks.
+    // class_sections.name holds the stream label ("A", "B") — see mig 0002.
     const { data: sections } = await this.supabase.admin
       .from('class_sections')
-      .select('id, stream, grade_levels(name)')
+      .select('id, name, grade_levels(name)')
       .eq('tenant_id', req.tenant.tenantId);
     const sectionByKey = new Map<string, string>();
     for (const s of sections ?? []) {
       const grade =
         (s.grade_levels as unknown as { name: string } | null)?.name ?? '';
       sectionByKey.set(
-        `${normalizeHeader(grade)}|${normalizeHeader((s.stream as string) ?? '')}`,
+        `${normalizeHeader(grade)}|${normalizeHeader((s.name as string) ?? '')}`,
         s.id as string,
       );
     }

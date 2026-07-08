@@ -49,25 +49,24 @@ Legend: ✅ done & tested · 🟡 partial · ❌ missing · N/A not applicable.
 | Dashboard (real data) | ✅ | N/A (RLS reads) | ✅ | 🟡 relies on RLS | N/A | ❌ | 🟡 unbounded reads (perf) |
 | Cross-tenant isolation | N/A | N/A | ✅ | ✅ | N/A | ✅ `smoke-isolation` | ✅ |
 | Health/monitoring (mig —) | N/A | ✅ | N/A | N/A (public, counts only) | N/A | ✅ `smoke-health` (live) | ✅ |
-| Staged import pipeline (mig 0011) | ✅ | ✅ | ✅ | ✅ `imports.manage`+domain | ✅ | 🟡 `smoke-imports` written; needs mig 0011 live | 🟡 |
-| Reporting/PDF/CSV/XLSX (mig 0012) | ✅ | ✅ | ✅ (ledger-reconciling RPCs) | ✅ `reports.generate`+per-report | ✅ | 🟡 `smoke-reports` written; needs mig 0012 live | 🟡 |
-| Platform control centre + subscription enforcement (mig 0013) | ✅ `/platform` | ✅ | ✅ | ✅ platform_role; caps in TenantGuard | ✅ (platform log + tenant mirror) | 🟡 `smoke-platform` written; needs mig 0013 live | 🟡 |
-| AI assistant (mig 0014) | ✅ `/assistant` | ✅ | ✅ | ✅ per-tool role checks | ✅ (tool calls + usage) | 🟡 `smoke-ai` (mock) written; `eval-ai` (real, pre-GA gate) | 🟡 |
+| Staged import pipeline (mig 0011) | ✅ | ✅ | ✅ | ✅ `imports.manage`+domain | ✅ | ✅ `smoke-imports` (live, incl. idempotent re-run) | ✅ |
+| Reporting/PDF/CSV/XLSX (mig 0012) | ✅ | ✅ | ✅ (ledger-reconciling RPCs) | ✅ `reports.generate`+per-report | ✅ | ✅ `smoke-reports` (live, incl. tamper-refusal) | ✅ |
+| Platform control centre + subscription enforcement (mig 0013) | ✅ `/platform` | ✅ | ✅ | ✅ platform_role; caps in TenantGuard | ✅ (platform log + tenant mirror) | ✅ `smoke-platform` (live) | ✅ |
+| AI assistant (mig 0014) | ✅ `/assistant` | ✅ | ✅ | ✅ per-tool role checks | ✅ (tool calls + usage) | ✅ `smoke-ai` (live, mock provider) | 🟡 GA gated on full eval suite |
 | Timetable / Payroll / Admissions funnel / Library / Transport / Hostel | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ nav links exist, no implementation |
 
 ## Honest completion picture
 
-_Updated 2026-07-08._ Ten core modules are end-to-end tested live. The three
-former greenfield pillars — **platform control centre + subscription
-enforcement, reporting/export, AI assistant** — plus the **staged import
-pipeline** and **monitoring** are now BUILT (migrations 0011–0014, all quality
-gates green, migrations verified on a schema-identical shadow DB) with smoke
-suites written. Their **live** end-to-end verification is pending one operator
-action: applying migrations 0011–0014 to the Supabase project and running the
-new smokes (see ATLAS_RELEASE_READINESS.md). The restore test has been
-performed and passed. Still not built: marketing website, student portal,
-mobile app, timetable/payroll/library/transport/hostel modules, payment
-webhooks (no provider integration yet).
+_Updated 2026-07-08 (evening)._ Ten core modules plus the four new pillars —
+**staged import pipeline, ledger-reconciled reporting/export, platform control
+centre with subscription enforcement, AI assistant** — are now end-to-end
+verified against the LIVE database: migrations 0011–0014 applied (14/14 in
+history) and **all 13 smoke suites green**. Monitoring/health endpoints are
+live; the restore test has been performed and passed. AI GA remains gated on
+the full CTO §11 eval suite passing with the real provider. Still not built:
+marketing website, student portal, mobile app,
+timetable/payroll/library/transport/hostel modules, payment webhooks (no
+provider integration yet).
 
 ## Roles defined vs. wired
 

@@ -50,18 +50,19 @@ const owner = await makeUser(`ai-owner-${stamp}@example.com`, 'AI Owner');
 const onboard = await api('/onboarding', owner.token, null, {
   school: { name: `Smoke AI ${stamp}`, slug: `smoke-ai-${stamp}`, email: `ai-owner-${stamp}@example.com`, defaultLanguage: 'sw' },
   academicYear: {
-    name: '2027', startsOn: '2027-01-05', endsOn: '2027-12-04',
-    terms: [{ name: 'Muhula wa Kwanza', startsOn: '2027-01-05', endsOn: '2027-06-12' }],
+    name: '2026', startsOn: '2026-01-05', endsOn: '2026-12-04',
+    terms: [{ name: 'Muhula wa Kwanza', startsOn: '2026-01-05', endsOn: '2026-12-04' }],
   },
   classes: [{ educationLevel: 'o_level', gradeName: 'Form 1', sequence: 1, streams: ['A'] }],
 });
 if (onboard.status !== 201) throw new Error(`onboard: ${JSON.stringify(onboard.body)}`);
 const tenantId = onboard.body.tenantId;
+const { data: sections } = await owner.client.from('class_sections').select('id').limit(1);
 await api('/students', owner.token, tenantId, {
-  firstName: 'Halima', lastName: 'Salim', gender: 'female', className: 'Form 1', stream: 'A',
+  firstName: 'Halima', lastName: 'Salim', gender: 'female', classSectionId: sections[0].id,
 });
 await api('/students', owner.token, tenantId, {
-  firstName: 'Issa', lastName: 'Mrisho', gender: 'male', className: 'Form 1', stream: 'A',
+  firstName: 'Issa', lastName: 'Mrisho', gender: 'male', classSectionId: sections[0].id,
 });
 const { data: students } = await owner.client.from('students').select('id, first_name');
 const halima = students.find((s) => s.first_name === 'Halima');
@@ -72,7 +73,6 @@ const inv = await api('/finance/invoices', owner.token, tenantId, {
 await api(`/finance/invoices/${inv.body.invoiceId}/payments`, owner.token, tenantId, {
   amount: 600000, method: 'mpesa',
 });
-const { data: sections } = await owner.client.from('class_sections').select('id').limit(1);
 const today = new Date().toISOString().slice(0, 10);
 const att = await api('/attendance', owner.token, tenantId, {
   classSectionId: sections[0].id,

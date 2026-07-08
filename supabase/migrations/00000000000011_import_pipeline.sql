@@ -320,6 +320,10 @@ grant execute on function public.import_commit_chunk(uuid, uuid, uuid, int) to s
 -- creation rights (students.create / finance.invoices.create) are additionally
 -- checked by the API when a job is created.
 -- ---------------------------------------------------------------------------
+insert into public.permissions (key, description, module)
+values ('imports.manage', 'Upload, validate and commit data imports', 'imports')
+on conflict (key) do nothing;
+
 insert into public.role_permissions (role_id, permission_key)
 select r.id, 'imports.manage'
 from public.roles r

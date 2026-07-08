@@ -73,7 +73,7 @@ class MoonshotProvider implements AiProvider {
           messages,
           tools: tools.length > 0 ? tools : undefined,
           tool_choice: tools.length > 0 ? 'auto' : undefined,
-          temperature: 0.2,
+          // No temperature: kimi-k2.6 rejects anything but the default (1).
           max_tokens: 1200,
         }),
         signal: controller.signal,

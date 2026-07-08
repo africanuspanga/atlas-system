@@ -62,6 +62,26 @@ held for operator approval** (see ATLAS_RELEASE_READINESS.md).
 | 17 | Platform | Migration 0013: plans seeded, entitlements + overview RPCs, `platform_audit_logs`; TenantGuard enforces suspension/expiry per request (fails closed); caps (students/staff) in API; onboarding trial + rate limit (closes **AUD-016**); `/platform` control centre | `migrations/0013`, `api/src/platform`, `tenant.guard.ts`, `web/app/platform` | `smoke-platform.mjs` (pending mig) |
 | 18 | AI | Migration 0014: AI audit tables; 9-tool read-only catalogue (server-verified tenant ctx, same RPCs as reports); Moonshot provider + deterministic mock; /assistant chat UI; eval harness (CTO §11 categories) | `migrations/0014`, `api/src/ai`, `web/app/assistant`, `scripts/eval-ai.mjs` | `smoke-ai.mjs` (pending mig), `eval-ai.mjs` (real provider, pre-GA gate) |
 
+## Live verification pass — 2026-07-08 (operator-approved)
+
+Migrations 0011–0014 applied to the Supabase project (14/14 in history).
+**All 13 smoke suites green** against the migrated DB with the new API build.
+Fixes made during the pass:
+
+| Order | Change | Files | Found by |
+|------:|--------|-------|----------|
+| 19 | `permissions` catalogue rows for `imports.manage` + `reports.generate` (role_permissions FK) — shadow DB (schema-only) couldn't catch this because its `roles` table was empty | `migrations/0011`, `migrations/0012` | live apply |
+| 20 | `class_sections.stream` → `class_sections.name` (column doesn't exist) in imports validator and `report_outstanding_balances` SQL | `imports.controller.ts`, `migrations/0012` (+ live `create or replace`) | `smoke-imports`, `smoke-reports` |
+| 21 | AI smoke/eval seeds: enrol via `classSectionId`, academic term must cover the test date | `smoke-ai.mjs`, `eval-ai.mjs` | `smoke-ai` |
+| 22 | `MOONSHOT_MODEL` updated `kimi-k2-0905-preview` → `kimi-k2.6` (old model retired by provider, 404); temperature param dropped (k2.6 rejects non-default) | `.env`, `.env.example`, `ai-provider.ts` | `eval-ai` |
+| 23 | AI system prompt: current date injected per request (model has no clock — "today"/"leo" questions stalled) + explicit Kiswahili-parity and call-the-tool-let-it-deny rules | `ai.controller.ts` | `eval-ai` 79% → **100%** |
+
+**AI eval (real provider, kimi-k2.6, 2026-07-08): 28/28 — 100% across all
+CTO §11 categories** (finance, attendance, academic, platform, ambiguous,
+unauthorised, cross-tenant, injection, Kiswahili); avg latency 15.2s, 55k
+tokens per full run. Security categories at 100% (release bar). GA still
+requires growing the starter set toward the full 230-question suite.
+
 ## Rollback (build phase)
 
 - Code: each phase is one commit on `audit/production-readiness`.

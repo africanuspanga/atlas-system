@@ -165,7 +165,7 @@ begin
     select jsonb_build_object(
       'studentNumber', s.student_number,
       'studentName', s.first_name || ' ' || s.last_name,
-      'className', coalesce(gl.name || ' ' || cs.stream, '—'),
+      'className', coalesce(gl.name || ' ' || cs.name, '—'),
       'invoiced', agg.invoiced,
       'paid', agg.paid,
       'balance', agg.invoiced - agg.paid
@@ -338,6 +338,10 @@ grant execute on function public.report_student_statement(uuid, uuid) to service
 -- Permission: report generation for administrative + finance roles.
 -- Financial report keys additionally require finance.reports.view (API-side).
 -- ---------------------------------------------------------------------------
+insert into public.permissions (key, description, module)
+values ('reports.generate', 'Generate and download reports', 'reports')
+on conflict (key) do nothing;
+
 insert into public.role_permissions (role_id, permission_key)
 select r.id, 'reports.generate'
 from public.roles r
