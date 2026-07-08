@@ -29,6 +29,8 @@ import { ReportsController } from './reports/reports.controller';
 import { QueueKickService } from './queue/queue-kick.service';
 import { PlatformController } from './platform/platform.controller';
 import { PlatformGuard } from './platform/platform.guard';
+import { AiController } from './ai/ai.controller';
+import { AiToolsService } from './ai/ai-tools.service';
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { PlatformGuard } from './platform/platform.guard';
     ImportsController,
     ReportsController,
     PlatformController,
+    AiController,
   ],
   providers: [
     AppService,
@@ -65,6 +68,7 @@ import { PlatformGuard } from './platform/platform.guard';
     RedisService,
     QueueKickService,
     PlatformGuard,
+    AiToolsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
