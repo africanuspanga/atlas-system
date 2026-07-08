@@ -23,7 +23,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
-import { ImportQueueService } from './import-queue.service';
+import { QueueKickService } from '../queue/queue-kick.service';
 import {
   ALLOWED_EXTENSIONS,
   ImportParseError,
@@ -72,7 +72,7 @@ const MAX_FILE_BYTES = 4 * 1024 * 1024;
 export class ImportsController {
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly importQueue: ImportQueueService,
+    private readonly queue: QueueKickService,
   ) {}
 
   /** Domain-specific creation right, on top of imports.manage. */
@@ -446,10 +446,13 @@ export class ImportsController {
       entity_id: job.id,
       after: { domain: job.domain, rows: committable },
     });
-    await this.importQueue.enqueue(job.id, {
-      tenantId: req.tenant.tenantId,
-      actorUserId: req.user.id,
-    });
+    await this.queue.kick(
+      'imports',
+      'commit-import',
+      job.id,
+      { tenantId: req.tenant.tenantId, actorUserId: req.user.id },
+      { importJobId: job.id },
+    );
     return { queued: true, rows: committable };
   }
 

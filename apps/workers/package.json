@@ -16,10 +16,13 @@
     "@supabase/supabase-js": "^2.47.0",
     "bullmq": "^5.34.0",
     "ioredis": "^5.11.1",
-    "pino": "^9.6.0"
+    "pdfkit": "^0.19.1",
+    "pino": "^9.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/pdfkit": "^0.17.6",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0"
   }

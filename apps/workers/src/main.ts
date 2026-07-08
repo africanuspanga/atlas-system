@@ -8,6 +8,7 @@ import {
   startHeartbeat,
 } from "./observability.js";
 import { createServiceClient, processImportJob } from "./process-imports.js";
+import { processReportJob } from "./process-reports.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 
@@ -45,6 +46,28 @@ const processors: Partial<Record<string, (job: Job<TenantJob>) => Promise<void>>
     if (!importJob) return; // already committed or cancelled — idempotent no-op
     const result = await processImportJob(supabase, importJob);
     logger.info({ importJobId, ...result }, "import job finished");
+  },
+  [QUEUES.reports]: async (job) => {
+    const { reportJobId } = job.data.payload as { reportJobId: string };
+    // Atomic claim so the DB poller and BullMQ can't both process it.
+    const { data: claimed, error } = await supabase
+      .from("report_jobs")
+      .update({ status: "processing" })
+      .eq("id", reportJobId)
+      .eq("tenant_id", job.data.context.tenantId)
+      .eq("status", "queued")
+      .select("id, tenant_id, report_key, format, params, reference, requested_by");
+    if (error) throw new Error(error.message);
+    if (!claimed || claimed.length === 0) return; // already handled — no-op
+    try {
+      await processReportJob(supabase, claimed[0] as Parameters<typeof processReportJob>[1]);
+    } catch (err) {
+      await supabase
+        .from("report_jobs")
+        .update({ status: "failed", error: (err as Error).message.slice(0, 500) })
+        .eq("id", reportJobId);
+      throw err;
+    }
   },
 };
 

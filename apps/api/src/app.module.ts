@@ -23,7 +23,8 @@ import {
 import { HealthController } from './health/health.controller';
 import { RedisService } from './observability/redis.service';
 import { ImportsController } from './imports/imports.controller';
-import { ImportQueueService } from './imports/import-queue.service';
+import { ReportsController } from './reports/reports.controller';
+import { QueueKickService } from './queue/queue-kick.service';
 
 @Module({
   imports: [
@@ -48,7 +49,8 @@ import { ImportQueueService } from './imports/import-queue.service';
     PortalController,
     HealthController,
     ImportsController,
+    ReportsController,
   ],
-  providers: [AppService, SupabaseService, RedisService, ImportQueueService],
+  providers: [AppService, SupabaseService, RedisService, QueueKickService],
 })
 export class AppModule {}
