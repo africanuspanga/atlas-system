@@ -20,6 +20,8 @@ import {
   GuardiansController,
   PortalController,
 } from './parents/parents.controller';
+import { HealthController } from './health/health.controller';
+import { RedisService } from './observability/redis.service';
 
 @Module({
   imports: [
@@ -42,7 +44,8 @@ import {
     CommunicationController,
     GuardiansController,
     PortalController,
+    HealthController,
   ],
-  providers: [AppService, SupabaseService],
+  providers: [AppService, SupabaseService, RedisService],
 })
 export class AppModule {}

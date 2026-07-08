@@ -1,6 +1,12 @@
 import { Worker, type Job, type RedisOptions } from "bullmq";
 import pino from "pino";
 import { QUEUES, type TenantJob } from "./queues.js";
+import {
+  HEARTBEAT_QUEUE_WORKERS,
+  closeObservability,
+  recordFailedJob,
+  startHeartbeat,
+} from "./observability.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 
@@ -42,14 +48,17 @@ const workers = Object.values(QUEUES).map(
 for (const worker of workers) {
   worker.on("failed", (job, err) => {
     logger.error({ queue: worker.name, jobId: job?.id, err: err.message }, "job failed");
+    recordFailedJob(worker.name);
   });
 }
 
+startHeartbeat(HEARTBEAT_QUEUE_WORKERS);
 logger.info({ queues: Object.values(QUEUES) }, "ATLAS workers started");
 
 async function shutdown() {
   logger.info("shutting down workers");
   await Promise.all(workers.map((w) => w.close()));
+  await closeObservability();
   process.exit(0);
 }
 

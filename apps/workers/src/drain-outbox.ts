@@ -12,6 +12,7 @@
 import { createClient } from "@supabase/supabase-js";
 import pino from "pino";
 import { resolveDriver } from "./sms-drivers.js";
+import { HEARTBEAT_OUTBOX, startHeartbeat } from "./observability.js";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 
@@ -133,6 +134,7 @@ async function main() {
   const result = await drainOnce();
   logger.info(result, "outbox drain pass complete");
   if (once) return;
+  startHeartbeat(HEARTBEAT_OUTBOX);
   // A `running` guard prevents overlapping passes when a drain takes longer
   // than POLL_MS (which would otherwise double-process the same rows).
   let running = false;
