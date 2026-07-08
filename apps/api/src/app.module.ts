@@ -31,6 +31,7 @@ import { PlatformController } from './platform/platform.controller';
 import { PlatformGuard } from './platform/platform.guard';
 import { AiController } from './ai/ai.controller';
 import { AiToolsService } from './ai/ai-tools.service';
+import { AiActionsService } from './ai/ai-actions.service';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { AiToolsService } from './ai/ai-tools.service';
     QueueKickService,
     PlatformGuard,
     AiToolsService,
+    AiActionsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

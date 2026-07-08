@@ -27,7 +27,7 @@ const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD');
  * formats. Every key declares which permission it needs beyond the general
  * reports.generate gate.
  */
-const CATALOGUE = {
+export const CATALOGUE = {
   fee_collection: {
     title: 'Fee collection',
     formats: ['csv', 'xlsx', 'pdf'],
@@ -63,7 +63,7 @@ const CATALOGUE = {
   },
 } as const;
 
-type ReportKey = keyof typeof CATALOGUE;
+export type ReportKey = keyof typeof CATALOGUE;
 
 const createSchema = z.object({
   reportKey: z.enum(Object.keys(CATALOGUE) as [ReportKey, ...ReportKey[]]),

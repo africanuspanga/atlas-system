@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SendIcon, SparklesIcon, WrenchIcon } from "lucide-react";
+import {
+	CheckIcon,
+	SendIcon,
+	ShieldCheckIcon,
+	SparklesIcon,
+	WrenchIcon,
+	XIcon,
+} from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -9,10 +16,23 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+interface ProposedAction {
+	actionId: string;
+	preview: {
+		title: string;
+		lines: Array<[string, string]>;
+		warnings: string[];
+	};
+	expiresAt: string;
+	/** UI lifecycle: undefined = awaiting decision. */
+	outcome?: { status: string; result?: Record<string, unknown>; error?: string };
+}
+
 interface ChatMessage {
 	role: "user" | "assistant";
 	content: string;
 	toolsUsed?: string[];
+	actions?: ProposedAction[];
 }
 
 const SUGGESTIONS = [
@@ -52,6 +72,7 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 				conversationId?: string;
 				reply?: string;
 				toolsUsed?: string[];
+				proposedActions?: ProposedAction[];
 				code?: string;
 			} | null;
 			if (!res.ok || !body?.reply) {
@@ -61,11 +82,50 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 			setConversationId(body.conversationId ?? null);
 			setMessages((m) => [
 				...m,
-				{ role: "assistant", content: body.reply!, toolsUsed: body.toolsUsed },
+				{
+					role: "assistant",
+					content: body.reply!,
+					toolsUsed: body.toolsUsed,
+					actions: body.proposedActions,
+				},
 			]);
 		} finally {
 			setPending(false);
 		}
+	}
+
+	async function decideAction(
+		messageIndex: number,
+		actionId: string,
+		decision: "confirm" | "reject",
+	) {
+		const res = await apiFetch(`/api/v1/ai/actions/${actionId}/${decision}`, {
+			method: "POST",
+			tenantId,
+		});
+		const body = (await res.json().catch(() => null)) as {
+			status?: string;
+			result?: Record<string, unknown>;
+			error?: string;
+			code?: string;
+		} | null;
+		const outcome = res.ok
+			? decision === "reject"
+				? { status: "rejected" }
+				: { status: body?.status ?? "failed", result: body?.result, error: body?.error }
+			: { status: "failed", error: body?.code ?? `HTTP ${res.status}` };
+		setMessages((m) =>
+			m.map((msg, i) =>
+				i === messageIndex
+					? {
+							...msg,
+							actions: msg.actions?.map((a) =>
+								a.actionId === actionId ? { ...a, outcome } : a,
+							),
+						}
+					: msg,
+			),
+		);
 	}
 
 	return (
@@ -116,6 +176,71 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 									))}
 								</div>
 							)}
+							{m.actions?.map((action) => (
+								<div
+									key={action.actionId}
+									className="mt-3 rounded-md border bg-background p-3 text-foreground"
+								>
+									<div className="flex items-center gap-1.5 text-sm font-semibold">
+										<ShieldCheckIcon className="size-4" />
+										{action.preview.title}
+									</div>
+									<dl className="mt-2 space-y-0.5 text-xs">
+										{action.preview.lines.map(([label, value], k) => (
+											<div key={k} className="flex gap-2">
+												<dt className="w-28 shrink-0 text-muted-foreground">{label}</dt>
+												<dd>{value}</dd>
+											</div>
+										))}
+									</dl>
+									{action.preview.warnings.map((w, k) => (
+										<p key={k} className="mt-1.5 text-xs text-amber-600">
+											⚠ {w}
+										</p>
+									))}
+									{!action.outcome ? (
+										<div className="mt-2.5 flex gap-2">
+											<Button
+												size="sm"
+												onClick={() => void decideAction(i, action.actionId, "confirm")}
+											>
+												<CheckIcon className="mr-1 size-3.5" /> Confirm
+											</Button>
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => void decideAction(i, action.actionId, "reject")}
+											>
+												<XIcon className="mr-1 size-3.5" /> Reject
+											</Button>
+										</div>
+									) : (
+										<div className="mt-2.5 text-xs">
+											{action.outcome.status === "executed" && (
+												<Badge>
+													Done
+													{action.outcome.result?.receiptNumber
+														? ` — receipt ${String(action.outcome.result.receiptNumber)}`
+														: action.outcome.result?.invoiceNumber
+															? ` — invoice ${String(action.outcome.result.invoiceNumber)}`
+															: (action.outcome.result?.recipients ??
+																		action.outcome.result?.queued) !== undefined
+																? ` — ${String(action.outcome.result.recipients ?? action.outcome.result.queued)} queued`
+																: ""}
+												</Badge>
+											)}
+											{action.outcome.status === "rejected" && (
+												<Badge variant="outline">Rejected — nothing was changed</Badge>
+											)}
+											{action.outcome.status === "failed" && (
+												<Badge variant="destructive">
+													Failed{action.outcome.error ? `: ${action.outcome.error}` : ""}
+												</Badge>
+											)}
+										</div>
+									)}
+								</div>
+							))}
 						</div>
 					))}
 					{pending && (

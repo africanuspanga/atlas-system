@@ -1,6 +1,7 @@
 # ATLAS AI Assistant Specification
 
-_Audit date: 2026-07-05 · Status: **NOT BUILT**_
+_Audit date: 2026-07-05 · **BUILT 2026-07-08** (mig 0014 read layer, mig 0015
+write actions; smoke-ai + smoke-ai-actions green live; eval starter set 100%)_
 
 ## Finding
 
@@ -62,12 +63,36 @@ generated-at, data source, filters, permission scope, and whether the result is
 complete or partial. The AI must admit uncertainty ("term not specified", "no
 permission", "26 registers unsubmitted — result partial") rather than fabricate.
 
-## Write actions
+## Write actions — BUILT (migration 0015, apps/api/src/ai/ai-actions.service.ts)
 
-v1 is **read-only**. No delete/modify/publish/refund/grade-change/payroll/
-suspend/bulk-message/plan-change via AI. Later, controlled actions go through
-`propose → preview → user confirm → permission recheck → approval → execute →
-audit`.
+Implemented exactly as the controlled-action flow:
+`model calls propose* tool → server validates args (zod) + permission + builds
+the preview FROM LIVE DATA → ai_proposed_actions row (user-bound, single-use,
+10-min expiry) → confirmation card in /assistant → POST
+/ai/actions/:id/confirm re-checks permission with a fresh TenantContext →
+executes through the SAME RPCs the app uses (ledger/caps/immutability hold) →
+audit_logs ai.action_executed`. The model can never reach the confirm
+endpoint; a prompt-injected "confirm it yourself" changes nothing (proven in
+smoke + eval).
+
+**Catalogue v1:** recordPayment, createInvoice, createStudent, inviteStaff,
+sendAnnouncement (recipient-count preview; SMS cost warning), sendFeeReminders.
+Each requires the same permission as the equivalent app screen, at proposal
+AND at confirmation.
+
+**Hard-blocked forever** (not in the catalogue; the system prompt also refuses
+them): delete/archive students, modify or reverse payments, publish results,
+change grades, payroll, suspend accounts, bulk plan/subscription changes.
+
+**Supporting read tools added:** searchStudents, getStudentProfile,
+getStudentInvoices (ID resolution before proposing), generateReport (queues a
+real reporting-module job — figures never come from the model).
+
+Lifecycle proof: `smoke-ai-actions.mjs` (13 steps: nothing written before
+confirm; reject; confirm executes with receipt + balanced ledger;
+double-confirm blocked; teacher denied; cross-user confirm blocked; expiry;
+overpay warned then rejected by the finance RPC; announcement preview + queue;
+forbidden refused; full audit).
 
 ## Document ingestion (Channel B)
 

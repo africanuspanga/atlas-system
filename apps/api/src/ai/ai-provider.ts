@@ -163,13 +163,62 @@ class MockProvider implements AiProvider {
     const usage = { promptTokens: 10, completionTokens: 10 };
 
     if (lastToolResult) {
+      const proposed = lastToolResult.content.includes(
+        '"requiresConfirmation":true',
+      );
       return Promise.resolve({
-        content: `MOCK_ANSWER ${lastToolResult.content}`,
+        content: proposed
+          ? `MOCK_PROPOSED please review and confirm ${lastToolResult.content}`
+          : `MOCK_ANSWER ${lastToolResult.content}`,
         toolCalls: [],
         usage,
       });
     }
     const text = lastUser?.content ?? '';
+
+    // Deterministic action-proposal rules (checked before read rules).
+    const payMatch =
+      /record a payment of (\d+)[^]*?(INV-\d+)[^]*?\b(cash|mpesa|bank)\b/i.exec(
+        text,
+      );
+    if (payMatch) {
+      return Promise.resolve({
+        content: null,
+        toolCalls: [
+          {
+            id: 'mock-pay',
+            name: 'proposeRecordPayment',
+            argumentsJson: JSON.stringify({
+              invoiceNumber: payMatch[2],
+              amount: Number(payMatch[1]),
+              method: payMatch[3].toLowerCase(),
+            }),
+          },
+        ],
+        usage,
+      });
+    }
+    const announceMatch = /announce[^]*?"([^"]+)"/i.exec(text);
+    if (announceMatch) {
+      return Promise.resolve({
+        content: null,
+        toolCalls: [
+          {
+            id: 'mock-announce',
+            name: 'proposeSendAnnouncement',
+            argumentsJson: JSON.stringify({ body: announceMatch[1] }),
+          },
+        ],
+        usage,
+      });
+    }
+    if (/delete student|archive student|reverse payment/i.test(text)) {
+      return Promise.resolve({
+        content: 'MOCK_REFUSAL that action is not available to the assistant.',
+        toolCalls: [],
+        usage,
+      });
+    }
     if (/salar|mishahara|payroll/i.test(text)) {
       return Promise.resolve({
         content:
