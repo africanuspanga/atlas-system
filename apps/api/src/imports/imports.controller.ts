@@ -429,6 +429,22 @@ export class ImportsController {
     if (committable === 0) {
       throw new BadRequestException({ code: 'IMPORT_NOTHING_TO_COMMIT' });
     }
+    // Plan cap (mig 0013): a bulk import may not blow past the student limit.
+    if (job.domain === 'students') {
+      const { limits, usage, planKey } = req.tenant.entitlements;
+      if (
+        limits.students !== null &&
+        usage.students + committable > limits.students
+      ) {
+        throw new ForbiddenException({
+          code: 'PLAN_LIMIT_STUDENTS',
+          limit: limits.students,
+          current: usage.students,
+          adding: committable,
+          planKey,
+        });
+      }
+    }
     const { data: updated } = await this.supabase.admin
       .from('import_jobs')
       .update({ status: 'queued' })

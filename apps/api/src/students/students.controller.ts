@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   InternalServerErrorException,
   Post,
   Req,
@@ -66,10 +67,24 @@ export class StudentsController {
     };
   }
 
+  /** Plan cap (mig 0013): active students + incoming rows must fit the plan. */
+  private assertStudentCapacity(req: TenantRequest, adding: number) {
+    const { limits, usage, planKey } = req.tenant.entitlements;
+    if (limits.students !== null && usage.students + adding > limits.students) {
+      throw new ForbiddenException({
+        code: 'PLAN_LIMIT_STUDENTS',
+        limit: limits.students,
+        current: usage.students,
+        planKey,
+      });
+    }
+  }
+
   private async runImport(
     req: TenantRequest,
     rows: StudentRow[],
   ): Promise<{ imported: number }> {
+    this.assertStudentCapacity(req, rows.length);
     const { campusId, yearId } = await this.loadContext(req.tenant.tenantId);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.supabase.admin.rpc('import_students', {

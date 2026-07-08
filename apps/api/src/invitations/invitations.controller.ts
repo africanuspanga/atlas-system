@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   InternalServerErrorException,
   Post,
@@ -53,6 +54,17 @@ export class InvitationsController {
       throw new BadRequestException({
         code: 'INVITE_INVALID',
         issues: parsed.error.issues,
+      });
+    }
+
+    // Plan cap (mig 0013): staff seats.
+    const { limits, usage, planKey } = req.tenant.entitlements;
+    if (limits.staff !== null && usage.staff + 1 > limits.staff) {
+      throw new ForbiddenException({
+        code: 'PLAN_LIMIT_STAFF',
+        limit: limits.staff,
+        current: usage.staff,
+        planKey,
       });
     }
 

@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedRequest } from '../auth/auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -17,7 +18,15 @@ import { onboardingSchema } from './onboarding.schema';
 export class OnboardingController {
   constructor(private readonly supabase: SupabaseService) {}
 
+  // Tenant creation is the most abusable endpoint (AUD-016): tight per-IP
+  // rate limit on top of the global one. Configurable for test environments.
   @Post()
+  @Throttle({
+    default: {
+      limit: Number(process.env.ONBOARD_RATE_LIMIT ?? 6),
+      ttl: 60_000,
+    },
+  })
   @UseGuards(AuthGuard)
   async onboard(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     const parsed = onboardingSchema.safeParse(body);
@@ -60,10 +69,30 @@ export class OnboardingController {
       });
     }
 
-    return data as {
+    const result = data as {
       tenantId: string;
       campusId: string;
       academicYearId: string;
     };
+
+    // Every new school starts on a 30-day trial subscription — this is what
+    // the TenantGuard's entitlement enforcement (mig 0013) evaluates.
+    const { data: trialPlan } = await this.supabase.admin
+      .from('plans')
+      .select('id')
+      .eq('key', 'trial')
+      .single();
+    if (trialPlan) {
+      await this.supabase.admin.from('subscriptions').insert({
+        tenant_id: result.tenantId,
+        plan_id: trialPlan.id as string,
+        status: 'trialing',
+        trial_ends_at: new Date(
+          Date.now() + 30 * 24 * 3600 * 1000,
+        ).toISOString(),
+      });
+    }
+
+    return result;
   }
 }

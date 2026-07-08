@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseService } from './supabase/supabase.service';
@@ -25,6 +27,8 @@ import { RedisService } from './observability/redis.service';
 import { ImportsController } from './imports/imports.controller';
 import { ReportsController } from './reports/reports.controller';
 import { QueueKickService } from './queue/queue-kick.service';
+import { PlatformController } from './platform/platform.controller';
+import { PlatformGuard } from './platform/platform.guard';
 
 @Module({
   imports: [
@@ -33,6 +37,9 @@ import { QueueKickService } from './queue/queue-kick.service';
       // Root .env is shared by all apps; a local .env can override per app.
       envFilePath: ['.env', '../../.env'],
     }),
+    // Global rate limit; tenant creation has a tighter per-route limit
+    // (see OnboardingController — closes AUD-016).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
   ],
   controllers: [
     AppController,
@@ -50,7 +57,15 @@ import { QueueKickService } from './queue/queue-kick.service';
     HealthController,
     ImportsController,
     ReportsController,
+    PlatformController,
   ],
-  providers: [AppService, SupabaseService, RedisService, QueueKickService],
+  providers: [
+    AppService,
+    SupabaseService,
+    RedisService,
+    QueueKickService,
+    PlatformGuard,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
