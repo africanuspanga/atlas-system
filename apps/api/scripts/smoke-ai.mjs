@@ -92,7 +92,13 @@ if (!q1.body.toolsUsed.includes('getFeeCollectionSummary:ok')) {
   throw new Error(`q1 tools: ${JSON.stringify(q1.body.toolsUsed)}`);
 }
 if (!q1.body.reply.includes('600000')) throw new Error(`q1 reply lacks total: ${q1.body.reply.slice(0, 200)}`);
-console.log('2. collection question → getFeeCollectionSummary:ok with the real 600,000');
+// S2 quota surface: either null (plan has no aiMonthlyTokens key = unlimited)
+// or a numeric remaining budget — works whichever way the shared plans are
+// configured, so the assertion stays deterministic.
+if (!(q1.body.quota === null || typeof q1.body.quota?.remaining === 'number')) {
+  throw new Error(`q1 quota shape: ${JSON.stringify(q1.body.quota)}`);
+}
+console.log('2. collection question → getFeeCollectionSummary:ok with the real 600,000 (+ quota surface present)');
 
 // 3. Owner: outstanding + absent (Kiswahili) → correct tools + data
 const q2 = await ask(owner.token, tenantId, 'What are the outstanding balances?');
@@ -148,6 +154,14 @@ if (usage.length < 6 || usage[0].model !== 'mock') throw new Error(`usage record
 const { data: msgs } = await admin.from('ai_messages').select('role').eq('tenant_id', tenantId);
 if (!msgs.some((m) => m.role === 'tool')) throw new Error('tool messages not persisted');
 console.log(`7. audit: ${toolCalls.length} tool calls (incl. denial w/ role), ${usage.length} usage records`);
+
+// SKIPPED (deliberately): forcing an AI_QUOTA_EXCEEDED 429. The monthly token
+// limit lives in plans.limits.aiMonthlyTokens on the SHARED platform plan
+// rows and there is no per-tenant limit override table, so a deterministic
+// breach would require mutating shared plan data that every other tenant on
+// the dev project resolves entitlements from — forbidden. The quota surface
+// (quota: null | {remaining}) is asserted in step 2 above; the breach branch
+// stays covered by code review until a per-tenant override exists.
 
 // Cleanup
 await admin.from('tenants').update({ status: 'archived', name: `[test] ${stamp}` }).eq('id', tenantId);

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LogoIcon } from "@/components/logo";
+import { getServerDict } from "@/i18n/server";
 import { OnboardingWizard } from "./onboarding-wizard";
 
 export const metadata = { title: "Set up your school" };
@@ -15,10 +16,16 @@ export default async function OnboardingPage() {
 	}
 
 	// Already a member of a school → straight to the dashboard.
-	const { data: tenants } = await supabase.from("tenants").select("id").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (tenants && tenants.length > 0) {
 		redirect("/");
 	}
+
+	const { lang } = await getServerDict();
 
 	return (
 		<div className="mx-auto flex min-h-svh w-full max-w-2xl flex-col gap-6 p-4 py-10">
@@ -26,7 +33,7 @@ export default async function OnboardingPage() {
 				<LogoIcon className="size-6" />
 				<span className="text-xl font-semibold tracking-tight text-foreground">ATLAS</span>
 			</div>
-			<OnboardingWizard email={user.email ?? ""} />
+			<OnboardingWizard email={user.email ?? ""} lang={lang} />
 		</div>
 	);
 }

@@ -1,39 +1,29 @@
+"use client";
+
 import Link from "next/link";
 import { LogoIcon } from "@/components/logo";
-import { Button } from "@/components/ui/button";
 import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
-	SidebarGroup,
 	SidebarHeader,
-	SidebarMenu,
 	SidebarMenuButton,
-	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NavGroup } from "@/components/nav-group";
-import {
-	footerNavLinks as defaultFooter,
-	navGroups as defaultGroups,
-	type SidebarNavGroup,
-	type SidebarNavItem,
-} from "@/components/app-shared";
+import { buildNavGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { getDict, type Lang } from "@/i18n";
 
 export function AppSidebar({
 	schoolName,
-	groups = defaultGroups,
-	footerLinks = defaultFooter,
-	quickCreateLabel = "Quick create",
-	searchLabel = "Search",
+	lang = "en",
 }: {
 	schoolName?: string;
-	groups?: SidebarNavGroup[];
-	footerLinks?: SidebarNavItem[];
-	quickCreateLabel?: string;
-	searchLabel?: string;
+	lang?: Lang;
 }) {
+	// Nav is built client-side from the lang string so icon elements never
+	// cross the server→client boundary.
+	const groups = buildNavGroups(getDict(lang));
 	return (
 		<Sidebar collapsible="icon" variant="inset">
 			<SidebarHeader className="h-14 justify-center">
@@ -48,41 +38,12 @@ export function AppSidebar({
 				</SidebarMenuButton>
 			</SidebarHeader>
 			<SidebarContent>
-				<SidebarGroup>
-					<SidebarMenuItem className="flex items-center gap-2">
-						<SidebarMenuButton
-							className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-							tooltip="Quick Create"
-						>
-							<PlusIcon
-							/>
-							<span>{quickCreateLabel}</span>
-						</SidebarMenuButton>
-						<Button
-							aria-label={searchLabel}
-							className="size-8 group-data-[collapsible=icon]:opacity-0"
-							size="icon"
-							variant="outline"
-						>
-							<SearchIcon
-							/>
-							<span className="sr-only">{searchLabel}</span>
-						</Button>
-					</SidebarMenuItem>
-				</SidebarGroup>
 				{groups.map((group, index) => (
 					<NavGroup key={`sidebar-group-${index}`} {...group} />
 				))}
 			</SidebarContent>
 			<SidebarFooter>
-				<LatestChange />
-				<SidebarMenu className="mt-2">
-					{footerLinks.map((item) => (
-						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton className="text-muted-foreground" isActive={item.isActive} size="sm" render={<a href={item.path} />}>{item.icon}<span>{item.title}</span></SidebarMenuButton>
-						</SidebarMenuItem>
-					))}
-				</SidebarMenu>
+				<LatestChange lang={lang} />
 			</SidebarFooter>
 		</Sidebar>
 	);

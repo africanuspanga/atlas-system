@@ -10,6 +10,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,15 +36,22 @@ interface ChatMessage {
 	actions?: ProposedAction[];
 }
 
-const SUGGESTIONS = [
-	"How much did we collect today?",
-	"Which students have the highest unpaid balances?",
-	"Wanafunzi wangapi wapo shuleni?",
-	"Who was absent today?",
-];
-
-export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang }) {
+export function AssistantView({
+	tenantId,
+	lang,
+	embedded = false,
+}: {
+	tenantId: string;
+	lang: Lang;
+	embedded?: boolean;
+}) {
 	const t = getDict(lang);
+	const suggestions = [
+		t("assistant.suggestion1"),
+		t("assistant.suggestion2"),
+		t("assistant.suggestion3"),
+		t("assistant.suggestion4"),
+	];
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [conversationId, setConversationId] = useState<string | null>(null);
 	const [input, setInput] = useState("");
@@ -76,7 +84,7 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 				code?: string;
 			} | null;
 			if (!res.ok || !body?.reply) {
-				setError(body?.code ?? `HTTP ${res.status}`);
+				setError(apiErrorMessage(t, body, res.status));
 				return;
 			}
 			setConversationId(body.conversationId ?? null);
@@ -113,7 +121,7 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 			? decision === "reject"
 				? { status: "rejected" }
 				: { status: body?.status ?? "failed", result: body?.result, error: body?.error }
-			: { status: "failed", error: body?.code ?? `HTTP ${res.status}` };
+			: { status: "failed", error: apiErrorMessage(t, body, res.status) };
 		setMessages((m) =>
 			m.map((msg, i) =>
 				i === messageIndex
@@ -129,26 +137,29 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 	}
 
 	return (
-		<div className="flex h-[calc(100svh-4rem)] flex-col gap-3 p-4 md:p-6">
-			<div>
-				<h1 className="flex items-center gap-2 text-xl font-semibold">
-					<SparklesIcon className="size-5" /> ATLAS Assistant
-				</h1>
-				<p className="text-sm text-muted-foreground">
-					Answers come only from your school&apos;s ATLAS records, limited to what your role may
-					see. Every data access is audited.
-				</p>
-			</div>
+		<div
+			className={
+				embedded
+					? "flex h-full flex-col gap-3 p-4"
+					: "flex h-[calc(100svh-4rem)] flex-col gap-3 p-4 md:p-6"
+			}
+		>
+			{!embedded && (
+				<div>
+					<h1 className="flex items-center gap-2 text-xl font-semibold">
+						<SparklesIcon className="size-5" /> {t("assistant.title")}
+					</h1>
+					<p className="text-sm text-muted-foreground">{t("assistant.subtitle")}</p>
+				</div>
+			)}
 
 			<Card className="flex-1 overflow-hidden">
 				<CardContent className="flex h-full flex-col gap-3 overflow-y-auto p-4">
 					{messages.length === 0 && (
 						<div className="m-auto flex max-w-md flex-col items-center gap-3 text-center">
-							<p className="text-sm text-muted-foreground">
-								Ask about attendance, fees, collections or students — in English or Kiswahili.
-							</p>
+							<p className="text-sm text-muted-foreground">{t("assistant.emptyPrompt")}</p>
 							<div className="flex flex-wrap justify-center gap-2">
-								{SUGGESTIONS.map((s) => (
+								{suggestions.map((s) => (
 									<Button key={s} variant="outline" size="sm" onClick={() => void send(s)}>
 										{s}
 									</Button>
@@ -204,37 +215,38 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 												size="sm"
 												onClick={() => void decideAction(i, action.actionId, "confirm")}
 											>
-												<CheckIcon className="mr-1 size-3.5" /> Confirm
+												<CheckIcon className="mr-1 size-3.5" /> {t("common.confirm")}
 											</Button>
 											<Button
 												size="sm"
 												variant="outline"
 												onClick={() => void decideAction(i, action.actionId, "reject")}
 											>
-												<XIcon className="mr-1 size-3.5" /> Reject
+												<XIcon className="mr-1 size-3.5" /> {t("assistant.reject")}
 											</Button>
 										</div>
 									) : (
 										<div className="mt-2.5 text-xs">
 											{action.outcome.status === "executed" && (
 												<Badge>
-													Done
+													{t("assistant.done")}
 													{action.outcome.result?.receiptNumber
-														? ` — receipt ${String(action.outcome.result.receiptNumber)}`
+														? ` — ${t("assistant.resultReceipt")} ${String(action.outcome.result.receiptNumber)}`
 														: action.outcome.result?.invoiceNumber
-															? ` — invoice ${String(action.outcome.result.invoiceNumber)}`
+															? ` — ${t("assistant.resultInvoice")} ${String(action.outcome.result.invoiceNumber)}`
 															: (action.outcome.result?.recipients ??
 																		action.outcome.result?.queued) !== undefined
-																? ` — ${String(action.outcome.result.recipients ?? action.outcome.result.queued)} queued`
+																? ` — ${String(action.outcome.result?.recipients ?? action.outcome.result?.queued)} ${t("assistant.resultQueued")}`
 																: ""}
 												</Badge>
 											)}
 											{action.outcome.status === "rejected" && (
-												<Badge variant="outline">Rejected — nothing was changed</Badge>
+												<Badge variant="outline">{t("assistant.rejected")}</Badge>
 											)}
 											{action.outcome.status === "failed" && (
 												<Badge variant="destructive">
-													Failed{action.outcome.error ? `: ${action.outcome.error}` : ""}
+													{t("common.failed")}
+													{action.outcome.error ? `: ${action.outcome.error}` : ""}
 												</Badge>
 											)}
 										</div>
@@ -268,11 +280,15 @@ export function AssistantView({ tenantId, lang }: { tenantId: string; lang: Lang
 				<Input
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
-					placeholder="Ask about your school's data…"
+					placeholder={t("assistant.placeholder")}
 					maxLength={2000}
 					disabled={pending}
 				/>
-				<Button type="submit" disabled={pending || input.trim().length === 0} aria-label="Send">
+				<Button
+					type="submit"
+					disabled={pending || input.trim().length === 0}
+					aria-label={t("comm.send")}
+				>
 					<SendIcon className="size-4" />
 				</Button>
 			</form>

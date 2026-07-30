@@ -18,7 +18,11 @@ export default async function ReportCardPage({
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 

@@ -1,10 +1,20 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+  UseGuards,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { RedisService } from '../observability/redis.service';
+import { HealthTokenGuard } from './health-token.guard';
 
 /**
- * Public health endpoints (no auth): they expose status, latency and counts
- * only — never connection strings, hostnames, keys or per-tenant data.
+ * Health endpoints: they expose status, latency and counts only — never
+ * connection strings, hostnames, keys or per-tenant data.
+ *
+ * The bare liveness `GET /health` is always public (load balancers). The
+ * detailed subroutes are public in dev but gated behind HEALTH_TOKEN when it
+ * is set (see health-token.guard.ts — audit L2).
  *
  * Heartbeat/metric keys are written by apps/workers (see observability.ts
  * there); the names must stay in sync.
@@ -34,6 +44,7 @@ export class HealthController {
   }
 
   @Get('database')
+  @UseGuards(HealthTokenGuard)
   async database() {
     const startedAt = Date.now();
     const { error } = await this.supabase.admin
@@ -54,6 +65,7 @@ export class HealthController {
   }
 
   @Get('redis')
+  @UseGuards(HealthTokenGuard)
   async redis_() {
     const startedAt = Date.now();
     try {
@@ -72,6 +84,7 @@ export class HealthController {
   }
 
   @Get('workers')
+  @UseGuards(HealthTokenGuard)
   async workers() {
     let queueWorkers: string | null = null;
     let outboxDrainer: string | null = null;
@@ -113,6 +126,7 @@ export class HealthController {
 
   /** Early warning for stuck/failing SMS delivery. Counts only, no PII. */
   @Get('outbox')
+  @UseGuards(HealthTokenGuard)
   async outbox() {
     const pending = await this.supabase.admin
       .from('notification_outbox')

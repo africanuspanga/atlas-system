@@ -23,6 +23,10 @@ import {
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
 const POLL_MS = Number(process.env.REPORTS_POLL_MS ?? 10_000);
+// Jobs stuck in 'processing' longer than this were stranded by a crashed
+// worker — requeue them (reprocessing is safe: RPCs are read-only and the
+// storage upload uses upsert:true).
+const STALE_MS = 10 * 60_000;
 
 interface ReportJob {
   id: string;
@@ -224,7 +228,7 @@ export async function processReportJob(supabase: SupabaseClient, job: ReportJob)
     .upload(path, file, { contentType, upsert: true });
   if (uploadError) throw new Error(uploadError.message);
 
-  await supabase
+  const { error: completeError } = await supabase
     .from("report_jobs")
     .update({
       status: "completed",
@@ -233,10 +237,21 @@ export async function processReportJob(supabase: SupabaseClient, job: ReportJob)
       completed_at: new Date().toISOString(),
     })
     .eq("id", job.id);
+  // Surface a failed completion update: otherwise the job is generated but
+  // stuck in 'processing' yet logged as success. Throwing routes it to the
+  // caller's catch, which marks the job 'failed'.
+  if (completeError) throw new Error(completeError.message);
 }
 
 export async function drainReportsOnce(supabase: SupabaseClient): Promise<number> {
   let processed = 0;
+  // Recover stale claims: rows stuck in 'processing' past STALE_MS belong to a
+  // crashed worker — requeue them so this pass can pick them up.
+  await supabase
+    .from("report_jobs")
+    .update({ status: "queued" })
+    .eq("status", "processing")
+    .lt("updated_at", new Date(Date.now() - STALE_MS).toISOString());
   for (;;) {
     const { data: jobs, error } = await supabase
       .from("report_jobs")
@@ -263,10 +278,16 @@ export async function drainReportsOnce(supabase: SupabaseClient): Promise<number
         processed += 1;
       } catch (err) {
         const message = (err as Error).message.slice(0, 500);
-        await supabase
+        const { error: failError } = await supabase
           .from("report_jobs")
           .update({ status: "failed", error: message })
           .eq("id", job.id);
+        if (failError) {
+          logger.error(
+            { reportJobId: job.id, err: failError.message },
+            "report failed-status update failed",
+          );
+        }
         logger.error({ reportJobId: job.id, err: message }, "report failed");
       }
     }

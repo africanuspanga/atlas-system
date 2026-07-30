@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,20 @@ export function MarksView({
 
 	const published = assessment.status === "published";
 
+	function describeError(body: { code?: string; message?: string } | null, status: number) {
+		const code = body?.code;
+		switch (code) {
+			case "SCORES_ASSESSMENT_PUBLISHED":
+			case "SCORES_ASSESSMENT_NOT_FOUND":
+			case "SCORES_SUBJECT_NOT_FOUND":
+			case "SCORES_SUBJECT_LEVEL_MISMATCH":
+			case "SCORES_STUDENT_NOT_ENROLLED":
+				return t(`assessments.error.${code}`);
+			default:
+				return apiErrorMessage(t, body, status);
+		}
+	}
+
 	async function save() {
 		if (!subjectId) return;
 		const rows = roster
@@ -90,41 +105,51 @@ export function MarksView({
 			.map((s) => ({ studentId: s.id, marks: Number(marks[s.id]) }));
 		if (rows.length === 0) return;
 		if (rows.some((r) => Number.isNaN(r.marks) || r.marks < 0 || r.marks > 100)) {
-			setError("0–100");
+			setError(t("assessments.invalidMarks"));
 			return;
 		}
 		setPending(true);
 		setError(null);
 		setMessage(null);
-		const response = await apiFetch(`/api/v1/assessments/${assessment.id}/scores`, {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({ subjectId, rows }),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch(`/api/v1/assessments/${assessment.id}/scores`, {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({ subjectId, rows }),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(describeError(body, response.status));
+				return;
+			}
+			setMessage(t("assessments.marksSaved"));
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		setMessage(t("assessments.marksSaved"));
-		router.refresh();
 	}
 
 	async function publish() {
 		setPublishPending(true);
 		setError(null);
-		const response = await apiFetch(`/api/v1/assessments/${assessment.id}/publish`, {
-			method: "POST",
-			tenantId,
-		});
-		setPublishPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch(`/api/v1/assessments/${assessment.id}/publish`, {
+				method: "POST",
+				tenantId,
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPublishPending(false);
 		}
-		router.refresh();
 	}
 
 	return (
@@ -155,6 +180,11 @@ export function MarksView({
 
 			{!published && (
 				<p className="text-sm text-muted-foreground">{t("assessments.publishWarning")}</p>
+			)}
+			{published && (
+				<div className="rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">
+					{t("assessments.publishedLocked")}
+				</div>
 			)}
 
 			<Card className="shadow-none">

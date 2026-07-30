@@ -1,9 +1,11 @@
 /**
  * Notification outbox drain — no Redis required. Polls pending rows in
  * public.notification_outbox and delivers them through the configured SMS
- * driver. Rows are claimed optimistically (update ... where status='pending')
- * so a crashed run never loses a message and a duplicate drainer never
- * double-sends.
+ * driver. Rows are claimed atomically (update ... where status='pending') so a
+ * duplicate drainer never double-sends. Delivery is AT-MOST-ONCE: the claim
+ * flips pending→sent BEFORE the driver call, so a crash between claim and send
+ * can lose that one message. This is deliberate — for SMS a duplicate charge is
+ * worse than a rare miss.
  *
  * Usage:
  *   node dist/drain-outbox.js --once    # drain what's pending, then exit
@@ -43,6 +45,19 @@ function renderBody(template: string, payload: Record<string, unknown>): string 
       `hakuhudhuria shuleni tarehe ${payload.date}. Asante.`
     );
   }
+  if (template === "clinic.visit") {
+    // Kiswahili first — queued by app.record_clinic_visit (migration 0023).
+    const treatment =
+      typeof payload.treatment === "string" && payload.treatment.trim() !== ""
+        ? ` Matibabu: ${payload.treatment}.`
+        : "";
+    return (
+      `Mpendwa ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
+      `Mwanafunzi ${payload.studentName} (${payload.studentNumber}) ` +
+      `alihudumiwa katika zahanati ya shule leo.${treatment} ` +
+      `Asante. - ${payload.schoolName ?? "Shule"}`
+    );
+  }
   if (template === "fees.reminder") {
     const due = payload.dueOn ? ` kabla ya tarehe ${payload.dueOn}` : "";
     return (
@@ -69,17 +84,23 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
   let failed = 0;
 
   for (;;) {
-    // !inner join so archived/suspended tenants never send queued messages
+    // !inner join so draft/suspended/archived tenants never send queued
+    // messages; next_attempt_at gate skips rows still in backoff.
     const { data: rows, error } = await supabase
       .from("notification_outbox")
       .select("id, tenant_id, recipient, template, payload, attempts, tenants!inner(status)")
       .eq("status", "pending")
-      .in("tenants.status", ["active", "configuration"])
+      .in("tenants.status", ["configuration", "data_review", "training", "live"])
+      .lte("next_attempt_at", new Date().toISOString())
       .order("created_at")
       .limit(BATCH);
     if (error) throw new Error(error.message);
     if (!rows || rows.length === 0) break;
 
+    // Track successes in this batch: if a full provider outage means zero rows
+    // delivered, break out and let the POLL_MS cadence back us off rather than
+    // spinning tightly through claimed-then-failed rows.
+    let batchSent = 0;
     for (const row of rows as OutboxRow[]) {
       // Claim the row BEFORE sending: only the drainer whose conditional
       // update actually flips pending→sent proceeds to deliver. A second
@@ -103,15 +124,24 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
       try {
         await driver.send({ recipient: row.recipient, body });
         sent += 1;
+        batchSent += 1;
       } catch (err) {
         const attempts = row.attempts + 1;
         const exhausted = attempts >= MAX_ATTEMPTS;
-        // Release the claim: back to pending for another attempt, or failed.
+        // Release the claim: back to pending for another attempt (with an
+        // exponential backoff on next_attempt_at, capped at 60 min), or failed.
         await supabase
           .from("notification_outbox")
           .update({
             status: exhausted ? "failed" : "pending",
             sent_at: null,
+            ...(exhausted
+              ? {}
+              : {
+                  next_attempt_at: new Date(
+                    Date.now() + Math.min(2 ** attempts, 60) * 60_000,
+                  ).toISOString(),
+                }),
           })
           .eq("id", row.id);
         if (exhausted) failed += 1;
@@ -121,6 +151,9 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
         );
       }
     }
+    // A batch that delivered nothing means the provider is likely down — stop
+    // draining now so we yield to POLL_MS instead of spinning.
+    if (batchSent === 0) break;
     if (rows.length < BATCH) break;
   }
 
@@ -131,25 +164,38 @@ const once = process.argv.includes("--once");
 
 async function main() {
   logger.info({ driver: driver.name, once }, "outbox drain starting");
-  const result = await drainOnce();
-  logger.info(result, "outbox drain pass complete");
-  if (once) return;
+
+  if (once) {
+    // --once must fail loudly so smokes surface real errors.
+    const result = await drainOnce();
+    logger.info(result, "outbox drain pass complete");
+    return;
+  }
+
+  // Poll mode: start the heartbeat and swallow per-pass errors so a single
+  // failing pass (even the very first) never kills the poller.
   startHeartbeat(HEARTBEAT_OUTBOX);
+  const pass = () =>
+    drainOnce()
+      .then((r) => {
+        if (r.sent > 0 || r.failed > 0) logger.info(r, "outbox drain pass complete");
+      })
+      .catch((err) => logger.error({ err: (err as Error).message }, "outbox drain pass errored"));
+
+  await pass();
   // A `running` guard prevents overlapping passes when a drain takes longer
   // than POLL_MS (which would otherwise double-process the same rows).
   let running = false;
   setInterval(() => {
     if (running) return;
     running = true;
-    drainOnce()
-      .then((r) => {
-        if (r.sent > 0 || r.failed > 0) logger.info(r, "outbox drain pass complete");
-      })
-      .catch((err) => logger.error({ err: (err as Error).message }, "outbox drain pass errored"))
-      .finally(() => {
-        running = false;
-      });
+    void pass().finally(() => {
+      running = false;
+    });
   }, POLL_MS);
 }
 
-void main();
+void main().catch((err) => {
+  logger.error({ err: (err as Error).message }, "outbox drain fatal");
+  process.exit(1);
+});

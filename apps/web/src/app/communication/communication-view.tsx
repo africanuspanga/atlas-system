@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MegaphoneIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -144,25 +145,30 @@ function ComposeDialog({
 		setPending(true);
 		setError(null);
 		setMessage(null);
-		const response = await apiFetch("/api/v1/communication/announcements", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({
-				audienceType: audience,
-				classSectionId: audience === "class_section" ? sectionId : undefined,
-				body,
-			}),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const responseBody = await response.json().catch(() => null);
-			setError(responseBody?.message ?? responseBody?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/communication/announcements", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					audienceType: audience,
+					classSectionId: audience === "class_section" ? sectionId : undefined,
+					body,
+				}),
+			});
+			if (!response.ok) {
+				const responseBody = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, responseBody, response.status));
+				return;
+			}
+			const result = await response.json();
+			setMessage(`${t("comm.queuedFor")} ${result.recipients} ${t("comm.recipients")}.`);
+			setBody("");
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const result = await response.json();
-		setMessage(`${t("comm.queuedFor")} ${result.recipients} ${t("comm.recipients")}.`);
-		setBody("");
-		router.refresh();
 	}
 
 	return (

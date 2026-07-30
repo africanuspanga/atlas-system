@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang, type DictKey } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,13 +63,18 @@ export function PortalView({ lang }: { lang: Lang }) {
 			const response = await apiFetch("/api/v1/portal/children");
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);
-				setError(body?.code ?? `HTTP ${response.status}`);
+				// Keep the sentinel for the dedicated "not linked" empty state below.
+				if (body?.code === "PORTAL_NOT_LINKED") {
+					setError("PORTAL_NOT_LINKED");
+					return;
+				}
+				setError(apiErrorMessage(getDict(lang), body, response.status));
 				return;
 			}
 			const body = await response.json();
 			setChildren(body.children);
 		})();
-	}, []);
+	}, [lang]);
 
 	if (error === "PORTAL_NOT_LINKED") {
 		return (
@@ -109,7 +115,7 @@ function ChildCard({ child, lang }: { child: Child; lang: Lang }) {
 		setLoading(false);
 		if (!response.ok) {
 			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
+			setError(apiErrorMessage(t, body, response.status));
 			return;
 		}
 		setReport(await response.json());

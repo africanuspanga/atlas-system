@@ -2,9 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   InternalServerErrorException,
+  NotFoundException,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,8 +18,10 @@ import { SupabaseService } from '../supabase/supabase.service';
 import {
   createFeeItemSchema,
   createInvoiceSchema,
+  debtorsQuerySchema,
   recordPaymentSchema,
   reversePaymentSchema,
+  setInstalmentsSchema,
 } from './finance.schema';
 
 /** Maps RPC business exceptions to 400s with a stable code. */
@@ -56,6 +61,29 @@ export class FinanceController {
       .maybeSingle();
     if (!year) {
       throw new BadRequestException({ code: 'FEE_ITEM_NO_ACTIVE_YEAR' });
+    }
+    if (parsed.data.gradeLevelId) {
+      const { data: gradeLevel } = await this.supabase.admin
+        .from('grade_levels')
+        .select('id')
+        .eq('id', parsed.data.gradeLevelId)
+        .eq('tenant_id', req.tenant.tenantId)
+        .maybeSingle();
+      if (!gradeLevel) {
+        throw new BadRequestException({ code: 'FEE_ITEM_GRADE_NOT_FOUND' });
+      }
+    }
+    if (parsed.data.academicTermId) {
+      const { data: term } = await this.supabase.admin
+        .from('academic_terms')
+        .select('id')
+        .eq('id', parsed.data.academicTermId)
+        .eq('tenant_id', req.tenant.tenantId)
+        .eq('academic_year_id', year.id)
+        .maybeSingle();
+      if (!term) {
+        throw new BadRequestException({ code: 'FEE_ITEM_TERM_NOT_FOUND' });
+      }
     }
     const { data, error } = await this.supabase.admin
       .from('fee_items')
@@ -134,6 +162,204 @@ export class FinanceController {
     return data as { queued: number };
   }
 
+  /** Replaces the instalment plan for an invoice (max 6, sums to total). */
+  @Post('invoices/:id/instalments')
+  @RequirePermission('finance.invoices.create')
+  async setInstalments(
+    @Req() req: TenantRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const parsed = setInstalmentsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INSTALMENTS_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'set_invoice_instalments',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_invoice_id: id,
+        p_rows: parsed.data.rows,
+      },
+    );
+    if (error) {
+      rpcError(error, [
+        'INSTALMENTS_INVOICE_NOT_FOUND',
+        'INSTALMENTS_INVOICE_PAID',
+        'INSTALMENTS_BAD_ROWS',
+        'INSTALMENTS_SUM_MISMATCH',
+        'INSTALMENTS_DATES_INVALID',
+      ]);
+    }
+    return data as { invoiceId: string; instalments: number; total: number };
+  }
+
+  /** Instalment schedule with the paid amount waterfalled across seq. */
+  @Get('invoices/:id/instalments')
+  @RequirePermission('finance.invoices.view')
+  async getInstalments(@Req() req: TenantRequest, @Param('id') id: string) {
+    const {
+      data: invoice,
+      error,
+    }: {
+      data: {
+        id: string;
+        total: number;
+        status: string;
+        invoice_instalments: Array<{
+          seq: number;
+          amount: number;
+          due_on: string;
+        }>;
+        payments: Array<{ amount: number }>;
+      } | null;
+      error: { message: string } | null;
+    } = await this.supabase.admin
+      .from('invoices')
+      .select(
+        'id, total, status, invoice_instalments(seq, amount, due_on), payments(amount)',
+      )
+      .eq('tenant_id', req.tenant.tenantId)
+      .eq('id', id)
+      .maybeSingle();
+    // Distinguish a genuine miss (404) from a transient DB error (500) so a
+    // flaky read never masquerades as "invoice not found".
+    if (error) {
+      throw new InternalServerErrorException({
+        code: 'INSTALMENTS_LOOKUP_FAILED',
+      });
+    }
+    if (!invoice) {
+      throw new NotFoundException({ code: 'INSTALMENTS_INVOICE_NOT_FOUND' });
+    }
+    const paid = (invoice.payments ?? []).reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    let remaining = paid;
+    let dueSeen = false;
+    const rows = (invoice.invoice_instalments ?? [])
+      .sort((a, b) => a.seq - b.seq)
+      .map((row) => {
+        const amount = Number(row.amount);
+        const rowPaid = Math.min(Math.max(remaining, 0), amount);
+        remaining -= rowPaid;
+        let state: 'paid' | 'overdue' | 'due' | 'upcoming';
+        if (rowPaid >= amount) {
+          state = 'paid';
+        } else if (row.due_on < today) {
+          state = 'overdue';
+        } else if (!dueSeen) {
+          state = 'due';
+          dueSeen = true;
+        } else {
+          state = 'upcoming';
+        }
+        return {
+          seq: row.seq,
+          amount,
+          dueOn: row.due_on,
+          paid: rowPaid,
+          balance: amount - rowPaid,
+          state,
+        };
+      });
+    return {
+      invoiceId: invoice.id,
+      total: Number(invoice.total),
+      paid,
+      rows,
+    };
+  }
+
+  /** Ledger-reconciled trial balance — raises REPORT_RECONCILE_FAILED on mismatch. */
+  @Get('trial-balance')
+  @RequirePermission('finance.reports.view')
+  async trialBalance(@Req() req: TenantRequest) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'report_trial_balance',
+      { p_tenant_id: req.tenant.tenantId },
+    );
+    if (error) {
+      rpcError(error, ['REPORT_RECONCILE_FAILED']);
+    }
+    return data as {
+      rows: Array<{
+        code: string;
+        name: string;
+        type: string;
+        debits: number;
+        credits: number;
+        balance: number;
+      }>;
+      totals: { debits: number; credits: number };
+      generatedAt: string;
+    };
+  }
+
+  /** Debtors (wadaiwa) as of a date, grouped by class section. */
+  @Get('debtors')
+  @RequirePermission('finance.debtors.view')
+  async debtors(@Req() req: TenantRequest, @Query() query: unknown) {
+    const parsed = debtorsQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'DEBTORS_QUERY_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    const asOf = parsed.data.asOf ?? new Date().toISOString().slice(0, 10);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc('report_debtors', {
+      p_tenant_id: req.tenant.tenantId,
+      p_as_of: asOf,
+    });
+    if (error) {
+      rpcError(error, ['REPORT_BAD_DATE', 'REPORT_RECONCILE_FAILED']);
+    }
+    const payload = data as {
+      rows: Array<{
+        studentNumber: string;
+        studentName: string;
+        className: string;
+        guardianPhone: string | null;
+        invoiceNumber: string;
+        total: number;
+        paid: number;
+        balance: number;
+        overdue: number;
+      }>;
+      totals: { outstanding: number; overdue: number; ledgerAR: number };
+      generatedAt: string;
+    };
+    const byClass = new Map<string, typeof payload.rows>();
+    for (const row of payload.rows) {
+      const rows = byClass.get(row.className) ?? [];
+      rows.push(row);
+      byClass.set(row.className, rows);
+    }
+    return {
+      asOf,
+      generatedAt: payload.generatedAt,
+      totals: payload.totals,
+      classes: [...byClass.entries()].map(([className, rows]) => ({
+        className,
+        rows,
+        subtotal: {
+          balance: rows.reduce((sum, r) => sum + Number(r.balance), 0),
+          overdue: rows.reduce((sum, r) => sum + Number(r.overdue), 0),
+        },
+      })),
+    };
+  }
+
   @Post('invoices/:id/payments')
   @RequirePermission('finance.payments.receive')
   async recordPayment(
@@ -194,6 +420,12 @@ export class FinanceController {
       p_reason: parsed.data.reason,
     });
     if (error) {
+      if (error.message.includes('payments_one_reversal_idx')) {
+        throw new BadRequestException({
+          code: 'REVERSAL_ALREADY_REVERSED',
+          message: error.message,
+        });
+      }
       rpcError(error, [
         'REVERSAL_PAYMENT_NOT_FOUND',
         'REVERSAL_OF_REVERSAL',

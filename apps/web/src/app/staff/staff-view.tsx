@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { UserPlusIcon, CopyIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,16 +26,16 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-const ROLE_OPTIONS = [
-	{ key: "school_admin", label: "School Administrator" },
-	{ key: "head_teacher", label: "Head Teacher" },
-	{ key: "academic_master", label: "Academic Master" },
-	{ key: "bursar", label: "Bursar" },
-	{ key: "accountant", label: "Accountant" },
-	{ key: "cashier", label: "Cashier" },
-	{ key: "teacher", label: "Teacher" },
-	{ key: "class_teacher", label: "Class Teacher" },
-];
+const ROLE_KEYS = [
+	"school_admin",
+	"head_teacher",
+	"academic_master",
+	"bursar",
+	"accountant",
+	"cashier",
+	"teacher",
+	"class_teacher",
+] as const;
 
 interface Member {
 	id: string;
@@ -52,9 +54,10 @@ interface Invitation {
 }
 
 export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+	const t = useMemo(() => getDict(lang), [lang]);
 	const [members, setMembers] = useState<Member[]>([]);
 	const [invitations, setInvitations] = useState<Invitation[]>([]);
+	const [loaded, setLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
 
 	const reload = useCallback(async () => {
@@ -65,12 +68,14 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 		if (staffRes.ok) {
 			setMembers((await staffRes.json()).data);
 		} else {
-			setLoadError(`Staff list failed (HTTP ${staffRes.status})`);
+			const body = await staffRes.json().catch(() => null);
+			setLoadError(apiErrorMessage(t, body, staffRes.status));
 		}
 		if (invRes.ok) {
 			setInvitations((await invRes.json()).data);
 		}
-	}, [tenantId]);
+		setLoaded(true);
+	}, [tenantId, t]);
 
 	useEffect(() => {
 		// Async data load; state updates land after awaits, not synchronously.
@@ -86,6 +91,9 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 			</div>
 			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
+			{!loaded ? (
+				<ListSkeleton rows={6} />
+			) : (
 			<Card className="shadow-none">
 				<CardContent className="pt-4">
 					<Table>
@@ -118,6 +126,7 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 					</Table>
 				</CardContent>
 			</Card>
+			)}
 
 			{invitations.filter((i) => i.status === "pending").length > 0 && (
 				<Card className="shadow-none">
@@ -134,7 +143,7 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 											<TableCell>{i.email}</TableCell>
 											<TableCell>{i.role_keys.join(", ")}</TableCell>
 											<TableCell className="text-muted-foreground text-xs">
-												expires {new Date(i.expires_at).toLocaleDateString()}
+												{t("staff.expires")} {new Date(i.expires_at).toLocaleDateString()}
 											</TableCell>
 										</TableRow>
 									))}
@@ -173,19 +182,24 @@ function InviteDialog({
 		e.preventDefault();
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/invitations", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({ email, roleKeys: roles }),
-		});
-		setPending(false);
-		const body = await response.json().catch(() => null);
-		if (!response.ok) {
-			setError(body?.message ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/invitations", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({ email, roleKeys: roles }),
+			});
+			const body = await response.json().catch(() => null);
+			if (!response.ok) {
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			setInviteUrl(body.inviteUrl);
+			await onCreated();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		setInviteUrl(body.inviteUrl);
-		await onCreated();
 	}
 
 	return (
@@ -213,6 +227,7 @@ function InviteDialog({
 						<div className="flex gap-2">
 							<Input readOnly value={inviteUrl} />
 							<Button
+								aria-label={t("common.copy")}
 								onClick={async () => {
 									await navigator.clipboard.writeText(inviteUrl);
 									setCopied(true);
@@ -238,15 +253,15 @@ function InviteDialog({
 							value={email}
 						/>
 						<div className="flex flex-wrap gap-2">
-							{ROLE_OPTIONS.map((r) => (
+							{ROLE_KEYS.map((key) => (
 								<Button
-									key={r.key}
-									onClick={() => toggleRole(r.key)}
+									key={key}
+									onClick={() => toggleRole(key)}
 									size="sm"
 									type="button"
-									variant={roles.includes(r.key) ? "default" : "outline"}
+									variant={roles.includes(key) ? "default" : "outline"}
 								>
-									{r.label}
+									{t(`staff.role.${key}`)}
 								</Button>
 							))}
 						</div>

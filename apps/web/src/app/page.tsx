@@ -15,10 +15,12 @@ export default async function Home() {
 		redirect("/login");
 	}
 
-	// RLS: members only see their own tenants.
+	// RLS: members only see their own tenants. Oldest membership-visible school
+	// is the deterministic default.
 	const { data: tenants } = await supabase
 		.from("tenants")
 		.select("id, name, status")
+		.order("created_at", { ascending: true })
 		.limit(1);
 	if (!tenants || tenants.length === 0) {
 		// Linked parents are not tenant members — route them to their portal.
@@ -31,6 +33,7 @@ export default async function Home() {
 		}
 		redirect("/onboarding");
 	}
+	const tenantId = tenants[0].id as string;
 
 	const now = new Date();
 	const today = now.toISOString().slice(0, 10);
@@ -38,30 +41,65 @@ export default async function Home() {
 		.toISOString()
 		.slice(0, 10);
 
+	// Supabase caps row reads at 1000; paginate money-summation reads so busy
+	// schools' totals stay correct.
+	async function fetchAllRows<Row>(
+		build: (from: number, to: number) => PromiseLike<{ data: Row[] | null }>,
+	): Promise<Row[]> {
+		const pageSize = 1000;
+		const all: Row[] = [];
+		for (let from = 0; ; from += pageSize) {
+			const { data } = await build(from, from + pageSize - 1);
+			const page = data ?? [];
+			all.push(...page);
+			if (page.length < pageSize) break;
+		}
+		return all;
+	}
+
 	const [
 		{ count: students },
 		{ count: sections },
 		{ data: sessions },
-		{ data: payments },
-		{ data: invoices },
+		payments,
+		invoices,
+		recentPaymentRows,
 	] = await Promise.all([
 		supabase
 			.from("students")
 			.select("*", { count: "exact", head: true })
+			.eq("tenant_id", tenantId)
 			.eq("status", "active"),
 		supabase
 			.from("class_sections")
 			.select("*", { count: "exact", head: true })
+			.eq("tenant_id", tenantId)
 			.eq("status", "active"),
 		supabase
 			.from("attendance_sessions")
 			.select("session_date, attendance_records(status)")
+			.eq("tenant_id", tenantId)
 			.gte("session_date", monthAgo),
+		fetchAllRows<{ amount: number; method: string }>((from, to) =>
+			supabase
+				.from("payments")
+				.select("amount, method")
+				.eq("tenant_id", tenantId)
+				.range(from, to),
+		),
+		fetchAllRows<{ id: string; total: number; status: string }>((from, to) =>
+			supabase
+				.from("invoices")
+				.select("id, total, status")
+				.eq("tenant_id", tenantId)
+				.range(from, to),
+		),
 		supabase
 			.from("payments")
 			.select("receipt_number, amount, method, students(first_name, last_name)")
-			.order("created_at", { ascending: false }),
-		supabase.from("invoices").select("id, total, status"),
+			.eq("tenant_id", tenantId)
+			.order("created_at", { ascending: false })
+			.limit(5),
 	]);
 
 	// attendance: today's headline + 30-day trend
@@ -84,8 +122,18 @@ export default async function Home() {
 	const { lang } = await getServerDict();
 	const t = getDict(lang);
 
-	// finance: net collections, channels, outstanding
-	const paymentRows = (payments ?? []).map((p) => ({
+	// finance: net collections, channels, outstanding (from full paginated reads)
+	const collectedNet = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+	const byChannel = new Map<string, number>();
+	for (const p of payments) {
+		const method = t(`finance.method.${p.method}` as DictKey);
+		byChannel.set(method, (byChannel.get(method) ?? 0) + Number(p.amount));
+	}
+	const invoicedTotal = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+	const unpaidInvoices = invoices.filter((inv) => inv.status !== "paid").length;
+
+	// recent payments: explicit display list, capped at 5
+	const recentPayments = (recentPaymentRows.data ?? []).map((p) => ({
 		receipt: p.receipt_number as string,
 		amount: Number(p.amount),
 		method: t(`finance.method.${p.method}` as DictKey),
@@ -94,13 +142,6 @@ export default async function Home() {
 			return s ? `${s.first_name} ${s.last_name}` : "—";
 		})(),
 	}));
-	const collectedNet = paymentRows.reduce((sum, p) => sum + p.amount, 0);
-	const byChannel = new Map<string, number>();
-	for (const p of paymentRows) {
-		byChannel.set(p.method, (byChannel.get(p.method) ?? 0) + p.amount);
-	}
-	const invoicedTotal = (invoices ?? []).reduce((sum, inv) => sum + Number(inv.total), 0);
-	const unpaidInvoices = (invoices ?? []).filter((inv) => inv.status !== "paid").length;
 
 	const data: DashboardData = {
 		students: students ?? 0,
@@ -110,7 +151,7 @@ export default async function Home() {
 			? Math.round((todayBucket.present / todayBucket.total) * 1000) / 10
 			: null,
 		collectedNet,
-		receiptCount: paymentRows.filter((p) => p.amount > 0).length,
+		receiptCount: payments.filter((p) => Number(p.amount) > 0).length,
 		outstanding: Math.max(0, invoicedTotal - collectedNet),
 		unpaidInvoices,
 		attendanceTrend: trend,
@@ -118,7 +159,7 @@ export default async function Home() {
 			.map(([channel, amount]) => ({ channel, amount }))
 			.filter((c) => c.amount > 0)
 			.sort((a, b) => b.amount - a.amount),
-		recentPayments: paymentRows.slice(0, 5),
+		recentPayments,
 	};
 
 	return (

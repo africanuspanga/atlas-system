@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UploadIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { getDict, type Lang } from "@/i18n";
+import { apiErrorMessage } from "@/lib/api-error";
+import { getDict, type DictKey, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +17,9 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-const DOMAIN_OPTIONS = [
-	{ key: "students", label: "Students & guardians" },
-	{ key: "opening_balances", label: "Opening balances (fees)" },
+const DOMAIN_OPTIONS: Array<{ key: string; labelKey: DictKey }> = [
+	{ key: "students", labelKey: "imports.domain.students" },
+	{ key: "opening_balances", labelKey: "imports.domain.opening_balances" },
 ];
 
 interface FieldDef {
@@ -121,7 +122,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			});
 			const body = (await res.json().catch(() => null)) as UploadResult | { code?: string; message?: string } | null;
 			if (!res.ok || !body || !("jobId" in body)) {
-				setError((body as { message?: string; code?: string } | null)?.message ?? (body as { code?: string } | null)?.code ?? `HTTP ${res.status}`);
+				setError(apiErrorMessage(t, body as { code?: string; message?: string } | null, res.status));
 				return;
 			}
 			setUpload(body);
@@ -155,8 +156,8 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 				const miss = (body as { missing?: string[] } | null)?.missing;
 				setError(
 					miss?.length
-						? `Missing required fields: ${miss.join(", ")}`
-						: ((body as { code?: string } | null)?.code ?? `HTTP ${res.status}`),
+						? `${t("imports.missingRequired")} ${miss.join(", ")}`
+						: apiErrorMessage(t, body as { code?: string } | null, res.status),
 				);
 				return;
 			}
@@ -178,7 +179,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			});
 			const body = (await res.json().catch(() => null)) as { queued?: boolean; code?: string } | null;
 			if (!res.ok || !body?.queued) {
-				setError(body?.code ?? `HTTP ${res.status}`);
+				setError(apiErrorMessage(t, body, res.status));
 				return;
 			}
 			setApproved(true);
@@ -189,9 +190,18 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 	}
 
 	async function handleDownload(jobId: string, target: "original" | "errors") {
-		const res = await apiFetch(`/api/v1/imports/${jobId}/download?target=${target}`, { tenantId });
-		const body = (await res.json().catch(() => null)) as { url?: string } | null;
-		if (res.ok && body?.url) window.open(body.url, "_blank", "noopener");
+		setError(null);
+		try {
+			const res = await apiFetch(`/api/v1/imports/${jobId}/download?target=${target}`, { tenantId });
+			const body = (await res.json().catch(() => null)) as { url?: string; code?: string } | null;
+			if (res.ok && body?.url) {
+				window.open(body.url, "_blank", "noopener");
+			} else {
+				setError(apiErrorMessage(t, body, res.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		}
 	}
 
 	function resetWizard() {
@@ -207,7 +217,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 				<h1 className="text-xl font-semibold">{t("nav.imports")}</h1>
 				{upload && (
 					<Button variant="outline" size="sm" onClick={resetWizard}>
-						Start over
+						{t("imports.startOver")}
 					</Button>
 				)}
 			</div>
@@ -222,7 +232,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			{!upload && (
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-base">1. Upload a file (.xlsx, .xls, .csv)</CardTitle>
+						<CardTitle className="text-base">{t("imports.step1")}</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
 						<select
@@ -232,7 +242,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 						>
 							{DOMAIN_OPTIONS.map((d) => (
 								<option key={d.key} value={d.key}>
-									{d.label}
+									{t(d.labelKey)}
 								</option>
 							))}
 						</select>
@@ -257,17 +267,18 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-base">
-							2. Map columns — {upload.rowCount} rows detected in “{jobs.find((j) => j.id === upload.jobId)?.original_filename ?? "file"}”
+							{t("imports.step2")} — {upload.rowCount} {t("imports.rowsDetected")} “
+							{jobs.find((j) => j.id === upload.jobId)?.original_filename ?? "…"}”
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-4">
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead>Uploaded column</TableHead>
-									<TableHead>Sample</TableHead>
-									<TableHead>ATLAS field</TableHead>
-									<TableHead>Confidence</TableHead>
+									<TableHead>{t("imports.uploadedColumn")}</TableHead>
+									<TableHead>{t("imports.sample")}</TableHead>
+									<TableHead>{t("imports.atlasField")}</TableHead>
+									<TableHead>{t("imports.confidence")}</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -291,7 +302,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 														setMapping((m) => ({ ...m, [header]: e.target.value || null }))
 													}
 												>
-													<option value="">— ignore —</option>
+													<option value="">{t("imports.ignore")}</option>
 													{upload.fields.map((f) => (
 														<option key={f.key} value={f.key}>
 															{f.label}
@@ -314,7 +325,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 						</Table>
 						<div>
 							<Button onClick={() => void handleValidate()} disabled={pending}>
-								{pending ? t("common.loading") : "Validate (dry run)"}
+								{pending ? t("common.loading") : t("imports.validate")}
 							</Button>
 						</div>
 					</CardContent>
@@ -325,23 +336,23 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			{upload && summary && !approved && (
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-base">3. Review the dry run</CardTitle>
+						<CardTitle className="text-base">{t("imports.step3")}</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-4">
 						<div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-							<Stat label="Rows" value={summary.rowCount} />
-							<Stat label="Valid" value={summary.valid} />
-							<Stat label="Warnings" value={summary.warnings} />
-							<Stat label="Invalid" value={summary.invalid} />
-							<Stat label="Duplicates" value={summary.duplicates} />
+							<Stat label={t("imports.rows")} value={summary.rowCount} />
+							<Stat label={t("imports.valid")} value={summary.valid} />
+							<Stat label={t("imports.warnings")} value={summary.warnings} />
+							<Stat label={t("imports.invalid")} value={summary.invalid} />
+							<Stat label={t("imports.duplicates")} value={summary.duplicates} />
 						</div>
 						{summary.issues.length > 0 && (
 							<Table>
 								<TableHeader>
 									<TableRow>
-										<TableHead>Row</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead>Problems</TableHead>
+										<TableHead>{t("students.row")}</TableHead>
+										<TableHead>{t("students.status")}</TableHead>
+										<TableHead>{t("imports.problems")}</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -361,16 +372,15 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 								</TableBody>
 							</Table>
 						)}
-						<p className="text-sm text-muted-foreground">
-							Invalid rows are skipped. Fix them in the source file and re-upload, or approve to
-							import the {summary.valid + summary.warnings} importable rows now.
-						</p>
+						<p className="text-sm text-muted-foreground">{t("imports.invalidSkipped")}</p>
 						<div className="flex gap-2">
 							<Button
 								onClick={() => void handleApprove()}
 								disabled={pending || summary.valid + summary.warnings === 0}
 							>
-								{pending ? t("common.loading") : `Approve & import ${summary.valid + summary.warnings} rows`}
+								{pending
+									? t("common.loading")
+									: `${t("imports.approve")} ${summary.valid + summary.warnings} ${t("imports.rowsWord")}`}
 							</Button>
 						</div>
 					</CardContent>
@@ -381,7 +391,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 				<Card>
 					<CardContent className="flex items-center gap-3 py-4 text-sm">
 						<RefreshCwIcon className="size-4 animate-spin" />
-						Import queued — progress appears in the history below.
+						{t("imports.queued")}
 					</CardContent>
 				</Card>
 			)}
@@ -389,23 +399,21 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			{/* History */}
 			<Card>
 				<CardHeader>
-					<CardTitle className="text-base">Import history</CardTitle>
+					<CardTitle className="text-base">{t("imports.history")}</CardTitle>
 				</CardHeader>
 				<CardContent>
 					{jobs.length === 0 ? (
-						<p className="py-6 text-center text-sm text-muted-foreground">
-							No imports yet. Upload a students file to get started.
-						</p>
+						<p className="py-6 text-center text-sm text-muted-foreground">{t("imports.empty")}</p>
 					) : (
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead>File</TableHead>
-									<TableHead>Type</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead className="text-right">Rows</TableHead>
-									<TableHead className="text-right">Imported</TableHead>
-									<TableHead className="text-right">Failed</TableHead>
+									<TableHead>{t("imports.file")}</TableHead>
+									<TableHead>{t("imports.type")}</TableHead>
+									<TableHead>{t("students.status")}</TableHead>
+									<TableHead className="text-right">{t("imports.rows")}</TableHead>
+									<TableHead className="text-right">{t("imports.imported")}</TableHead>
+									<TableHead className="text-right">{t("common.failed")}</TableHead>
 									<TableHead />
 								</TableRow>
 							</TableHeader>
@@ -415,7 +423,13 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 										<TableCell className="max-w-48 truncate font-medium">
 											{job.original_filename}
 										</TableCell>
-										<TableCell>{job.domain === "students" ? "Students" : "Opening balances"}</TableCell>
+										<TableCell>
+											{t(
+												job.domain === "students"
+													? "imports.domain.students"
+													: "imports.domain.opening_balances",
+											)}
+										</TableCell>
 										<TableCell>
 											<Badge variant={STATUS_VARIANT[job.status] ?? "secondary"}>{job.status}</Badge>
 										</TableCell>
@@ -426,7 +440,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 										</TableCell>
 										<TableCell className="flex justify-end gap-1">
 											<Button
-												aria-label="Download original file"
+												aria-label={t("imports.downloadOriginal")}
 												variant="ghost"
 												size="icon"
 												onClick={() => void handleDownload(job.id, "original")}
@@ -436,7 +450,7 @@ export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 											{(job.invalid_rows > 0 || job.failed_rows > 0) &&
 												["committed", "failed"].includes(job.status) && (
 													<Button
-														aria-label="Download error report"
+														aria-label={t("imports.downloadErrors")}
 														variant="ghost"
 														size="icon"
 														onClick={() => void handleDownload(job.id, "errors")}

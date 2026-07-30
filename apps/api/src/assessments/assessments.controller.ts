@@ -126,20 +126,29 @@ export class AssessmentsController {
         issues: parsed.error.issues,
       });
     }
-    const { data: section } = await this.supabase.admin
+    const { data: section, error: sectionError } = await this.supabase.admin
       .from('class_sections')
-      .select('id')
+      .select('id, academic_year_id')
       .eq('id', parsed.data.classSectionId)
       .eq('tenant_id', req.tenant.tenantId)
       .maybeSingle();
-    const { data: term } = await this.supabase.admin
+    const { data: term, error: termError } = await this.supabase.admin
       .from('academic_terms')
-      .select('id')
+      .select('id, academic_year_id')
       .eq('id', parsed.data.academicTermId)
       .eq('tenant_id', req.tenant.tenantId)
       .maybeSingle();
+    if (sectionError || termError) {
+      throw new InternalServerErrorException({
+        code: 'ASSESSMENT_LOOKUP_FAILED',
+        message: (sectionError ?? termError)?.message,
+      });
+    }
     if (!section || !term) {
       throw new BadRequestException({ code: 'ASSESSMENT_BAD_SECTION_OR_TERM' });
+    }
+    if (section.academic_year_id !== term.academic_year_id) {
+      throw new BadRequestException({ code: 'ASSESSMENT_TERM_YEAR_MISMATCH' });
     }
 
     const { data, error } = await this.supabase.admin

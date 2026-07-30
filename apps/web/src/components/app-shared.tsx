@@ -5,12 +5,14 @@ import {
 	GraduationCapIcon,
 	BookOpenIcon,
 	CalendarCheckIcon,
+	CalendarRangeIcon,
 	FileSpreadsheetIcon,
 	WalletIcon,
 	ScaleIcon,
 	UsersIcon,
 	MegaphoneIcon,
 	BriefcaseIcon,
+	BanknoteIcon,
 	BusIcon,
 	BedDoubleIcon,
 	LibraryIcon,
@@ -18,11 +20,10 @@ import {
 	HeartPulseIcon,
 	BarChart3Icon,
 	SettingsIcon,
-	LifeBuoyIcon,
 	SparklesIcon,
 	UploadIcon,
 } from "lucide-react";
-import { getDict, type Translator } from "@/i18n";
+import type { Translator } from "@/i18n";
 
 export type SidebarNavItem = {
 	title: string;
@@ -46,9 +47,7 @@ export type SidebarNavGroup = {
 export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 	return [
 		{
-			items: [
-				{ title: t("nav.overview"), path: "/", icon: <LayoutGridIcon />, isActive: true },
-			],
+			items: [{ title: t("nav.overview"), path: "/", icon: <LayoutGridIcon /> }],
 		},
 		{
 			label: t("nav.group.school"),
@@ -56,6 +55,7 @@ export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 				{ title: t("nav.admissions"), path: "/admissions", icon: <ClipboardListIcon /> },
 				{ title: t("nav.students"), path: "/students", icon: <GraduationCapIcon /> },
 				{ title: t("nav.academics"), path: "/academics", icon: <BookOpenIcon /> },
+				{ title: t("nav.timetable"), path: "/timetable", icon: <CalendarRangeIcon /> },
 				{ title: t("nav.attendance"), path: "/attendance", icon: <CalendarCheckIcon /> },
 				{ title: t("nav.assessments"), path: "/assessments", icon: <FileSpreadsheetIcon /> },
 			],
@@ -78,6 +78,7 @@ export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 			label: t("nav.group.operations"),
 			items: [
 				{ title: t("nav.staff"), path: "/staff", icon: <BriefcaseIcon /> },
+				{ title: t("nav.payroll"), path: "/payroll", icon: <BanknoteIcon /> },
 				{ title: t("nav.transport"), path: "/transport", icon: <BusIcon /> },
 				{ title: t("nav.hostel"), path: "/hostel", icon: <BedDoubleIcon /> },
 				{ title: t("nav.library"), path: "/library", icon: <LibraryIcon /> },
@@ -97,19 +98,18 @@ export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 	];
 }
 
-export function buildFooterLinks(t: Translator): SidebarNavItem[] {
-	return [{ title: t("nav.support"), path: "/support", icon: <LifeBuoyIcon /> }];
+/** Flattens nav groups into a lookup list (used for route-aware breadcrumbs). */
+export function flattenNavItems(groups: SidebarNavGroup[]): SidebarNavItem[] {
+	return groups.flatMap((group) =>
+		group.items.flatMap((item) =>
+			item.subItems?.length ? [item, ...item.subItems] : [item],
+		),
+	);
 }
 
-// English fallbacks used by the breadcrumb lookup in the client header.
-export const navGroups: SidebarNavGroup[] = buildNavGroups(getDict("en"));
-export const footerNavLinks: SidebarNavItem[] = buildFooterLinks(getDict("en"));
-
-export const navLinks: SidebarNavItem[] = [
-	...navGroups.flatMap((group) =>
-		group.items.flatMap((item) =>
-			item.subItems?.length ? [item, ...item.subItems] : [item]
-		)
-	),
-	...footerNavLinks,
-];
+/** Route-aware active check: exact for "/", prefix match elsewhere. */
+export function isNavItemActive(pathname: string, path?: string): boolean {
+	if (!path) return false;
+	if (path === "/") return pathname === "/";
+	return pathname === path || pathname.startsWith(`${path}/`);
+}

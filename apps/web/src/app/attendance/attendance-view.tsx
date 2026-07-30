@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,24 +90,29 @@ export function AttendanceView({
 		setPending(true);
 		setError(null);
 		setSaved(null);
-		const response = await apiFetch("/api/v1/attendance", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({
-				classSectionId: sectionId,
-				date,
-				records: roster.map((s) => ({ studentId: s.id, status: statuses[s.id] })),
-			}),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/attendance", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					classSectionId: sectionId,
+					date,
+					records: roster.map((s) => ({ studentId: s.id, status: statuses[s.id] })),
+				}),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			const body = await response.json();
+			setSaved({ alertsQueued: body.alertsQueued ?? 0 });
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json();
-		setSaved({ alertsQueued: body.alertsQueued ?? 0 });
-		router.refresh();
 	}
 
 	const counts = STATUSES.map((status) => ({

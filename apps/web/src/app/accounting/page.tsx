@@ -2,17 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
 import { getServerDict } from "@/i18n/server";
-import type { DictKey } from "@/i18n";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { TrialBalanceCard } from "./accounting-view";
 
 export const metadata = { title: "Accounting" };
 
@@ -27,106 +19,34 @@ export default async function AccountingPage() {
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
+	const tenantId = tenant.id as string;
 
-	const [{ data: accounts }, { data: lines }, { data: entries }] = await Promise.all([
-		supabase.from("ledger_accounts").select("id, code, name, type").order("code"),
-		supabase.from("journal_lines").select("account_id, debit, credit"),
-		supabase
-			.from("journal_entries")
-			.select(
-				"id, entry_number, entry_date, description, journal_lines(debit, credit, ledger_accounts(code, name))",
-			)
-			.order("created_at", { ascending: false })
-			.limit(20),
-	]);
+	// The trial balance comes from the ledger-reconciled report RPC via the
+	// API (see TrialBalanceCard) — the recent journal is a simple RLS read.
+	const { data: entries } = await supabase
+		.from("journal_entries")
+		.select(
+			"id, entry_number, entry_date, description, journal_lines(debit, credit, ledger_accounts(code, name))",
+		)
+		.eq("tenant_id", tenantId)
+		.order("created_at", { ascending: false })
+		.limit(20);
 
-	const totals = new Map<string, { debit: number; credit: number }>();
-	for (const line of lines ?? []) {
-		const bucket = totals.get(line.account_id) ?? { debit: 0, credit: 0 };
-		bucket.debit += Number(line.debit);
-		bucket.credit += Number(line.credit);
-		totals.set(line.account_id, bucket);
-	}
-
-	const { t } = await getServerDict();
-
-	const rows = (accounts ?? []).map((account) => {
-		const sums = totals.get(account.id) ?? { debit: 0, credit: 0 };
-		// asset/expense accounts carry debit balances; the rest credit balances
-		const debitNormal = account.type === "asset" || account.type === "expense";
-		const balance = debitNormal ? sums.debit - sums.credit : sums.credit - sums.debit;
-		return { ...account, ...sums, balance };
-	});
-	const totalDebits = rows.reduce((sum, row) => sum + row.debit, 0);
-	const totalCredits = rows.reduce((sum, row) => sum + row.credit, 0);
+	const { lang, t } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<div className="flex flex-col gap-4">
 				<h1 className="text-xl font-semibold">{t("acct.title")}</h1>
 
-				<Card className="shadow-none">
-					<CardHeader>
-						<CardTitle className="text-base">{t("acct.trialBalance")}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						{rows.length === 0 ? (
-							<p className="py-6 text-center text-sm text-muted-foreground">
-								{t("acct.empty")}
-							</p>
-						) : (
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>{t("acct.account")}</TableHead>
-										<TableHead>{t("acct.type")}</TableHead>
-										<TableHead className="text-right">{t("acct.debit")}</TableHead>
-										<TableHead className="text-right">{t("acct.credit")}</TableHead>
-										<TableHead className="text-right">{t("finance.balance")}</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{rows.map((row) => (
-										<TableRow key={row.id}>
-											<TableCell>
-												<span className="font-mono text-xs">{row.code}</span> {row.name}
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">
-													{t(`acct.type.${row.type}` as DictKey)}
-												</Badge>
-											</TableCell>
-											<TableCell className="text-right tabular-nums">
-												{fmt(row.debit)}
-											</TableCell>
-											<TableCell className="text-right tabular-nums">
-												{fmt(row.credit)}
-											</TableCell>
-											<TableCell className="text-right font-medium tabular-nums">
-												{fmt(row.balance)}
-											</TableCell>
-										</TableRow>
-									))}
-									<TableRow>
-										<TableCell className="font-semibold" colSpan={2}>
-											{t("finance.total")}
-										</TableCell>
-										<TableCell className="text-right font-semibold tabular-nums">
-											{fmt(totalDebits)}
-										</TableCell>
-										<TableCell className="text-right font-semibold tabular-nums">
-											{fmt(totalCredits)}
-										</TableCell>
-										<TableCell />
-									</TableRow>
-								</TableBody>
-							</Table>
-						)}
-					</CardContent>
-				</Card>
+				<TrialBalanceCard lang={lang} tenantId={tenantId} />
 
 				<Card className="shadow-none">
 					<CardHeader>

@@ -19,9 +19,14 @@ export default async function AssessmentsPage() {
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
+	const tenantId = tenant.id as string;
 
 	const [{ data: assessments }, { data: sections }, { data: terms }, { data: subjects }] =
 		await Promise.all([
@@ -32,16 +37,23 @@ export default async function AssessmentsPage() {
 					 class_sections(name, grade_levels(name)),
 					 academic_terms(name)`,
 				)
+				.eq("tenant_id", tenantId)
 				.order("created_at", { ascending: false })
 				.limit(200),
 			supabase
 				.from("class_sections")
 				.select("id, name, grade_levels(name, sequence)")
+				.eq("tenant_id", tenantId)
 				.eq("status", "active"),
-			supabase.from("academic_terms").select("id, name, starts_on").order("starts_on"),
+			supabase
+				.from("academic_terms")
+				.select("id, name, starts_on")
+				.eq("tenant_id", tenantId)
+				.order("starts_on"),
 			supabase
 				.from("subjects")
 				.select("id, code, name, name_sw, education_level")
+				.eq("tenant_id", tenantId)
 				.eq("status", "active")
 				.order("code"),
 		]);

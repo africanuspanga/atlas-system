@@ -111,6 +111,7 @@ export class PortalController {
                class_enrolments(status, class_sections(name, grade_levels(name)))`,
             )
             .eq('id', link.studentId)
+            .eq('tenant_id', link.tenantId)
             .maybeSingle(),
           this.supabase.admin
             .from('tenants')
@@ -131,15 +132,18 @@ export class PortalController {
           this.supabase.admin
             .from('invoices')
             .select('total')
-            .eq('student_id', link.studentId),
+            .eq('student_id', link.studentId)
+            .eq('tenant_id', link.tenantId),
           this.supabase.admin
             .from('payments')
             .select('amount')
-            .eq('student_id', link.studentId),
+            .eq('student_id', link.studentId)
+            .eq('tenant_id', link.tenantId),
           this.supabase.admin
             .from('attendance_records')
             .select('status')
-            .eq('student_id', link.studentId),
+            .eq('student_id', link.studentId)
+            .eq('tenant_id', link.tenantId),
         ]);
 
       const attendanceCounts: Record<string, number> = {};

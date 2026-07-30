@@ -13,9 +13,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getDict, type Lang } from "@/i18n";
 import { UserIcon, LifeBuoyIcon, LogOutIcon } from "lucide-react";
 
-export function NavUser() {
+export function NavUser({ lang = "en" }: { lang?: Lang }) {
+	const t = getDict(lang);
 	const router = useRouter();
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
@@ -49,7 +51,7 @@ export function NavUser() {
 							<AvatarFallback>{initial}</AvatarFallback>
 						</Avatar>
 						<div>
-							<span className="font-medium text-foreground">{name || "Account"}</span>{" "}
+							<span className="font-medium text-foreground">{name || t("user.account")}</span>{" "}
 							<br />
 							<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-xs">
 								{email}
@@ -61,11 +63,11 @@ export function NavUser() {
 				<DropdownMenuGroup>
 					<DropdownMenuItem>
 						<UserIcon />
-						Profile
+						{t("user.profile")}
 					</DropdownMenuItem>
 					<DropdownMenuItem>
 						<LifeBuoyIcon />
-						Support
+						{t("nav.support")}
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
@@ -76,7 +78,7 @@ export function NavUser() {
 						variant="destructive"
 					>
 						<LogOutIcon />
-						Log out
+						{t("user.logout")}
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>

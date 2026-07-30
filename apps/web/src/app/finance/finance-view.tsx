@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BellRingIcon, PlusIcon, ReceiptIcon } from "lucide-react";
+import { BellRingIcon, PlusIcon, ReceiptIcon, UsersIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,9 @@ export function FinanceView({
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h1 className="text-xl font-semibold">{t("finance.title")}</h1>
 				<div className="flex gap-2">
+					<Button render={<Link href="/finance/debtors" />} size="sm" variant="outline">
+						<UsersIcon /> {t("finance.debtors")}
+					</Button>
 					<SendRemindersButton lang={lang} tenantId={tenantId} />
 					<FeeItemsDialog feeItems={feeItems} lang={lang} tenantId={tenantId} />
 					<CreateInvoiceDialog
@@ -163,17 +167,25 @@ function SendRemindersButton({ tenantId, lang }: { tenantId: string; lang: Lang 
 	async function send() {
 		setPending(true);
 		setMessage(null);
-		const response = await apiFetch("/api/v1/finance/reminders", {
-			method: "POST",
-			tenantId,
-		});
-		setPending(false);
-		const body = await response.json().catch(() => null);
-		setMessage(
-			response.ok
-				? `${body.queued} ${t("finance.remindersQueued")}`
-				: (body?.code ?? `HTTP ${response.status}`),
-		);
+		try {
+			const response = await apiFetch("/api/v1/finance/reminders", {
+				method: "POST",
+				tenantId,
+			});
+			const body = (await response.json().catch(() => null)) as {
+				queued?: number;
+				code?: string;
+			} | null;
+			setMessage(
+				response.ok
+					? `${body?.queued ?? 0} ${t("finance.remindersQueued")}`
+					: apiErrorMessage(t, body, response.status),
+			);
+		} catch {
+			setMessage(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
 	}
 
 	return (
@@ -207,20 +219,25 @@ function FeeItemsDialog({
 		e.preventDefault();
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/finance/fee-items", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({ name, amount: Number(amount) }),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/finance/fee-items", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({ name, amount: Number(amount) }),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			setName("");
+			setAmount("");
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		setName("");
-		setAmount("");
-		router.refresh();
 	}
 
 	return (
@@ -326,25 +343,30 @@ function CreateInvoiceDialog({
 		if (lines.length === 0 || !studentId) return;
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/finance/invoices", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({
-				studentId,
-				academicTermId: termId || undefined,
-				dueOn: dueOn || undefined,
-				lines,
-			}),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/finance/invoices", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					studentId,
+					academicTermId: termId || undefined,
+					dueOn: dueOn || undefined,
+					lines,
+				}),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			const body = await response.json();
+			setOpen(false);
+			router.push(`/finance/${body.invoiceId}`);
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json();
-		setOpen(false);
-		router.push(`/finance/${body.invoiceId}`);
 	}
 
 	return (

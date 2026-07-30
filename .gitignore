@@ -18,6 +18,10 @@ build/
 supabase/.branches/
 supabase/.temp/
 
+# local shadow-migration Postgres scratch dir — never commit DB state/dumps
+atlas-migration-test/
+*.dump
+
 # misc
 .DS_Store
 *.log
@@ -28,3 +32,8 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Expo mobile
+apps/mobile/.env
+apps/mobile/.expo/
+apps/mobile/dist/

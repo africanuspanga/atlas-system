@@ -18,9 +18,14 @@ export default async function CommunicationPage() {
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
+	const tenantId = tenant.id as string;
 
 	const [{ data: announcements }, { data: outbox }, { data: sections }] = await Promise.all([
 		supabase
@@ -28,12 +33,14 @@ export default async function CommunicationPage() {
 			.select(
 				"id, audience_type, body, recipient_count, created_at, class_sections(name, grade_levels(name))",
 			)
+			.eq("tenant_id", tenantId)
 			.order("created_at", { ascending: false })
 			.limit(100),
-		supabase.from("notification_outbox").select("status"),
+		supabase.from("notification_outbox").select("status").eq("tenant_id", tenantId),
 		supabase
 			.from("class_sections")
 			.select("id, name, grade_levels(name, sequence)")
+			.eq("tenant_id", tenantId)
 			.eq("status", "active"),
 	]);
 

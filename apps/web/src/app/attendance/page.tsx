@@ -25,9 +25,14 @@ export default async function AttendancePage({
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
+	const tenantId = tenant.id as string;
 
 	const date =
 		params.date && DATE_RE.test(params.date)
@@ -37,6 +42,7 @@ export default async function AttendancePage({
 	const { data: sections } = await supabase
 		.from("class_sections")
 		.select("id, name, grade_levels(name, sequence)")
+		.eq("tenant_id", tenantId)
 		.eq("status", "active");
 
 	const sectionOptions: SectionOption[] = (sections ?? [])
@@ -62,11 +68,13 @@ export default async function AttendancePage({
 			supabase
 				.from("class_enrolments")
 				.select("students(id, student_number, first_name, middle_name, last_name)")
+				.eq("tenant_id", tenantId)
 				.eq("class_section_id", sectionId)
 				.eq("status", "active"),
 			supabase
 				.from("attendance_sessions")
 				.select("id, revision, attendance_records(student_id, status)")
+				.eq("tenant_id", tenantId)
 				.eq("class_section_id", sectionId)
 				.eq("session_date", date)
 				.maybeSingle(),

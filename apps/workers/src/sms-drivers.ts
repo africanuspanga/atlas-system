@@ -18,6 +18,16 @@ export interface SmsDriver {
   send(message: SmsMessage): Promise<void>;
 }
 
+/**
+ * Normalises a recipient to a Beem-ready MSISDN. Numbers are stored canonically
+ * as local `0XXXXXXXXX` but Beem needs international `255XXXXXXXXX`; already-
+ * international numbers pass through unchanged. Exported for unit tests.
+ */
+export function toMsisdn(recipient: string): string {
+  const digits = recipient.replace(/\D/g, "");
+  return /^0\d{9}$/.test(digits) ? "255" + digits.slice(1) : digits;
+}
+
 const consoleDriver: SmsDriver = {
   name: "console",
   send(message) {
@@ -45,8 +55,8 @@ function beemDriver(apiKey: string, secretKey: string, senderId: string): SmsDri
           encoding: 0,
           message: message.body,
           recipients: [
-            // Beem expects msisdn without the leading +
-            { recipient_id: 1, dest_addr: message.recipient.replace(/^\+/, "") },
+            // Beem expects an international msisdn (255XXXXXXXXX), no leading +.
+            { recipient_id: 1, dest_addr: toMsisdn(message.recipient) },
           ],
         }),
       });

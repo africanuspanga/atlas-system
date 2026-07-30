@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 
@@ -16,20 +17,25 @@ export function InviteAccept({ token, lang }: { token: string; lang: Lang }) {
 	async function accept() {
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/invitations/accept", {
-			method: "POST",
-			body: JSON.stringify({ token }),
-		});
-		setPending(false);
-		if (!response.ok) {
+		try {
+			const response = await apiFetch("/api/v1/invitations/accept", {
+				method: "POST",
+				body: JSON.stringify({ token }),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
 			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+			setAccepted(true);
+			router.push(body?.portal === "parent" ? "/portal" : "/");
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json().catch(() => null);
-		setAccepted(true);
-		router.push(body?.portal === "parent" ? "/portal" : "/");
-		router.refresh();
 	}
 
 	return (

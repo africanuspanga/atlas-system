@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/safe-redirect";
+import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,7 +24,8 @@ type Mode = "signin" | "signup";
 const DEMO_EMAIL = "demo@chiefsarwatt.sc.tz";
 const DEMO_PASSWORD = "DemoAtlas2026!";
 
-export function LoginForm() {
+export function LoginForm({ lang }: { lang: Lang }) {
+	const t = getDict(lang);
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [mode, setMode] = useState<Mode>("signin");
@@ -32,9 +34,7 @@ export function LoginForm() {
 	const [password, setPassword] = useState("");
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(
-		searchParams.get("error") === "confirmation_failed"
-			? "Email confirmation failed or the link expired. Please try again."
-			: null,
+		searchParams.get("error") === "confirmation_failed" ? t("login.confirmFailed") : null,
 	);
 	const [notice, setNotice] = useState<string | null>(null);
 
@@ -42,18 +42,23 @@ export function LoginForm() {
 		setError(null);
 		setNotice(null);
 		setPending(true);
-		const supabase = createClient();
-		const { error } = await supabase.auth.signInWithPassword({
-			email: signInEmail,
-			password: signInPassword,
-		});
-		setPending(false);
-		if (error) {
-			setError(error.message);
-			return;
+		try {
+			const supabase = createClient();
+			const { error } = await supabase.auth.signInWithPassword({
+				email: signInEmail,
+				password: signInPassword,
+			});
+			if (error) {
+				setError(error.message);
+				return;
+			}
+			router.push(safeNext(searchParams.get("next")));
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		router.push(safeNext(searchParams.get("next")));
-		router.refresh();
 	}
 
 	function demoSignIn() {
@@ -74,39 +79,42 @@ export function LoginForm() {
 			return;
 		}
 		setPending(true);
-		const supabase = createClient();
+		try {
+			const supabase = createClient();
 
-		const { data, error } = await supabase.auth.signUp({
-			email,
-			password,
-			options: {
-				data: { full_name: fullName },
-				emailRedirectTo: `${window.location.origin}/auth/confirm`,
-			},
-		});
-		setPending(false);
-		if (error) {
-			setError(error.message);
-			return;
+			const { data, error } = await supabase.auth.signUp({
+				email,
+				password,
+				options: {
+					data: { full_name: fullName },
+					emailRedirectTo: `${window.location.origin}/auth/confirm`,
+				},
+			});
+			if (error) {
+				setError(error.message);
+				return;
+			}
+			if (data.session) {
+				// Email confirmation disabled — signed in immediately.
+				router.push("/onboarding");
+				router.refresh();
+				return;
+			}
+			setNotice(t("login.accountCreated"));
+			setMode("signin");
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		if (data.session) {
-			// Email confirmation disabled — signed in immediately.
-			router.push("/onboarding");
-			router.refresh();
-			return;
-		}
-		setNotice("Account created. Check your email to confirm your address, then sign in.");
-		setMode("signin");
 	}
 
 	return (
 		<Card className="w-full max-w-sm shadow-none">
 			<CardHeader>
-				<CardTitle>{mode === "signin" ? "Sign in" : "Create your account"}</CardTitle>
+				<CardTitle>{mode === "signin" ? t("login.signin") : t("login.createTitle")}</CardTitle>
 				<CardDescription>
-					{mode === "signin"
-						? "Welcome back. Enter your details to continue."
-						: "Start by creating the account that will own your school."}
+					{mode === "signin" ? t("login.signinDesc") : t("login.signupDesc")}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -114,7 +122,7 @@ export function LoginForm() {
 					{mode === "signup" && (
 						<div className="flex flex-col gap-1.5">
 							<label className="text-sm font-medium" htmlFor="fullName">
-								Full name
+								{t("login.fullName")}
 							</label>
 							<Input
 								id="fullName"
@@ -127,7 +135,7 @@ export function LoginForm() {
 					)}
 					<div className="flex flex-col gap-1.5">
 						<label className="text-sm font-medium" htmlFor="email">
-							Email
+							{t("login.email")}
 						</label>
 						<Input
 							id="email"
@@ -140,7 +148,7 @@ export function LoginForm() {
 					</div>
 					<div className="flex flex-col gap-1.5">
 						<label className="text-sm font-medium" htmlFor="password">
-							Password
+							{t("login.password")}
 						</label>
 						<Input
 							id="password"
@@ -154,13 +162,17 @@ export function LoginForm() {
 					{error && <p className="text-sm text-destructive">{error}</p>}
 					{notice && <p className="text-sm text-muted-foreground">{notice}</p>}
 					<Button disabled={pending} type="submit">
-						{pending ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+						{pending
+							? t("login.pleaseWait")
+							: mode === "signin"
+								? t("login.signin")
+								: t("login.createAccount")}
 					</Button>
 				</form>
 				<div className="mt-4 flex flex-col gap-3">
 					<div className="flex items-center gap-3 text-xs text-muted-foreground">
 						<span className="h-px flex-1 bg-border" />
-						demo
+						{t("login.demoDivider")}
 						<span className="h-px flex-1 bg-border" />
 					</div>
 					<Button
@@ -169,12 +181,9 @@ export function LoginForm() {
 						type="button"
 						variant="outline"
 					>
-						Try the demo — Chief Sarwatt School
+						{t("login.tryDemo")}
 					</Button>
-					<p className="text-center text-xs text-muted-foreground">
-						Jaribu mfumo na shule ya mfano yenye taarifa kamili. Credentials fill in
-						automatically.
-					</p>
+					<p className="text-center text-xs text-muted-foreground">{t("login.demoHint")}</p>
 					<button
 						className="text-sm text-muted-foreground underline-offset-4 hover:underline"
 						onClick={() => {
@@ -184,9 +193,7 @@ export function LoginForm() {
 						}}
 						type="button"
 					>
-						{mode === "signin"
-							? "New school? Create an account"
-							: "Already have an account? Sign in"}
+						{mode === "signin" ? t("login.new") : t("login.existing")}
 					</button>
 				</div>
 			</CardContent>

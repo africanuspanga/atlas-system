@@ -64,14 +64,33 @@ export async function processImportJob(
 
 /** Uploads a CSV of problem rows next to the original file (private bucket). */
 async function writeErrorReport(supabase: SupabaseClient, job: QueuedJob): Promise<void> {
-  const { data: problems } = await supabase
-    .from("import_staging_rows")
-    .select("row_number, validation_status, validation_errors, commit_error, raw_data")
-    .eq("import_job_id", job.id)
-    .or("validation_status.in.(invalid,warning),commit_error.not.is.null")
-    .order("row_number")
-    .limit(5000);
-  if (!problems || problems.length === 0) return;
+  // Paginate past PostgREST's 1000-row cap (a bare .limit(5000) silently
+  // truncates at 1000). Cap the report at 5000 problem rows.
+  const REPORT_CAP = 5000;
+  const page = 1000;
+  const problems: Array<{
+    row_number: number;
+    validation_status: string;
+    validation_errors: { code: string; message: string }[] | null;
+    commit_error: string | null;
+    raw_data: unknown;
+  }> = [];
+  for (let from = 0; from < REPORT_CAP; from += page) {
+    const { data, error } = await supabase
+      .from("import_staging_rows")
+      .select("row_number, validation_status, validation_errors, commit_error, raw_data")
+      .eq("import_job_id", job.id)
+      .or("validation_status.in.(invalid,warning),commit_error.not.is.null")
+      .order("row_number")
+      .range(from, from + page - 1);
+    if (error) {
+      logger.error({ importJobId: job.id, err: error.message }, "error report read failed");
+      return;
+    }
+    problems.push(...((data ?? []) as typeof problems));
+    if (!data || data.length < page) break;
+  }
+  if (problems.length === 0) return;
 
   // Formula-injection-safe CSV (leading = + - @ get a leading quote).
   const esc = (v: unknown): string => {

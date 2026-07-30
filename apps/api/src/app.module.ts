@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { Http500ScrubFilter } from './common/http-500-scrub.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupabaseService } from './supabase/supabase.service';
@@ -12,10 +13,12 @@ import {
   StaffController,
 } from './invitations/invitations.controller';
 import { AttendanceController } from './attendance/attendance.controller';
+import { TimetableController } from './timetable/timetable.controller';
 import {
   AssessmentsController,
   SubjectsController,
 } from './assessments/assessments.controller';
+import { AcademicsController } from './assessments/academics.controller';
 import { FinanceController } from './finance/finance.controller';
 import { CommunicationController } from './communication/communication.controller';
 import {
@@ -29,7 +32,14 @@ import { ReportsController } from './reports/reports.controller';
 import { QueueKickService } from './queue/queue-kick.service';
 import { PlatformController } from './platform/platform.controller';
 import { PlatformGuard } from './platform/platform.guard';
+import { HostelController } from './hostel/hostel.controller';
+import { TransportController } from './transport/transport.controller';
+import { LibraryController } from './library/library.controller';
+import { InventoryController } from './inventory/inventory.controller';
+import { ClinicController } from './clinic/clinic.controller';
+import { PayrollController } from './payroll/payroll.controller';
 import { AiController } from './ai/ai.controller';
+import { DevicesModule } from './devices/devices.module';
 import { AiToolsService } from './ai/ai-tools.service';
 import { AiActionsService } from './ai/ai-actions.service';
 
@@ -43,6 +53,7 @@ import { AiActionsService } from './ai/ai-actions.service';
     // Global rate limit; tenant creation has a tighter per-route limit
     // (see OnboardingController — closes AUD-016).
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    DevicesModule,
   ],
   controllers: [
     AppController,
@@ -51,8 +62,10 @@ import { AiActionsService } from './ai/ai-actions.service';
     InvitationsController,
     StaffController,
     AttendanceController,
+    TimetableController,
     AssessmentsController,
     SubjectsController,
+    AcademicsController,
     FinanceController,
     CommunicationController,
     GuardiansController,
@@ -61,6 +74,12 @@ import { AiActionsService } from './ai/ai-actions.service';
     ImportsController,
     ReportsController,
     PlatformController,
+    HostelController,
+    TransportController,
+    LibraryController,
+    InventoryController,
+    ClinicController,
+    PayrollController,
     AiController,
   ],
   providers: [
@@ -72,6 +91,9 @@ import { AiActionsService } from './ai/ai-actions.service';
     AiToolsService,
     AiActionsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // 5xx responses are scrubbed to `{ code }` — raw upstream error messages
+    // (Postgres/PostgREST) stay in server logs only (audit M2).
+    { provide: APP_FILTER, useClass: Http500ScrubFilter },
   ],
 })
 export class AppModule {}

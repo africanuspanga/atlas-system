@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PrinterIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,7 +87,7 @@ export function ReportCardView({
 			setLoading(false);
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);
-				setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
+				setError(apiErrorMessage(getDict(lang), body, response.status));
 				setReport(null);
 				return;
 			}
@@ -95,7 +96,7 @@ export function ReportCardView({
 		return () => {
 			ignore = true;
 		};
-	}, [termId, studentId, tenantId]);
+	}, [termId, studentId, tenantId, lang]);
 
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4">

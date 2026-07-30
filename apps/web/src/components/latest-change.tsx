@@ -3,16 +3,17 @@
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getDict, type Lang } from "@/i18n";
 import { XIcon } from "lucide-react";
 
-const latestChange = {
-	badge: "PILOT",
-	title: "ATLAS early access",
-	description: "Foundation build in progress.", // TIP: Use a single line of text for the description. (max 5 words)
-	readMore: { href: "#", label: "Roadmap" },
-} as const;
-
-export function LatestChange() {
+export function LatestChange({ lang = "en" }: { lang?: Lang }) {
+	const t = getDict(lang);
+	// Keep descriptions to a single short line (max ~5 words).
+	const latestChange = {
+		badge: t("pilot.badge"),
+		title: t("pilot.title"),
+		description: t("pilot.desc"),
+	};
 	const [isOpen, setIsOpen] = useState(true);
 
 	if (!isOpen) {
@@ -34,14 +35,14 @@ export function LatestChange() {
 			<span className="text-[10px] text-muted-foreground">
 				{latestChange.description}
 			</span>
-			<Button className="w-max px-0 font-light text-xs" size="sm" variant="link" render={<a href={latestChange.readMore.href} />} nativeButton={false}>{latestChange.readMore.label}</Button>
 			<Button
-				className="absolute top-2 right-2 z-10 size-6 rounded-full opacity-0 transition-opacity group-hover/latest-change:opacity-100"
+				aria-label={t("common.close")}
+				className="absolute top-2 right-2 z-10 size-6 rounded-full"
 				onClick={() => setIsOpen(false)}
 				size="icon-sm"
 				variant="ghost"
 			>
-				<XIcon className="size-3.5 text-muted-foreground" />{" "}
+				<XIcon className="size-3.5 text-muted-foreground" />
 			</Button>
 		</div>
 	);

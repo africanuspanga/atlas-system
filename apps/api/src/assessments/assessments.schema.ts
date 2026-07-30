@@ -40,3 +40,17 @@ export const reportCardQuerySchema = z.object({
   studentId: z.string().uuid(),
   termId: z.string().uuid(),
 });
+
+export const assignCombinationSchema = z.object({
+  combinationId: z.string().uuid(),
+  academicYearId: z.string().uuid(),
+});
+
+export const caSummaryQuerySchema = z.object({
+  sectionId: z.string().uuid(),
+  yearId: z.string().uuid(),
+});
+
+export const sectionQuerySchema = z.object({
+  sectionId: z.string().uuid(),
+});

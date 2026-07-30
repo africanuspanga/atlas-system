@@ -76,20 +76,36 @@ export class OnboardingController {
     };
 
     // Every new school starts on a 30-day trial subscription — this is what
-    // the TenantGuard's entitlement enforcement (mig 0013) evaluates.
-    const { data: trialPlan } = await this.supabase.admin
+    // the TenantGuard's entitlement enforcement (mig 0013) evaluates. Without
+    // it the tenant is half-provisioned: it exists but the guard fails closed
+    // on every request. If provisioning the subscription fails, archive the
+    // just-created tenant (never hard-delete — audit_logs FK) and fail loudly.
+    const { data: trialPlan, error: planError } = await this.supabase.admin
       .from('plans')
       .select('id')
       .eq('key', 'trial')
       .single();
+    let subError: { message: string } | null = null;
     if (trialPlan) {
-      await this.supabase.admin.from('subscriptions').insert({
-        tenant_id: result.tenantId,
-        plan_id: trialPlan.id as string,
-        status: 'trialing',
-        trial_ends_at: new Date(
-          Date.now() + 30 * 24 * 3600 * 1000,
-        ).toISOString(),
+      ({ error: subError } = await this.supabase.admin
+        .from('subscriptions')
+        .insert({
+          tenant_id: result.tenantId,
+          plan_id: trialPlan.id as string,
+          status: 'trialing',
+          trial_ends_at: new Date(
+            Date.now() + 30 * 24 * 3600 * 1000,
+          ).toISOString(),
+        }));
+    }
+    if (planError || !trialPlan || subError) {
+      await this.supabase.admin
+        .from('tenants')
+        .update({ status: 'archived' })
+        .eq('id', result.tenantId);
+      throw new InternalServerErrorException({
+        code: 'ONBOARDING_SUBSCRIPTION_FAILED',
+        message: (planError ?? subError)?.message,
       });
     }
 

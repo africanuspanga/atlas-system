@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+const isoDate = z.string().date('Expected YYYY-MM-DD');
 
 export const PAYMENT_METHODS = [
   'cash',
@@ -15,7 +15,7 @@ export const PAYMENT_METHODS = [
 
 export const createFeeItemSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  amount: z.number().positive().max(1_000_000_000),
+  amount: z.number().positive().multipleOf(0.01).max(1_000_000_000),
   gradeLevelId: z.string().uuid().optional(),
   academicTermId: z.string().uuid().optional(),
 });
@@ -24,7 +24,7 @@ const invoiceLineSchema = z.union([
   z.object({ feeItemId: z.string().uuid() }),
   z.object({
     description: z.string().trim().min(1).max(200),
-    amount: z.number().positive().max(1_000_000_000),
+    amount: z.number().positive().multipleOf(0.01).max(1_000_000_000),
   }),
 ]);
 
@@ -36,7 +36,7 @@ export const createInvoiceSchema = z.object({
 });
 
 export const recordPaymentSchema = z.object({
-  amount: z.number().positive().max(1_000_000_000),
+  amount: z.number().positive().multipleOf(0.01).max(1_000_000_000),
   method: z.enum(PAYMENT_METHODS),
   reference: z.string().trim().max(100).optional(),
   paidOn: isoDate.optional(),
@@ -44,4 +44,20 @@ export const recordPaymentSchema = z.object({
 
 export const reversePaymentSchema = z.object({
   reason: z.string().trim().min(3).max(300),
+});
+
+export const setInstalmentsSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        amount: z.number().positive().multipleOf(0.01).max(1_000_000_000),
+        dueOn: isoDate,
+      }),
+    )
+    .min(1)
+    .max(6),
+});
+
+export const debtorsQuerySchema = z.object({
+  asOf: isoDate.optional(),
 });

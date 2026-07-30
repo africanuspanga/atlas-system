@@ -13,7 +13,11 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedRequest } from '../auth/auth.guard';
-import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
+import {
+  TenantGuard,
+  RequirePermission,
+  SUPER_ROLES,
+} from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
 import { resolveWebOrigin } from '../config';
@@ -57,15 +61,37 @@ export class InvitationsController {
       });
     }
 
-    // Plan cap (mig 0013): staff seats.
+    // Privilege escalation guard: only an owner (school_owner/director) may
+    // mint a SUPER_ROLE — those roles bypass every permission check, so a
+    // non-owner with `members.invite` must not be able to grant one.
+    if (
+      !req.tenant.isOwner &&
+      parsed.data.roleKeys.some((k) => SUPER_ROLES.includes(k))
+    ) {
+      throw new ForbiddenException({ code: 'INVITE_ROLE_NOT_ALLOWED' });
+    }
+
+    // Plan cap (mig 0013): staff seats. `usage.staff` counts only active
+    // memberships, so pending invites must be counted too — otherwise N
+    // invites can be minted under a single seat of headroom, then all
+    // accepted, blowing past the cap. The DB (mig 0026) is the backstop.
     const { limits, usage, planKey } = req.tenant.entitlements;
-    if (limits.staff !== null && usage.staff + 1 > limits.staff) {
-      throw new ForbiddenException({
-        code: 'PLAN_LIMIT_STAFF',
-        limit: limits.staff,
-        current: usage.staff,
-        planKey,
-      });
+    if (limits.staff !== null) {
+      const { count: pendingInvites } = await this.supabase.admin
+        .from('invitations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', req.tenant.tenantId)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString());
+      if (usage.staff + (pendingInvites ?? 0) + 1 > limits.staff) {
+        throw new ForbiddenException({
+          code: 'PLAN_LIMIT_STAFF',
+          limit: limits.staff,
+          current: usage.staff,
+          pending: pendingInvites ?? 0,
+          planKey,
+        });
+      }
     }
 
     const token = randomBytes(24).toString('hex');
@@ -119,10 +145,17 @@ export class InvitationsController {
       p_token_hash: hashToken(parsed.data.token),
     });
     if (error) {
+      // The DB (mig 0026) is the authoritative seat-cap backstop: if the
+      // seat cap would be exceeded, app.accept_invitation raises
+      // PLAN_LIMIT_STAFF regardless of what the pre-check saw.
+      let code = 'INVITE_INVALID_OR_EXPIRED';
+      if (error.message.includes('PLAN_LIMIT_STAFF')) {
+        code = 'PLAN_LIMIT_STAFF';
+      } else if (error.message.includes('EMAIL_MISMATCH')) {
+        code = 'INVITE_EMAIL_MISMATCH';
+      }
       throw new BadRequestException({
-        code: error.message.includes('EMAIL_MISMATCH')
-          ? 'INVITE_EMAIL_MISMATCH'
-          : 'INVITE_INVALID_OR_EXPIRED',
+        code,
         message: error.message,
       });
     }

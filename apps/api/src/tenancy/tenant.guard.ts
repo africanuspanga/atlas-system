@@ -51,7 +51,10 @@ export interface TenantRequest extends AuthenticatedRequest {
 }
 
 /** Roles with full access to their school (blueprint: School Owner/Director). */
-const SUPER_ROLES = ['school_owner', 'director'];
+export const SUPER_ROLES = ['school_owner', 'director'];
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Resolves the active tenant from the x-tenant-id header, verifies the
@@ -68,7 +71,7 @@ export class TenantGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<TenantRequest>();
     const tenantId = request.headers['x-tenant-id'];
-    if (typeof tenantId !== 'string' || !/^[0-9a-f-]{36}$/.test(tenantId)) {
+    if (typeof tenantId !== 'string' || !UUID_RE.test(tenantId)) {
       throw new UnauthorizedException('Missing or invalid x-tenant-id header');
     }
 
@@ -117,6 +120,17 @@ export class TenantGuard implements CanActivate {
         ['cancelled', 'expired'].includes(entitlements.subscriptionStatus))
     ) {
       throw new ForbiddenException({ code: 'SUBSCRIPTION_EXPIRED' });
+    }
+    // Lapsed paid subscription — same posture as an expired trial: reads
+    // open, writes blocked. past_due, or an 'active' period that has ended.
+    // A null currentPeriodEnd means "no end" (legacy rows) — never a lockout.
+    const subscriptionLapsed =
+      entitlements.subscriptionStatus === 'past_due' ||
+      (entitlements.subscriptionStatus === 'active' &&
+        entitlements.currentPeriodEnd !== null &&
+        new Date(entitlements.currentPeriodEnd).getTime() < Date.now());
+    if (request.method !== 'GET' && subscriptionLapsed) {
+      throw new ForbiddenException({ code: 'SUBSCRIPTION_LAPSED' });
     }
 
     const { data: roleRows } = await this.supabase.admin

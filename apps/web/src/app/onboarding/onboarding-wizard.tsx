@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
+import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,20 +20,23 @@ import { Badge } from "@/components/ui/badge";
 type EducationLevel = "pre_primary" | "primary" | "o_level" | "a_level";
 
 interface ClassRow {
+	presetKey: string; // immutable preset grade name — row identity, not sent on submit
 	educationLevel: EducationLevel;
 	gradeName: string;
 	sequence: number;
 	streams: string; // comma-separated in the UI, split on submit
 }
 
-const LEVEL_PRESETS: Record<EducationLevel, { label: string; grades: string[] }> = {
-	pre_primary: { label: "Pre-primary (Chekechea)", grades: ["Chekechea"] },
+// `hint` is the grade range shown after the translated level name; grade
+// names themselves are school data (identical in EN and SW).
+const LEVEL_PRESETS: Record<EducationLevel, { hint: string; grades: string[] }> = {
+	pre_primary: { hint: "(Chekechea)", grades: ["Chekechea"] },
 	primary: {
-		label: "Primary (Darasa I–VII)",
+		hint: "(Darasa I–VII)",
 		grades: ["Std I", "Std II", "Std III", "Std IV", "Std V", "Std VI", "Std VII"],
 	},
-	o_level: { label: "O-Level (Form 1–4)", grades: ["Form 1", "Form 2", "Form 3", "Form 4"] },
-	a_level: { label: "A-Level (Form 5–6)", grades: ["Form 5", "Form 6"] },
+	o_level: { hint: "(Form 1–4)", grades: ["Form 1", "Form 2", "Form 3", "Form 4"] },
+	a_level: { hint: "(Form 5–6)", grades: ["Form 5", "Form 6"] },
 };
 
 function slugify(value: string) {
@@ -56,7 +62,8 @@ function Field({
 	);
 }
 
-export function OnboardingWizard({ email }: { email: string }) {
+export function OnboardingWizard({ email, lang }: { email: string; lang: Lang }) {
+	const t = getDict(lang);
 	const router = useRouter();
 	const [step, setStep] = useState(1);
 	const [pending, setPending] = useState(false);
@@ -90,17 +97,28 @@ export function OnboardingWizard({ email }: { email: string }) {
 	}
 
 	function goToClasses() {
-		// Build class rows from the selected levels, keeping any edits when
-		// the user goes back and forth.
+		// Build class rows from the selected levels, keeping any edits (renamed
+		// grade, edited streams) when the user goes back and forth. Row identity
+		// is the immutable preset name — never the editable gradeName — and the
+		// sequence + level are always recomputed fresh so changing the selected
+		// levels can't leave stale/duplicate ordering behind.
 		const rows: ClassRow[] = [];
 		let sequence = 0;
 		for (const level of ["pre_primary", "primary", "o_level", "a_level"] as const) {
 			if (!levels.includes(level)) continue;
 			for (const grade of LEVEL_PRESETS[level].grades) {
 				sequence += 1;
-				const existing = classes.find((c) => c.gradeName === grade);
+				const existing = classes.find((c) => c.presetKey === grade);
 				rows.push(
-					existing ?? { educationLevel: level, gradeName: grade, sequence, streams: "A" },
+					existing
+						? { ...existing, educationLevel: level, sequence }
+						: {
+								presetKey: grade,
+								educationLevel: level,
+								gradeName: grade,
+								sequence,
+								streams: "A",
+							},
 				);
 			}
 		}
@@ -117,7 +135,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 				data: { session },
 			} = await supabase.auth.getSession();
 			if (!session) {
-				setError("Your session expired. Please sign in again.");
+				setError(t("onboard.sessionExpired"));
 				return;
 			}
 
@@ -143,30 +161,22 @@ export function OnboardingWizard({ email }: { email: string }) {
 				})),
 			};
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_API_URL}/api/v1/onboarding`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${session.access_token}`,
-					},
-					body: JSON.stringify(payload),
-				},
-			);
+			// apiFetch attaches auth itself and works pre-tenant (no x-tenant-id).
+			const response = await apiFetch("/api/v1/onboarding", {
+				method: "POST",
+				body: JSON.stringify(payload),
+			});
 
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);
-				setError(
-					body?.message ?? body?.code ?? `Setup failed (HTTP ${response.status}). Try again.`,
-				);
+				setError(apiErrorMessage(t, body, response.status));
 				return;
 			}
 
 			router.push("/");
 			router.refresh();
 		} catch {
-			setError("Could not reach the ATLAS API. Is it running?");
+			setError(t("onboard.apiUnreachable"));
 		} finally {
 			setPending(false);
 		}
@@ -176,19 +186,21 @@ export function OnboardingWizard({ email }: { email: string }) {
 		<Card className="shadow-none">
 			<CardHeader>
 				<div className="flex items-center gap-2">
-					<CardTitle>Set up your school</CardTitle>
-					<Badge variant="outline">Step {step} of 3</Badge>
+					<CardTitle>{t("onboard.title")}</CardTitle>
+					<Badge variant="outline">
+						{t("onboard.step")} {step} {t("report.of")} 3
+					</Badge>
 				</div>
 				<CardDescription>
-					{step === 1 && "Tell us about your school."}
-					{step === 2 && "Configure your academic year and terms."}
-					{step === 3 && "Review your classes and streams — edit anything you need."}
+					{step === 1 && t("onboard.desc1")}
+					{step === 2 && t("onboard.desc2")}
+					{step === 3 && t("onboard.desc3")}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-4">
 				{step === 1 && (
 					<>
-						<Field label="School name">
+						<Field label={t("onboard.schoolName")}>
 							<Input
 								value={name}
 								onChange={(e) => {
@@ -198,7 +210,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 								placeholder="Mwenge Secondary School"
 							/>
 						</Field>
-						<Field label="ATLAS address (auto-generated, editable)">
+						<Field label={t("onboard.slug")}>
 							<Input
 								value={slug}
 								onChange={(e) => setSlug(slugify(e.target.value))}
@@ -206,17 +218,17 @@ export function OnboardingWizard({ email }: { email: string }) {
 							/>
 						</Field>
 						<div className="grid grid-cols-2 gap-4">
-							<Field label="Region">
+							<Field label={t("settings.region")}>
 								<Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Dar es Salaam" />
 							</Field>
-							<Field label="District">
+							<Field label={t("settings.district")}>
 								<Input value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Kinondoni" />
 							</Field>
 						</div>
-						<Field label="Phone">
+						<Field label={t("parents.phone")}>
 							<Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+255 7XX XXX XXX" />
 						</Field>
-						<Field label="Default language">
+						<Field label={t("onboard.defaultLanguage")}>
 							<div className="flex gap-2">
 								<Button
 									onClick={() => setDefaultLanguage("en")}
@@ -224,7 +236,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 									type="button"
 									variant={defaultLanguage === "en" ? "default" : "outline"}
 								>
-									English
+									{t("settings.lang.en")}
 								</Button>
 								<Button
 									onClick={() => setDefaultLanguage("sw")}
@@ -232,11 +244,11 @@ export function OnboardingWizard({ email }: { email: string }) {
 									type="button"
 									variant={defaultLanguage === "sw" ? "default" : "outline"}
 								>
-									Kiswahili
+									{t("settings.lang.sw")}
 								</Button>
 							</div>
 						</Field>
-						<Field label="Education levels offered">
+						<Field label={t("onboard.levels")}>
 							<div className="flex flex-wrap gap-2">
 								{(Object.keys(LEVEL_PRESETS) as EducationLevel[]).map((level) => (
 									<Button
@@ -246,7 +258,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 										type="button"
 										variant={levels.includes(level) ? "default" : "outline"}
 									>
-										{LEVEL_PRESETS[level].label}
+										{t(`academics.level.${level}`)} {LEVEL_PRESETS[level].hint}
 									</Button>
 								))}
 							</div>
@@ -256,7 +268,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 							disabled={name.length < 2 || slug.length < 3 || levels.length === 0}
 							onClick={() => setStep(2)}
 						>
-							Continue
+							{t("common.continue")}
 						</Button>
 					</>
 				)}
@@ -264,19 +276,19 @@ export function OnboardingWizard({ email }: { email: string }) {
 				{step === 2 && (
 					<>
 						<div className="grid grid-cols-3 gap-4">
-							<Field label="Year name">
+							<Field label={t("onboard.yearName")}>
 								<Input value={yearName} onChange={(e) => setYearName(e.target.value)} />
 							</Field>
-							<Field label="Starts">
+							<Field label={t("onboard.starts")}>
 								<Input type="date" value={yearStart} onChange={(e) => setYearStart(e.target.value)} />
 							</Field>
-							<Field label="Ends">
+							<Field label={t("onboard.ends")}>
 								<Input type="date" value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} />
 							</Field>
 						</div>
 						{terms.map((term, index) => (
 							<div className="grid grid-cols-3 gap-4" key={index}>
-								<Field label={`Term ${index + 1} name`}>
+								<Field label={`${t("assessments.term")} ${index + 1}`}>
 									<Input
 										value={term.name}
 										onChange={(e) =>
@@ -284,7 +296,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 										}
 									/>
 								</Field>
-								<Field label="Starts">
+								<Field label={t("onboard.starts")}>
 									<Input
 										type="date"
 										value={term.startsOn}
@@ -293,7 +305,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 										}
 									/>
 								</Field>
-								<Field label="Ends">
+								<Field label={t("onboard.ends")}>
 									<Input
 										type="date"
 										value={term.endsOn}
@@ -306,9 +318,9 @@ export function OnboardingWizard({ email }: { email: string }) {
 						))}
 						<div className="flex gap-2 self-end">
 							<Button onClick={() => setStep(1)} variant="outline">
-								Back
+								{t("common.back")}
 							</Button>
-							<Button onClick={goToClasses}>Continue</Button>
+							<Button onClick={goToClasses}>{t("common.continue")}</Button>
 						</div>
 					</>
 				)}
@@ -316,12 +328,13 @@ export function OnboardingWizard({ email }: { email: string }) {
 				{step === 3 && (
 					<>
 						<p className="text-sm text-muted-foreground">
-							Streams are comma-separated — e.g. <span className="font-mono">A, B</span> creates
-							two streams per class.
+							{t("onboard.streamsHintBefore")}
+							<span className="font-mono">A, B</span>
+							{t("onboard.streamsHintAfter")}
 						</p>
 						{classes.map((row, index) => (
-							<div className="grid grid-cols-2 gap-4" key={row.gradeName}>
-								<Field label="Class">
+							<div className="grid grid-cols-2 gap-4" key={row.presetKey}>
+								<Field label={t("students.class")}>
 									<Input
 										value={row.gradeName}
 										onChange={(e) =>
@@ -331,7 +344,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 										}
 									/>
 								</Field>
-								<Field label="Streams">
+								<Field label={t("onboard.streams")}>
 									<Input
 										value={row.streams}
 										onChange={(e) =>
@@ -346,10 +359,10 @@ export function OnboardingWizard({ email }: { email: string }) {
 						{error && <p className="text-sm text-destructive">{error}</p>}
 						<div className="flex gap-2 self-end">
 							<Button disabled={pending} onClick={() => setStep(2)} variant="outline">
-								Back
+								{t("common.back")}
 							</Button>
 							<Button disabled={pending} onClick={submit}>
-								{pending ? "Creating your school…" : "Create school"}
+								{pending ? t("onboard.creating") : t("onboard.create")}
 							</Button>
 						</div>
 					</>

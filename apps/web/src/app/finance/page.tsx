@@ -19,36 +19,70 @@ export default async function FinancePage() {
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase.from("tenants").select("id, name").limit(1);
+	const { data: tenants } = await supabase
+		.from("tenants")
+		.select("id, name")
+		.order("created_at", { ascending: true })
+		.limit(1);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
+	const tenantId = tenant.id as string;
 
-	const [{ data: invoices }, { data: payments }, { data: feeItems }, { data: students }, { data: terms }] =
+	// Supabase caps row reads at 1000; paginate the money-summation read so busy
+	// schools' paid-to-date totals stay correct.
+	async function fetchAllRows<Row>(
+		build: (from: number, to: number) => PromiseLike<{ data: Row[] | null }>,
+	): Promise<Row[]> {
+		const pageSize = 1000;
+		const all: Row[] = [];
+		for (let from = 0; ; from += pageSize) {
+			const { data } = await build(from, from + pageSize - 1);
+			const page = data ?? [];
+			all.push(...page);
+			if (page.length < pageSize) break;
+		}
+		return all;
+	}
+
+	const [{ data: invoices }, payments, { data: feeItems }, { data: students }, { data: terms }] =
 		await Promise.all([
 			supabase
 				.from("invoices")
 				.select(
 					"id, invoice_number, total, status, issued_on, due_on, students(first_name, last_name, student_number)",
 				)
+				.eq("tenant_id", tenantId)
 				.order("created_at", { ascending: false })
 				.limit(200),
-			supabase.from("payments").select("invoice_id, amount"),
+			fetchAllRows<{ invoice_id: string; amount: number }>((from, to) =>
+				supabase
+					.from("payments")
+					.select("invoice_id, amount")
+					.eq("tenant_id", tenantId)
+					.range(from, to),
+			),
 			supabase
 				.from("fee_items")
 				.select("id, name, amount")
+				.eq("tenant_id", tenantId)
 				.eq("status", "active")
 				.order("name"),
 			supabase
 				.from("students")
 				.select("id, first_name, last_name, student_number")
+				.eq("tenant_id", tenantId)
 				.eq("status", "active")
 				.order("last_name")
 				.limit(500),
-			supabase.from("academic_terms").select("id, name").order("starts_on"),
+			supabase
+				.from("academic_terms")
+				.select("id, name")
+				.eq("tenant_id", tenantId)
+				.order("starts_on"),
 		]);
 
 	const paidByInvoice = new Map<string, number>();
-	for (const p of payments ?? []) {
+	for (const p of payments) {
 		paidByInvoice.set(
 			p.invoice_id,
 			(paidByInvoice.get(p.invoice_id) ?? 0) + Number(p.amount),

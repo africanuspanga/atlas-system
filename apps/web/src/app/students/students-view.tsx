@@ -1,11 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
-import { PlusIcon, UploadIcon, DownloadIcon } from "lucide-react";
+import { PlusIcon, UploadIcon, DownloadIcon, SearchIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
+import { createClient } from "@/lib/supabase/client";
+import { ListSkeleton } from "@/components/list-skeleton";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,8 @@ export interface StudentListRow {
 	}>;
 }
 
+// Import-file contract: these header names are parsed back verbatim by
+// sheet_to_json → RawRow in handleFile(). Do NOT translate them.
 const TEMPLATE_HEADERS = [
 	"firstName",
 	"middleName",
@@ -129,18 +134,102 @@ function toImportRow(raw: RawRow) {
 	};
 }
 
+// Keep in sync with the first-paint fetch in ./page.tsx (server component —
+// it cannot import runtime values from this "use client" module).
+const STUDENTS_PAGE_SIZE = 50;
+
+const STUDENT_LIST_SELECT = `id, student_number, first_name, middle_name, last_name, status,
+	 class_enrolments(class_sections(name, grade_levels(name))),
+	 student_guardians(is_primary, guardians(id, full_name, phone, email, user_id))`;
+
+/** PostgREST `.or()` filters break on commas/parens/percent — strip them. */
+function sanitizeSearch(value: string) {
+	return value.replace(/[,()%\\]/g, " ").trim();
+}
+
 export function StudentsView({
 	tenantId,
 	students,
+	total,
 	sections,
 	lang,
 }: {
 	tenantId: string;
 	students: StudentListRow[];
+	total: number;
 	sections: SectionOption[];
 	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = useMemo(() => getDict(lang), [lang]);
+	const [rows, setRows] = useState<StudentListRow[]>(students);
+	const [count, setCount] = useState(total);
+	const [page, setPage] = useState(0);
+	const [query, setQuery] = useState("");
+	const [search, setSearch] = useState(""); // debounced
+	const [loading, setLoading] = useState(false);
+	const [loadError, setLoadError] = useState<string | null>(null);
+	const firstRun = useRef(true);
+
+	// Debounce keystrokes → search term; reset to the first page.
+	useEffect(() => {
+		const handle = setTimeout(() => {
+			setSearch(query);
+			setPage(0);
+		}, 300);
+		return () => clearTimeout(handle);
+	}, [query]);
+
+	const reload = useCallback(async () => {
+		setLoading(true);
+		setLoadError(null);
+		const supabase = createClient();
+		let builder = supabase
+			.from("students")
+			.select(STUDENT_LIST_SELECT, { count: "exact" })
+			.eq("tenant_id", tenantId);
+		const q = sanitizeSearch(search);
+		if (q) {
+			// Server-side filter: name parts + admission number (string — keeps
+			// leading zeros).
+			builder = builder.or(
+				`first_name.ilike.%${q}%,middle_name.ilike.%${q}%,last_name.ilike.%${q}%,student_number.ilike.%${q}%`,
+			);
+		}
+		const { data, count: exact, error } = await builder
+			.order("created_at", { ascending: false })
+			.range(page * STUDENTS_PAGE_SIZE, page * STUDENTS_PAGE_SIZE + STUDENTS_PAGE_SIZE - 1);
+		if (error) {
+			setLoadError(t("err.server"));
+		} else {
+			setRows((data ?? []) as unknown as StudentListRow[]);
+			setCount(exact ?? 0);
+		}
+		setLoading(false);
+	}, [tenantId, search, page, t]);
+
+	useEffect(() => {
+		// The server page provides the first page for first paint — only fetch
+		// once search/pagination actually change.
+		if (firstRun.current) {
+			firstRun.current = false;
+			return;
+		}
+		void reload();
+	}, [reload]);
+
+	// Add/import dialogs call router.refresh(), which re-delivers fresh page-0
+	// props — adopt them (render-time derived state) unless the user has
+	// searched or paged away.
+	const [prevStudents, setPrevStudents] = useState(students);
+	if (prevStudents !== students) {
+		setPrevStudents(students);
+		if (search === "" && page === 0) {
+			setRows(students);
+			setCount(total);
+		}
+	}
+
+	const totalPages = Math.max(1, Math.ceil(count / STUDENTS_PAGE_SIZE));
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -152,26 +241,47 @@ export function StudentsView({
 				</div>
 			</div>
 
-			<Card className="shadow-none">
-				<CardContent className="pt-4">
-					{students.length === 0 ? (
-						<p className="py-10 text-center text-sm text-muted-foreground">
-							{t("students.empty")}
-						</p>
-					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>{t("students.number")}</TableHead>
-									<TableHead>{t("students.name")}</TableHead>
-									<TableHead>{t("students.class")}</TableHead>
-									<TableHead>{t("students.guardian")}</TableHead>
-									<TableHead>{t("students.status")}</TableHead>
-									<TableHead />
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{students.map((s) => {
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<div className="relative w-full max-w-sm">
+					<SearchIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						className="pl-9"
+						onChange={(e) => setQuery(e.target.value)}
+						placeholder={t("students.search")}
+						type="search"
+						value={query}
+					/>
+				</div>
+				<p className="text-sm text-muted-foreground">
+					<span className="font-mono">{count}</span> {t("students.total")}
+				</p>
+			</div>
+
+			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+
+			{loading ? (
+				<ListSkeleton rows={8} />
+			) : (
+				<Card className="shadow-none">
+					<CardContent className="pt-4">
+						{rows.length === 0 ? (
+							<p className="py-10 text-center text-sm text-muted-foreground">
+								{search ? t("students.noMatches") : t("students.empty")}
+							</p>
+						) : (
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>{t("students.number")}</TableHead>
+										<TableHead>{t("students.name")}</TableHead>
+										<TableHead>{t("students.class")}</TableHead>
+										<TableHead>{t("students.guardian")}</TableHead>
+										<TableHead>{t("students.status")}</TableHead>
+										<TableHead />
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{rows.map((s) => {
 									const section = s.class_enrolments[0]?.class_sections;
 									const guardian =
 										s.student_guardians.find((g) => g.is_primary)?.guardians ??
@@ -211,11 +321,36 @@ export function StudentsView({
 										</TableRow>
 									);
 								})}
-							</TableBody>
-						</Table>
-					)}
-				</CardContent>
-			</Card>
+								</TableBody>
+							</Table>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			{totalPages > 1 && (
+				<div className="flex items-center justify-end gap-2">
+					<Button
+						disabled={page === 0 || loading}
+						onClick={() => setPage((p) => Math.max(0, p - 1))}
+						size="sm"
+						variant="outline"
+					>
+						{t("common.prev")}
+					</Button>
+					<span className="font-mono text-sm text-muted-foreground">
+						{page + 1} {t("report.of")} {totalPages}
+					</span>
+					<Button
+						disabled={page >= totalPages - 1 || loading}
+						onClick={() => setPage((p) => p + 1)}
+						size="sm"
+						variant="outline"
+					>
+						{t("common.next")}
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -238,18 +373,23 @@ function InviteParentButton({
 	async function invite() {
 		setPending(true);
 		setError(null);
-		const response = await apiFetch(`/api/v1/guardians/${guardianId}/invite`, {
-			method: "POST",
-			tenantId,
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch(`/api/v1/guardians/${guardianId}/invite`, {
+				method: "POST",
+				tenantId,
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			const body = await response.json();
+			setLink(body.inviteUrl);
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json();
-		setLink(body.inviteUrl);
 	}
 
 	if (error) return <span className="text-xs text-destructive">{error}</span>;
@@ -315,35 +455,40 @@ function AddStudentDialog({
 		e.preventDefault();
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/students", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({
-				firstName: form.firstName,
-				middleName: form.middleName || undefined,
-				lastName: form.lastName,
-				gender: form.gender,
-				dateOfBirth: form.dateOfBirth || undefined,
-				boardingStatus: form.boardingStatus,
-				classSectionId: form.classSectionId || undefined,
-				guardian: form.guardianName
-					? {
-							fullName: form.guardianName,
-							phone: form.guardianPhone || undefined,
-							email: form.guardianEmail || undefined,
-							relationship: form.relationship,
-						}
-					: undefined,
-			}),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/students", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					firstName: form.firstName,
+					middleName: form.middleName || undefined,
+					lastName: form.lastName,
+					gender: form.gender,
+					dateOfBirth: form.dateOfBirth || undefined,
+					boardingStatus: form.boardingStatus,
+					classSectionId: form.classSectionId || undefined,
+					guardian: form.guardianName
+						? {
+								fullName: form.guardianName,
+								phone: form.guardianPhone || undefined,
+								email: form.guardianEmail || undefined,
+								relationship: form.relationship,
+							}
+						: undefined,
+				}),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			setOpen(false);
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		setOpen(false);
-		router.refresh();
 	}
 
 	const selectClass =
@@ -427,10 +572,10 @@ function AddStudentDialog({
 						onChange={(e) => set("relationship", e.target.value)}
 						value={form.relationship}
 					>
-						<option value="mother">Mama / Mother</option>
-						<option value="father">Baba / Father</option>
-						<option value="guardian">Mlezi / Guardian</option>
-						<option value="sponsor">Mfadhili / Sponsor</option>
+						<option value="mother">{t("students.rel.mother")}</option>
+						<option value="father">{t("students.rel.father")}</option>
+						<option value="guardian">{t("students.rel.guardian")}</option>
+						<option value="sponsor">{t("students.rel.sponsor")}</option>
 					</select>
 					{error && <p className="col-span-2 text-sm text-destructive">{error}</p>}
 					<div className="col-span-2 flex justify-end gap-2">
@@ -483,23 +628,28 @@ function ImportDialog({ tenantId, lang }: { tenantId: string; lang: Lang }) {
 	async function run(dryRun: boolean) {
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/students/import", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({ rows, dryRun }),
-		});
-		setPending(false);
-		const body = await response.json().catch(() => null);
-		if (!response.ok) {
-			setError(body?.message ?? JSON.stringify(body?.issues?.slice(0, 3)) ?? "Failed");
-			return;
-		}
-		if (body.dryRun) {
-			setReport(body);
-		} else {
-			setDone(body.imported);
-			setReport(null);
-			router.refresh();
+		try {
+			const response = await apiFetch("/api/v1/students/import", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({ rows, dryRun }),
+			});
+			const body = await response.json().catch(() => null);
+			if (!response.ok) {
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			if (body.dryRun) {
+				setReport(body);
+			} else {
+				setDone(body.imported);
+				setReport(null);
+				router.refresh();
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
 	}
 
@@ -526,7 +676,9 @@ function ImportDialog({ tenantId, lang }: { tenantId: string; lang: Lang }) {
 						type="file"
 					/>
 					{rows.length > 0 && (
-						<p className="text-sm text-muted-foreground">{rows.length} rows loaded.</p>
+						<p className="text-sm text-muted-foreground">
+							{rows.length} {t("students.rowsLoaded")}
+						</p>
 					)}
 					{report && (
 						<div className="rounded-md border p-3 text-sm">
@@ -536,7 +688,7 @@ function ImportDialog({ tenantId, lang }: { tenantId: string; lang: Lang }) {
 							</p>
 							{report.errors.slice(0, 8).map((e) => (
 								<p className="text-destructive" key={`${e.row}-${e.message}`}>
-									Row {e.row}: {e.message}
+									{t("students.row")} {e.row}: {e.message}
 								</p>
 							))}
 						</div>

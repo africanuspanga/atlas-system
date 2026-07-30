@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,20 +175,25 @@ function CreateAssessmentDialog({
 		e.preventDefault();
 		setPending(true);
 		setError(null);
-		const response = await apiFetch("/api/v1/assessments", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify(form),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/assessments", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify(form),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			const body = await response.json();
+			setOpen(false);
+			router.push(`/assessments/${body.assessmentId}`);
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json();
-		setOpen(false);
-		router.push(`/assessments/${body.assessmentId}`);
 	}
 
 	return (
@@ -277,20 +283,25 @@ function SubjectsDialog({
 		setPending(true);
 		setError(null);
 		setMessage(null);
-		const response = await apiFetch("/api/v1/subjects/preset", {
-			method: "POST",
-			tenantId,
-			body: JSON.stringify({ educationLevel: level }),
-		});
-		setPending(false);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setError(body?.message ?? body?.code ?? `HTTP ${response.status}`);
-			return;
+		try {
+			const response = await apiFetch("/api/v1/subjects/preset", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({ educationLevel: level }),
+			});
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			const body = await response.json();
+			setMessage(`${body.created} ${t("assessments.presetsAdded")}`);
+			router.refresh();
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
 		}
-		const body = await response.json();
-		setMessage(`${body.created} ${t("assessments.presetsAdded")}`);
-		router.refresh();
 	}
 
 	return (

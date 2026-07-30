@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DownloadIcon, FileTextIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -128,7 +129,7 @@ export function ReportsView({
 			});
 			const body = (await res.json().catch(() => null)) as { jobId?: string; code?: string } | null;
 			if (!res.ok || !body?.jobId) {
-				setError(body?.code ?? `HTTP ${res.status}`);
+				setError(apiErrorMessage(t, body, res.status));
 				return;
 			}
 			void reload();
@@ -138,18 +139,22 @@ export function ReportsView({
 	}
 
 	async function handleDownload(jobId: string) {
-		const res = await apiFetch(`/api/v1/reports/${jobId}/download`, { tenantId });
-		const body = (await res.json().catch(() => null)) as { url?: string } | null;
-		if (res.ok && body?.url) window.open(body.url, "_blank", "noopener");
+		setError(null);
+		try {
+			const res = await apiFetch(`/api/v1/reports/${jobId}/download`, { tenantId });
+			const body = (await res.json().catch(() => null)) as { url?: string; code?: string } | null;
+			if (res.ok && body?.url) {
+				window.open(body.url, "_blank", "noopener");
+			} else {
+				setError(apiErrorMessage(t, body, res.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		}
 	}
 
 	if (forbidden) {
-		return (
-			<div className="p-6 text-sm text-muted-foreground">
-				You do not have permission to generate reports. Ask your school administrator for the
-				“reports.generate” role capability.
-			</div>
-		);
+		return <div className="p-6 text-sm text-muted-foreground">{t("reports.forbidden")}</div>;
 	}
 
 	return (
@@ -165,12 +170,12 @@ export function ReportsView({
 			<Card>
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2 text-base">
-						<FileTextIcon className="size-4" /> Generate a report
+						<FileTextIcon className="size-4" /> {t("reports.generateTitle")}
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="flex flex-wrap items-end gap-3">
 					<label className="flex flex-col gap-1 text-sm">
-						Report
+						{t("reports.report")}
 						<select
 							className="h-9 min-w-52 rounded-md border bg-transparent px-2 text-sm"
 							value={reportKey}
@@ -188,7 +193,7 @@ export function ReportsView({
 						</select>
 					</label>
 					<label className="flex flex-col gap-1 text-sm">
-						Format
+						{t("reports.format")}
 						<select
 							className="h-9 rounded-md border bg-transparent px-2 text-sm uppercase"
 							value={format}
@@ -204,24 +209,24 @@ export function ReportsView({
 					{needsDates && (
 						<>
 							<label className="flex flex-col gap-1 text-sm">
-								From
+								{t("reports.from")}
 								<Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" />
 							</label>
 							<label className="flex flex-col gap-1 text-sm">
-								To
+								{t("reports.to")}
 								<Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" />
 							</label>
 						</>
 					)}
 					{needsStudent && (
 						<label className="flex flex-col gap-1 text-sm">
-							Student
+							{t("finance.student")}
 							<select
 								className="h-9 min-w-56 rounded-md border bg-transparent px-2 text-sm"
 								value={studentId}
 								onChange={(e) => setStudentId(e.target.value)}
 							>
-								<option value="">— select —</option>
+								<option value="">{t("reports.select")}</option>
 								{students.map((s) => (
 									<option key={s.id} value={s.id}>
 										{s.label}
@@ -232,13 +237,13 @@ export function ReportsView({
 					)}
 					{needsTerm && (
 						<label className="flex flex-col gap-1 text-sm">
-							Term
+							{t("assessments.term")}
 							<select
 								className="h-9 min-w-40 rounded-md border bg-transparent px-2 text-sm"
 								value={termId}
 								onChange={(e) => setTermId(e.target.value)}
 							>
-								<option value="">— select —</option>
+								<option value="">{t("reports.select")}</option>
 								{terms.map((tm) => (
 									<option key={tm.id} value={tm.id}>
 										{tm.name}
@@ -251,29 +256,27 @@ export function ReportsView({
 						onClick={() => void handleGenerate()}
 						disabled={pending || (needsStudent && !studentId) || (needsTerm && !termId)}
 					>
-						{pending ? t("common.loading") : "Generate"}
+						{pending ? t("common.loading") : t("reports.generate")}
 					</Button>
 				</CardContent>
 			</Card>
 
 			<Card>
 				<CardHeader>
-					<CardTitle className="text-base">Recent reports</CardTitle>
+					<CardTitle className="text-base">{t("reports.recent")}</CardTitle>
 				</CardHeader>
 				<CardContent>
 					{jobs.length === 0 ? (
-						<p className="py-6 text-center text-sm text-muted-foreground">
-							No reports yet. Generate one above — it lands here with a download link.
-						</p>
+						<p className="py-6 text-center text-sm text-muted-foreground">{t("reports.empty")}</p>
 					) : (
 						<Table>
 							<TableHeader>
 								<TableRow>
-									<TableHead>Reference</TableHead>
-									<TableHead>Report</TableHead>
-									<TableHead>Format</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Requested</TableHead>
+									<TableHead>{t("reports.reference")}</TableHead>
+									<TableHead>{t("reports.report")}</TableHead>
+									<TableHead>{t("reports.format")}</TableHead>
+									<TableHead>{t("students.status")}</TableHead>
+									<TableHead>{t("reports.requested")}</TableHead>
 									<TableHead />
 								</TableRow>
 							</TableHeader>
@@ -300,7 +303,7 @@ export function ReportsView({
 										<TableCell className="text-right">
 											{job.status === "completed" && (
 												<Button
-													aria-label="Download report"
+													aria-label={t("reports.download")}
 													variant="ghost"
 													size="icon"
 													onClick={() => void handleDownload(job.id)}
