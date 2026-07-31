@@ -92,31 +92,44 @@ export class LibraryController {
   @Get()
   @RequirePermission('library.view')
   async list(@Req() req: TenantRequest) {
-    const [books, loans] = await Promise.all([
-      this.supabase.admin
-        .from('library_books')
-        .select('id, code, title, author, copies_total, subjects(id, name)')
-        .eq('tenant_id', req.tenant.tenantId)
-        .order('code')
-        .limit(1000),
-      this.supabase.admin
+    const books = await this.supabase.admin
+      .from('library_books')
+      .select('id, code, title, author, copies_total, subjects(id, name)')
+      .eq('tenant_id', req.tenant.tenantId)
+      .order('code')
+      .limit(1000);
+    if (books.error) {
+      throw new InternalServerErrorException({
+        code: 'LIBRARY_FETCH_FAILED',
+        message: books.error.message,
+      });
+    }
+
+    // Outstanding loans drive `available`, so an incomplete read overstates
+    // stock and the librarian lends a book that is already out. `.limit(10000)`
+    // did NOT do that — PostgREST caps every response at 1000 rows regardless —
+    // so any school with more than 1000 books on loan under-counted. Paginate.
+    const loaned = new Map<string, number>();
+    const page = 1000;
+    for (let from = 0; ; from += page) {
+      const { data, error } = await this.supabase.admin
         .from('library_loans')
         .select('book_id')
         .eq('tenant_id', req.tenant.tenantId)
         .is('returned_on', null)
-        .limit(10000),
-    ]);
-    const err = books.error ?? loans.error;
-    if (err) {
-      throw new InternalServerErrorException({
-        code: 'LIBRARY_FETCH_FAILED',
-        message: err.message,
-      });
-    }
-    const loaned = new Map<string, number>();
-    for (const l of loans.data ?? []) {
-      const bookId = l.book_id as string;
-      loaned.set(bookId, (loaned.get(bookId) ?? 0) + 1);
+        .order('id')
+        .range(from, from + page - 1);
+      if (error) {
+        throw new InternalServerErrorException({
+          code: 'LIBRARY_FETCH_FAILED',
+          message: error.message,
+        });
+      }
+      for (const l of data ?? []) {
+        const bookId = l.book_id as string;
+        loaned.set(bookId, (loaned.get(bookId) ?? 0) + 1);
+      }
+      if (!data || data.length < page) break;
     }
     const rows: BookRow[] = (books.data ?? []) as unknown as BookRow[];
     return {

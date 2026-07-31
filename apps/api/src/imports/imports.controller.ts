@@ -106,6 +106,39 @@ export class ImportsController {
     };
   }
 
+  /**
+   * Reads every row of a query past PostgREST's hard 1000-row response cap.
+   *
+   * `.limit(N)` for N > 1000 does NOT work — PostgREST truncates to max_rows
+   * (1000, supabase/config.toml) regardless, silently and with no error. Three
+   * import-validation reads relied on `.limit(10000)`/`.limit(20000)` and were
+   * therefore reading an arbitrary 1000-row slice, which corrupts data rather
+   * than merely degrading it: the duplicate-student set missed real duplicates,
+   * and the already-imported set missed prior opening balances, so students
+   * outside the slice were silently double-created and double-billed.
+   *
+   * `build` MUST apply a deterministic `.order()` or pages will overlap/skip.
+   */
+  private async readAllPages<T>(
+    build: (
+      from: number,
+      to: number,
+    ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+    errorCode: string,
+  ): Promise<T[]> {
+    const out: T[] = [];
+    const page = 1000;
+    for (let from = 0; ; from += page) {
+      const { data, error } = await build(from, from + page - 1);
+      if (error) {
+        throw new InternalServerErrorException({ code: errorCode });
+      }
+      out.push(...(data ?? []));
+      if (!data || data.length < page) break;
+    }
+    return out;
+  }
+
   /** Reads all staging rows past PostgREST's 1000-row page limit. */
   private async loadStagingRows(jobId: string): Promise<StagingRow[]> {
     const rows: StagingRow[] = [];
@@ -589,15 +622,24 @@ export class ImportsController {
         s.id as string,
       );
     }
-    const { data: existing } = await this.supabase.admin
-      .from('students')
-      .select('first_name, last_name, date_of_birth')
-      .eq('tenant_id', req.tenant.tenantId)
-      .limit(10000);
+    const existing = await this.readAllPages<{
+      first_name: string;
+      last_name: string;
+      date_of_birth: string | null;
+    }>(
+      (from, to) =>
+        this.supabase.admin
+          .from('students')
+          .select('first_name, last_name, date_of_birth')
+          .eq('tenant_id', req.tenant.tenantId)
+          .order('id')
+          .range(from, to),
+      'IMPORT_DUPLICATE_CHECK_FAILED',
+    );
     const existingKeys = new Set(
       (existing ?? []).map(
         (s) =>
-          `${normalizeHeader(s.first_name as string)}|${normalizeHeader(s.last_name as string)}|${s.date_of_birth ?? ''}`,
+          `${normalizeHeader(s.first_name)}|${normalizeHeader(s.last_name)}|${s.date_of_birth ?? ''}`,
       ),
     );
 
@@ -732,6 +774,15 @@ export class ImportsController {
           'DOB_UNPARSEABLE',
           'SECTION_UNMATCHED',
           'DUP_IN_FILE',
+          // A row matching a student who ALREADY EXISTS must be a hard stop,
+          // not a warning. `import_staging_rows.decision` has no writer
+          // anywhere in the codebase, so 'skip' is unreachable and the operator
+          // has no way to exclude a flagged duplicate; app.import_commit_chunk
+          // commits `validation_status in ('valid','warning')`, so leaving this
+          // soft meant re-uploading a corrected roster created a SECOND copy of
+          // every student — new admission numbers, new invoices, duplicate SMS.
+          // Matches how validateOpeningBalances already treats ALREADY_IMPORTED.
+          'DUP_EXISTING',
         ].includes(i.code),
       );
       return {
@@ -754,15 +805,23 @@ export class ImportsController {
     rows: StagingRow[],
     mapping: Record<string, string | null>,
   ) {
-    const { data: students } = await this.supabase.admin
-      .from('students')
-      .select('id, student_number')
-      .eq('tenant_id', req.tenant.tenantId)
-      .limit(10000);
+    const students = await this.readAllPages<{
+      id: string;
+      student_number: string;
+    }>(
+      (from, to) =>
+        this.supabase.admin
+          .from('students')
+          .select('id, student_number')
+          .eq('tenant_id', req.tenant.tenantId)
+          .order('id')
+          .range(from, to),
+      'IMPORT_STUDENT_LOOKUP_FAILED',
+    );
     const byNumber = new Map(
       (students ?? []).map((s) => [
         String(s.student_number).toUpperCase(),
-        s.id as string,
+        s.id,
       ]),
     );
 
@@ -775,17 +834,24 @@ export class ImportsController {
       .eq('domain', 'opening_balances')
       .in('status', ['committing', 'committed']);
     if (priorJobs && priorJobs.length > 0) {
-      const { data: priorRows } = await this.supabase.admin
-        .from('import_staging_rows')
-        .select('mapped_data')
-        .in(
-          'import_job_id',
-          priorJobs.map((j) => j.id as string),
-        )
-        .not('final_record_id', 'is', null)
-        .limit(20000);
+      const priorRows = await this.readAllPages<{
+        mapped_data: { studentId?: string } | null;
+      }>(
+        (from, to) =>
+          this.supabase.admin
+            .from('import_staging_rows')
+            .select('mapped_data')
+            .in(
+              'import_job_id',
+              priorJobs.map((j) => j.id as string),
+            )
+            .not('final_record_id', 'is', null)
+            .order('id')
+            .range(from, to),
+        'IMPORT_PRIOR_BALANCES_READ_FAILED',
+      );
       for (const r of priorRows ?? []) {
-        const sid = (r.mapped_data as { studentId?: string } | null)?.studentId;
+        const sid = r.mapped_data?.studentId;
         if (sid) alreadyImported.add(sid);
       }
     }

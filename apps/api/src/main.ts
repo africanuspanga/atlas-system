@@ -28,6 +28,15 @@ async function bootstrap() {
         : trustProxyEnv;
   app.set('trust proxy', trustProxy);
 
+  // body-parser defaults to 100 kB, which silently 413s before any controller
+  // or zod schema runs. /students/import advertises up to 2000 rows and the web
+  // Import dialog POSTs every parsed row in one JSON body — that ceiling was
+  // reached at roughly 380 students, so bulk import was broken for any real
+  // school with no usable error. 6 MB comfortably covers 2000 rows while
+  // staying well under the 4 MB file cap the upload path enforces separately.
+  app.useBodyParser('json', { limit: '6mb' });
+  app.useBodyParser('urlencoded', { limit: '6mb', extended: true });
+
   app.setGlobalPrefix('api/v1');
   app.useGlobalInterceptors(new LoggingInterceptor());
   app.enableCors({
