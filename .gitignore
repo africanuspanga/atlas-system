@@ -20,6 +20,7 @@ supabase/.temp/
 
 # local shadow-migration Postgres scratch dir — never commit DB state/dumps
 atlas-migration-test/
+.shadow/
 *.dump
 
 # misc

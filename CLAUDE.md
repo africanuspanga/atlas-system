@@ -34,64 +34,88 @@ assessments term/year trigger — see docs/ATLAS_TESTING_GUIDE.md) ·
 account_for_method revoke, seat-cap advisory lock, ai_tool_calls/ai_usage
 + clinic_visits policies dropped to API-only reads, plans gain
 `aiMonthlyTokens` quota) · 0028 device_tokens (mobile push registration,
-deny-all RLS, API-only via POST/DELETE /devices).
+deny-all RLS, API-only via POST/DELETE /devices) · 0029 permission-aware RLS
+(`app.has_permission`, tenant-status gating, parent-membership backfill,
+platform_role trigger) · 0030 student & academic lifecycle
+(set_student_status, set_class_enrolment, create_academic_year +
+activate/grade-level/section writers).
 
-## HANDOVER (2026-07-17, branch `audit/production-readiness`, uncommitted)
+## HANDOVER (2026-07-31, branch `audit/production-readiness`, all committed)
 
-**Where things stand:** three waves done this session, all uncommitted on
-this branch:
-1. **Production audit + fix wave** — tenant isolation verified sound
-   (~180 query sites), platform subscription lifecycle built (plan cycles,
-   record-payment, archive, audit viewer, lapse enforcement), web launch
-   fixes (RPC trial balance, roster search/pagination, route-aware shell,
-   EN+SW error maps), AI catalogue at 28 tools / 17 actions with per-plan
-   token quotas, migration 0027 security polish.
-2. **Docs wave** — `docs/ADMIN_GUIDE.md` start-to-finish walkthrough,
-   `docs/sales/` GTM playbook + founding-schools offer (EN+SW).
-3. **Mobile wave** — native iOS/Android app at `apps/mobile` (Expo SDK 57,
-   expo-router, NOT a WebView): login, dashboard, students, attendance,
-   finance, Ask ATLAS chat with propose→confirm cards, parent portal,
-   settings; shared `packages/i18n` extracted (web re-exports it,
-   `transpilePackages` in next.config); push-notification plumbing
-   (`src/lib/notifications.ts` + `POST/DELETE /devices` + migration 0028);
-   EAS profiles + generated brand assets + `apps/mobile/README.md`.
+**Full detail: `docs/audit/HANDOVER_2026-07-31.md`. Findings register (103
+confirmed): `docs/audit/ATLAS_CODE_REVIEW_2026-07.md`.**
 
-**Verified:** turbo gate 14/14 green (now includes mobile lint/typecheck +
-i18n typecheck; web untouched and passing). Live smokes green for
-everything migrations 0001–0015 support: smoke-platform (incl. the new
-subscription lifecycle), smoke-finance, smoke-ai, smoke-students,
-smoke-attendance, smoke-assessments. Mobile: `expo export` bundles both
-platforms (Hermes .hbc), `expo-doctor` 20/20, dev server serves the iOS
-manifest.
+**Where things stand.** A full adversarial code review (171 agents, 123
+candidates, 26 refuted) produced 103 confirmed findings in six themes. Themes
+1-4 are fixed and committed as waves 0-3; themes 5-6 are NOT started.
 
-**THE ONE GATE — migrations 0016–0028 are written but NOT applied to the
-live dev Supabase project.** 0026 closes a **live P0** (any signed-in user
-can self-promote via `profiles.platform_role`). The permission layer blocks
-agents from applying DDL; the human must run (note `{16..28}` — the old
-`{16..25}` command skipped the P0 fix):
-`set -a && source .env && set +a && for f in supabase/migrations/000000000000{16..28}_*.sql; do /usr/local/opt/postgresql@17/bin/psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f" || break; done`
+| Commit | Wave |
+|---|---|
+| `36c4a09` | Sprint snapshot — 11.5k insertions incl. all of apps/mobile + migrations 0016-0028 |
+| `2f4c2ef` | 1 — security: migration 0029 permission-aware RLS |
+| `477a888` | 2 — data destruction: import duplication, xlsx bomb, 1000-row truncation |
+| `85f9b74` | 3 — lifecycle: migration 0030 + student/academic write paths |
+| `c74e027` | 3 — surface: smoke-lifecycle, AI propose-actions, web UI |
+
+Gate at `c74e027`: `pnpm turbo run lint typecheck test build --force` ->
+14/14, 0 cached. Working tree clean.
+
+**THE GATE — migrations 0016-0030 are still NOT applied to the live dev
+Supabase project.** Until they are, two P0s are live: platform_role
+self-escalation (0026), and every parent reading their entire school —
+roster, DOBs, all guardian contacts, the full fee ledger, marks, SMS outbox
+(0029 SEC-029-B; 0026 stops minting those memberships but never removed the
+existing ones). Agents are blocked from DDL by the permission classifier.
+Rehearse with `./scripts/shadow-migrations.sh`, then a human runs — note
+`{16..30}` AND `--single-transaction`:
+
+```
+set -a && source .env && set +a && \
+for f in supabase/migrations/000000000000{16..30}_*.sql; do
+  /usr/local/opt/postgresql@17/bin/psql "$DATABASE_URL" \
+    --single-transaction -v ON_ERROR_STOP=1 -f "$f" || break
+done
+```
+
+`--single-transaction` is mandatory: psql autocommits per statement and
+0016-0028 carry no transaction of their own, so a migration failing between
+`drop policy` and `create policy` leaves that table RLS-enabled with ZERO
+policies (deny-all — presents to a school as "our data disappeared"). That
+happened to `student_guardians` on the shadow cluster. 0029/0030 wrap
+themselves; the earlier ones do not.
 
 **Post-apply checklist, in order:**
-1. Start the API (`AI_DRIVER=mock`) and run the 10 new module smokes PLUS
-   `smoke-communication` and `smoke-ai-actions` — both fail pre-0026
-   (outbox `next_attempt_at`; ai_proposed_actions `'executing'` state).
-2. Restart the API with the real provider and run `eval-ai.mjs`
-   (security categories must be 100%).
-3. Commit the sprint. Until applied, new module pages render but their API
-   calls fail on missing tables (and mobile push registration 500s —
-   `device_tokens` arrives with 0028; the app degrades gracefully).
-4. Mobile one-timers (human, interactive): `npx eas-cli login && eas init`
-   inside `apps/mobile` (sets `extra.eas.projectId` — required before push
-   tokens and EAS builds), then `eas build`/`eas submit` per the README.
+1. Record 0029's notice `0029: retired N permission-less parent/student
+   membership(s)` — N is how many parents had full read of their school.
+2. API with `AI_DRIVER=mock`: run the ten newest module smokes, plus
+   `smoke-communication` + `smoke-ai-actions` (fail pre-0026) and the new
+   `smoke-lifecycle` (needs 0030). Space them out — 6/min/IP onboarding cap,
+   and smoke-lifecycle onboards two tenants by itself.
+3. Restart with the real provider, run `eval-ai.mjs` (security cats 100%).
+4. Spot-check wave 1 did not over-restrict: a **bursar** must still see
+   `/finance`; a **teacher** must now see nothing there. That is the intended
+   change and the one most likely to be reported as a regression.
+5. Mobile one-timers (human, interactive): `npx eas-cli login && eas init`
+   in `apps/mobile`, then `eas build`/`eas submit` per its README.
 
-**Backlog after the gate (priority order):** renewal-reminder outbox job
-(endpoints exist, nothing sends T-14/T-7 SMS) · enforce the `smsMonthly`
-cap (metered, unenforced) · failed-SMS drill-down list · AI error/latency
-columns on `ai_usage_records` + the promised 90-day `ai_messages` purge
-worker · ARR/churn/LTV metrics snapshot table · support impersonation
-(spec: `docs/audit/ATLAS_OWNER_DASHBOARD_AUDIT.md`) · payment gateway
-webhooks (`docs/product/PAYMENTS_INTEGRATION_PLAN.md`) · student portal ·
-marketing site. GTM/sales material lives in `docs/sales/`.
+**Next up — wave 4 (money & time), then wave 5 (hardening).** Highest value
+first: 63 `toISOString()` sites of which exactly ONE handles UTC+3 (plus
+`current_date` column defaults, which are UTC on Supabase) · payments have no
+idempotency key · payroll statutory-rates dialog crashes on open (camelCase
+vs snake_case) and rates labelled "%" are stored as fractions, unbounded ·
+A-Level division never computed · `smoke-payroll` asserts the OLD over-taxing
+PAYE numbers. Then wave 5: `smsMonthly` unenforced · SMS driver silently
+falls back to console while `drain-outbox` marks rows sent (you can ship
+believing SMS works when nothing sent) · outbox retries die permanently after
+~30 min with no requeue · eight pages spin forever on a dropped connection ·
+mobile sessions in plaintext AsyncStorage · one test file in 51.5k LOC, no CI.
+
+**Older backlog (unchanged):** renewal-reminder outbox job · failed-SMS
+drill-down · AI error/latency columns + 90-day `ai_messages` purge worker ·
+ARR/churn/LTV snapshot · support impersonation
+(`docs/audit/ATLAS_OWNER_DASHBOARD_AUDIT.md`) · payment gateway webhooks
+(`docs/product/PAYMENTS_INTEGRATION_PLAN.md`) · student portal · marketing
+site. GTM/sales material lives in `docs/sales/`.
 
 ## Iron rules
 
@@ -140,10 +164,11 @@ node apps/api/scripts/smoke-<module>.mjs          # E2E per module (API must run
 node apps/api/scripts/eval-ai.mjs                 # real-provider AI eval (security cats must be 100%)
 ```
 
-24 smoke suites exist (`smoke-onboarding` … `smoke-payroll`; the 10 newest —
+25 smoke suites exist (`smoke-onboarding` … `smoke-payroll`; the 10 newest —
 timetable, instalments, necta, hostel, transport, library, inventory, clinic,
-platform-metrics, payroll — need the 0016–0028 batch applied first; so do
-smoke-communication and smoke-ai-actions, which depend on 0026). They
+platform-metrics, payroll — need the 0016–0030 batch applied first; so do
+smoke-communication and smoke-ai-actions, which depend on 0026, and
+smoke-lifecycle, which depends on 0030). They
 create throwaway tenants against the live dev Supabase project and archive
 them. `smoke-ai*` needs the API started with `AI_DRIVER=mock`. Onboarding is
 rate-limited (6/min/IP) — space suites out or you'll hit 429s.
@@ -152,6 +177,33 @@ rate-limited (6/min/IP) — space suites out or you'll hit 429s.
 
 - `class_sections.name` holds the stream label ("A"); there is NO `stream`
   column. Grade name comes from `grade_levels.name`.
+- **Rehearse every migration** with `./scripts/shadow-migrations.sh` (throwaway
+  local PG 17 cluster, whole chain + seed, then lists any table left
+  RLS-enabled with zero policies). It has already caught three real defects.
+- **Migrations must wrap themselves in `begin`/`commit`.** psql autocommits per
+  statement, so a file that fails between `drop policy` and `create policy`
+  leaves a table RLS-enabled with NO policy — deny-all, which looks to a school
+  like the data vanished. 0016–0028 have no wrapper: apply them with
+  `--single-transaction`.
+- **`create index if not exists` matches on NAME, not columns** — a
+  differently-named index over identical columns is NOT suppressed and just
+  doubles write cost.
+- **A `SECURITY DEFINER` trigger sees `current_user` as the function owner**,
+  not the caller, so a role check inside one never matches an end-user role.
+  Use SECURITY INVOKER when the point is to identify the caller.
+- **Testing RLS as `postgres` proves nothing** — superusers bypass RLS. Use
+  `begin; set local request.jwt.claim.sub='<uuid>'; set local role
+  authenticated; …`; `SET LOCAL` outside a transaction is a silent no-op, which
+  makes a broken test look like it passed.
+- **`.limit(N)` for N > 1000 does nothing** — PostgREST truncates at 1000
+  silently. Paginate with `.range()` and a deterministic `.order()`
+  (`readAllPages` in `imports.controller.ts` is the reference).
+- Business errors must be `{ code: 'STABLE_CODE' }`, never a bare string —
+  both error maps key off `code`, so a message-only exception renders as raw
+  English to a Swahili user.
+- Adding an AI action is not enough: `SYSTEM_PROMPT` rule 9 in `ai.controller.ts`
+  enumerates what the model may never do, and a stale entry there makes it
+  refuse a capability it now has.
 - Supabase JS caps reads at 1000 rows — paginate with `.range()` for more.
 - eslint's `no-unnecessary-type-assertion` fixer strips `as` casts on
   supabase results; type the destructure target instead.
