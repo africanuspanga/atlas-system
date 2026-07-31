@@ -33,6 +33,26 @@ const ERROR_KEYS: Partial<Record<string, DictKey>> = {
 	HOSTEL_NOT_BOARDER: "hostel.err.notBoarder",
 	HOSTEL_GENDER_MISMATCH: "hostel.err.genderMismatch",
 	HOSTEL_ROOM_FULL: "hostel.err.roomFull",
+	// Student lifecycle (migration 0030 — students.controller)
+	STUDENT_NOT_FOUND: "err.notFound",
+	STUDENT_STATUS_INVALID: "err.studentStatusInvalid",
+	STUDENTS_ARCHIVE_REQUIRED: "err.studentsArchiveRequired",
+	STUDENT_STATUS_FAILED: "err.server",
+	ENROLMENT_STUDENT_NOT_FOUND: "err.notFound",
+	ENROLMENT_SECTION_NOT_FOUND: "err.enrolmentSectionNotFound",
+	ENROLMENT_YEAR_MISMATCH: "err.enrolmentYearMismatch",
+	ENROLMENT_FAILED: "err.server",
+	// Academic-year rollover (migration 0030 — academics.controller)
+	YEAR_NAME_TAKEN: "err.yearNameTaken",
+	YEAR_TERMS_REQUIRED: "err.yearTermsRequired",
+	YEAR_CLONE_SOURCE_NOT_FOUND: "err.yearCloneSourceNotFound",
+	YEAR_NOT_FOUND: "err.notFound",
+	GRADE_NAME_TAKEN: "err.gradeNameTaken",
+	GRADE_LEVEL_INVALID: "err.gradeLevelInvalid",
+	SECTION_NAME_TAKEN: "err.sectionNameTaken",
+	SECTION_YEAR_NOT_FOUND: "err.notFound",
+	SECTION_GRADE_NOT_FOUND: "err.notFound",
+	SECTION_CAMPUS_NOT_FOUND: "err.notFound",
 	// Generic families
 	INTERNAL: "err.server",
 };

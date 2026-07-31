@@ -444,10 +444,11 @@ grant execute on function public.create_grade_level(uuid, uuid, text, text, smal
 grant execute on function public.create_class_section(uuid, uuid, uuid, uuid, text, smallint, uuid) to service_role;
 grant execute on function public.activate_academic_year(uuid, uuid, uuid) to service_role;
 
--- ---------------------------------------------------------------------------
--- 7. Index for the seat-cap / roster counts these writers now change.
--- ---------------------------------------------------------------------------
-create index if not exists students_tenant_status_idx
-  on public.students (tenant_id, status);
+-- No index is added here on purpose: the seat-cap and roster counts these
+-- writers change are already served by students_tenant_idx (tenant_id, status)
+-- from 0004:30. `create index if not exists` matches on NAME, not on column
+-- list, so adding a differently-named index over identical columns would NOT
+-- be suppressed — it would double the write cost on the hottest table in the
+-- product for no read benefit.
 
 commit;

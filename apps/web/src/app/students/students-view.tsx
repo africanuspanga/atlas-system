@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict, type DictKey, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,11 @@ import { Card, CardContent } from "@/components/ui/card";
 export interface SectionOption {
 	id: string;
 	label: string;
+	/** grade_levels.sequence — used for the reading order of the picker. */
+	gradeSequence: number;
+	academicYearId: string;
+	yearName: string;
+	yearStartsOn: string;
 }
 
 export interface StudentListRow {
@@ -43,7 +48,14 @@ export interface StudentListRow {
 	last_name: string;
 	status: string;
 	class_enrolments: Array<{
-		class_sections: { name: string; grade_levels: { name: string } | null } | null;
+		id: string;
+		status: string;
+		academic_year_id: string;
+		class_sections: {
+			id: string;
+			name: string;
+			grade_levels: { name: string } | null;
+		} | null;
 	}>;
 	student_guardians: Array<{
 		is_primary: boolean;
@@ -139,8 +151,52 @@ function toImportRow(raw: RawRow) {
 const STUDENTS_PAGE_SIZE = 50;
 
 const STUDENT_LIST_SELECT = `id, student_number, first_name, middle_name, last_name, status,
-	 class_enrolments(class_sections(name, grade_levels(name))),
+	 class_enrolments(id, status, academic_year_id,
+		 class_sections(id, name, grade_levels(name))),
 	 student_guardians(is_primary, guardians(id, full_name, phone, email, user_id))`;
+
+/** students.status values app.set_student_status accepts, in menu order. */
+const STUDENT_STATUSES = [
+	"active",
+	"transferred",
+	"withdrawn",
+	"graduated",
+	"archived",
+] as const;
+
+type StudentStatus = (typeof STUDENT_STATUSES)[number];
+
+const STATUS_KEYS: Record<string, DictKey> = {
+	active: "students.status.active",
+	transferred: "students.status.transferred",
+	withdrawn: "students.status.withdrawn",
+	graduated: "students.status.graduated",
+	archived: "students.status.archived",
+};
+
+function normaliseStatus(value: string): StudentStatus {
+	return (STUDENT_STATUSES as readonly string[]).includes(value)
+		? (value as StudentStatus)
+		: "active";
+}
+
+/** A pupil holds at most one live placement — past years close to left/completed. */
+function activeEnrolment(student: StudentListRow) {
+	return student.class_enrolments.find((e) => e.status === "active");
+}
+
+function enrolmentLabel(student: StudentListRow) {
+	const section = activeEnrolment(student)?.class_sections;
+	if (!section) return null;
+	return `${section.grade_levels?.name ?? ""} ${section.name}`.trim();
+}
+
+const selectClass =
+	"h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/** Row-action affordance — matches the invite/report-card links in the table. */
+const rowActionClass =
+	"text-sm font-medium text-muted-foreground hover:text-primary hover:underline";
 
 /** PostgREST `.or()` filters break on commas/parens/percent — strip them. */
 function sanitizeSearch(value: string) {
@@ -152,12 +208,18 @@ export function StudentsView({
 	students,
 	total,
 	sections,
+	canUpdate,
+	canArchive,
 	lang,
 }: {
 	tenantId: string;
 	students: StudentListRow[];
 	total: number;
 	sections: SectionOption[];
+	/** students.update — required for both lifecycle actions. */
+	canUpdate: boolean;
+	/** students.archive — additionally required for the terminal statuses. */
+	canArchive: boolean;
 	lang: Lang;
 }) {
 	const t = useMemo(() => getDict(lang), [lang]);
@@ -282,7 +344,7 @@ export function StudentsView({
 								</TableHeader>
 								<TableBody>
 									{rows.map((s) => {
-									const section = s.class_enrolments[0]?.class_sections;
+									const placement = enrolmentLabel(s);
 									const guardian =
 										s.student_guardians.find((g) => g.is_primary)?.guardians ??
 										s.student_guardians[0]?.guardians;
@@ -292,14 +354,14 @@ export function StudentsView({
 											<TableCell>
 												{s.first_name} {s.middle_name ?? ""} {s.last_name}
 											</TableCell>
-											<TableCell>
-												{section ? `${section.grade_levels?.name ?? ""} ${section.name}` : "—"}
-											</TableCell>
+											<TableCell>{placement ?? "—"}</TableCell>
 											<TableCell>
 												{guardian ? `${guardian.full_name} ${guardian.phone ?? ""}` : "—"}
 											</TableCell>
 											<TableCell>
-												<Badge variant="outline">{s.status}</Badge>
+												<Badge variant="outline">
+													{STATUS_KEYS[s.status] ? t(STATUS_KEYS[s.status]) : s.status}
+												</Badge>
 											</TableCell>
 											<TableCell className="text-right">
 												<span className="flex items-center justify-end gap-3">
@@ -309,6 +371,24 @@ export function StudentsView({
 															lang={lang}
 															tenantId={tenantId}
 														/>
+													)}
+													{canUpdate && (
+														<>
+															<ClassPlacementDialog
+																lang={lang}
+																onDone={reload}
+																sections={sections}
+																student={s}
+																tenantId={tenantId}
+															/>
+															<StudentStatusDialog
+																canArchive={canArchive}
+																lang={lang}
+																onDone={reload}
+																student={s}
+																tenantId={tenantId}
+															/>
+														</>
 													)}
 													<Link
 														className="text-sm font-medium text-primary hover:underline"
@@ -419,6 +499,302 @@ function InviteParentButton({
 	);
 }
 
+/**
+ * Class placement — migration 0030. `class_enrolments` used to be insert-only
+ * behind `unique (student_id, academic_year_id)`, so a mistyped stream was
+ * permanent for the whole year and the pupil never appeared on their real
+ * register. One dialog covers both "assign" and "move".
+ */
+function ClassPlacementDialog({
+	tenantId,
+	student,
+	sections,
+	lang,
+	onDone,
+}: {
+	tenantId: string;
+	student: StudentListRow;
+	sections: SectionOption[];
+	lang: Lang;
+	onDone: () => Promise<void>;
+}) {
+	const t = getDict(lang);
+	const current = activeEnrolment(student)?.class_sections ?? null;
+	const [open, setOpen] = useState(false);
+	const [sectionId, setSectionId] = useState(current?.id ?? "");
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	// Reset on open AND on close: a reopened dialog must never inherit a prior
+	// selection, nor a placement that the last list reload has since changed.
+	function handleOpenChange(next: boolean) {
+		setSectionId(current?.id ?? "");
+		setError(null);
+		setPending(false);
+		setOpen(next);
+	}
+
+	// Group by academic year (the server already ordered newest year first) so
+	// rolling a pupil into next year's stream is one obvious choice.
+	const groups: Array<{ id: string; name: string; options: SectionOption[] }> = [];
+	for (const section of sections) {
+		const bucket = groups.find((g) => g.id === section.academicYearId);
+		if (bucket) bucket.options.push(section);
+		else
+			groups.push({
+				id: section.academicYearId,
+				name: section.yearName,
+				options: [section],
+			});
+	}
+
+	async function submit(e: React.FormEvent) {
+		e.preventDefault();
+		if (pending || !sectionId) return;
+		setPending(true);
+		setError(null);
+		let ok = false;
+		try {
+			// academicYearId is deliberately omitted: the RPC defaults to the
+			// section's own year, so a pupil can never be filed into a section
+			// belonging to a different year.
+			const response = await apiFetch(`/api/v1/students/${student.id}/enrolment`, {
+				method: "PATCH",
+				tenantId,
+				body: JSON.stringify({ classSectionId: sectionId }),
+			});
+			if (response.ok) {
+				ok = true;
+			} else {
+				const body = (await response.json().catch(() => null)) as { code?: string } | null;
+				setError(apiErrorMessage(t, body, response.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (ok) {
+			setOpen(false);
+			await onDone();
+		}
+	}
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogTrigger className={rowActionClass}>{t("students.changeClass")}</DialogTrigger>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle>{t("students.class.title")}</DialogTitle>
+				</DialogHeader>
+				<form className="flex flex-col gap-3" onSubmit={submit}>
+					<p className="font-medium">
+						{student.first_name} {student.last_name}{" "}
+						<span className="font-mono text-xs text-muted-foreground">
+							{student.student_number}
+						</span>
+					</p>
+					<p className="text-sm text-muted-foreground">
+						{t("students.class.current")}:{" "}
+						<span className="font-medium text-foreground">
+							{enrolmentLabel(student) ?? t("students.class.none")}
+						</span>
+					</p>
+					{sections.length === 0 ? (
+						<p className="text-sm text-muted-foreground">{t("students.class.noSections")}</p>
+					) : (
+						<label className="flex flex-col gap-1 text-sm text-muted-foreground">
+							{t("students.class.moveTo")}
+							<select
+								className={selectClass}
+								onChange={(e) => setSectionId(e.target.value)}
+								value={sectionId}
+							>
+								<option value="">{t("students.class.pick")}</option>
+								{groups.map((group) => (
+									<optgroup key={group.id} label={group.name}>
+										{group.options.map((option) => (
+											<option key={option.id} value={option.id}>
+												{option.label}
+											</option>
+										))}
+									</optgroup>
+								))}
+							</select>
+						</label>
+					)}
+					<p className="text-xs text-muted-foreground">{t("students.class.explain")}</p>
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<div className="flex justify-end gap-2">
+						<Button
+							disabled={pending}
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							{t("common.cancel")}
+						</Button>
+						<Button
+							disabled={pending || sectionId === "" || sectionId === (current?.id ?? "")}
+							type="submit"
+						>
+							{pending ? t("common.loading") : t("common.save")}
+						</Button>
+					</div>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+/**
+ * Student lifecycle — migration 0030. `students.status` had no writer at all,
+ * so a leaver held a paid plan seat forever, kept being invoiced and kept
+ * getting absence SMS. Terminal statuses additionally need `students.archive`;
+ * the API enforces that too, this only mirrors it in the UI.
+ */
+function StudentStatusDialog({
+	tenantId,
+	student,
+	canArchive,
+	lang,
+	onDone,
+}: {
+	tenantId: string;
+	student: StudentListRow;
+	canArchive: boolean;
+	lang: Lang;
+	onDone: () => Promise<void>;
+}) {
+	const t = getDict(lang);
+	const [open, setOpen] = useState(false);
+	const [status, setStatus] = useState<StudentStatus>(normaliseStatus(student.status));
+	const [reason, setReason] = useState("");
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	function handleOpenChange(next: boolean) {
+		setStatus(normaliseStatus(student.status));
+		setReason("");
+		setError(null);
+		setPending(false);
+		setOpen(next);
+	}
+
+	async function submit(e: React.FormEvent) {
+		e.preventDefault();
+		if (pending || status === student.status) return;
+		setPending(true);
+		setError(null);
+		let ok = false;
+		try {
+			const response = await apiFetch(`/api/v1/students/${student.id}/status`, {
+				method: "PATCH",
+				tenantId,
+				body: JSON.stringify({ status, reason: reason.trim() || undefined }),
+			});
+			if (response.ok) {
+				ok = true;
+			} else {
+				const body = (await response.json().catch(() => null)) as { code?: string } | null;
+				setError(apiErrorMessage(t, body, response.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (ok) {
+			setOpen(false);
+			await onDone();
+		}
+	}
+
+	const currentKey = STATUS_KEYS[student.status];
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogTrigger className={rowActionClass}>{t("students.changeStatus")}</DialogTrigger>
+			<DialogContent className="max-w-md">
+				<DialogHeader>
+					<DialogTitle>{t("students.status.title")}</DialogTitle>
+				</DialogHeader>
+				<form className="flex flex-col gap-3" onSubmit={submit}>
+					<p className="font-medium">
+						{student.first_name} {student.last_name}{" "}
+						<span className="font-mono text-xs text-muted-foreground">
+							{student.student_number}
+						</span>
+					</p>
+					<p className="text-sm text-muted-foreground">
+						{t("students.status.current")}:{" "}
+						<span className="font-medium text-foreground">
+							{currentKey ? t(currentKey) : student.status}
+						</span>
+					</p>
+					<label className="flex flex-col gap-1 text-sm text-muted-foreground">
+						{t("students.status.new")}
+						<select
+							className={selectClass}
+							onChange={(e) => setStatus(normaliseStatus(e.target.value))}
+							value={status}
+						>
+							{STUDENT_STATUSES.map((value) => (
+								<option disabled={value !== "active" && !canArchive} key={value} value={value}>
+									{t(STATUS_KEYS[value])}
+								</option>
+							))}
+						</select>
+					</label>
+					{!canArchive && (
+						<p className="text-xs text-muted-foreground">{t("students.status.needArchive")}</p>
+					)}
+					<label className="flex flex-col gap-1 text-sm text-muted-foreground">
+						{t("students.status.reason")}
+						<textarea
+							className="min-h-20 rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							maxLength={500}
+							onChange={(e) => setReason(e.target.value)}
+							placeholder={t("students.status.reasonPlaceholder")}
+							value={reason}
+						/>
+					</label>
+					{status !== "active" && (
+						<div className="rounded-xl border p-3 text-xs text-muted-foreground">
+							<p className="font-medium text-foreground">{t("students.status.effects")}</p>
+							<ul className="mt-1 list-disc pl-4">
+								<li>{t("students.status.effectSeat")}</li>
+								<li>{t("students.status.effectInvoices")}</li>
+								<li>{t("students.status.effectSms")}</li>
+								<li>{t("students.status.effectRegister")}</li>
+							</ul>
+						</div>
+					)}
+					{status === "active" && student.status !== "active" && (
+						<p className="text-xs text-muted-foreground">
+							{t("students.status.reinstateNote")}
+						</p>
+					)}
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<div className="flex justify-end gap-2">
+						<Button
+							disabled={pending}
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							{t("common.cancel")}
+						</Button>
+						<Button disabled={pending || status === student.status} type="submit">
+							{pending ? t("common.loading") : t("common.save")}
+						</Button>
+					</div>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 function AddStudentDialog({
 	tenantId,
 	sections,
@@ -490,9 +866,6 @@ function AddStudentDialog({
 			setPending(false);
 		}
 	}
-
-	const selectClass =
-		"h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 	return (
 		<Dialog onOpenChange={setOpen} open={open}>

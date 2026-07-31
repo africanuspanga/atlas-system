@@ -55,7 +55,10 @@ export default async function AcademicsPage() {
 		supabase
 			.from("class_sections")
 			.select(
-				"id, name, capacity, status, grade_levels(name, sequence, education_level), class_enrolments(count)",
+				`id, name, capacity, status, academic_year_id,
+				 grade_levels(name, sequence, education_level),
+				 academic_years(name, starts_on),
+				 class_enrolments(count)`,
 			)
 			.eq("tenant_id", tenant.id)
 			.order("name")
@@ -85,7 +88,9 @@ export default async function AcademicsPage() {
 	);
 	const isSuper = roles.some((r) => r && MANAGE_SUPER_ROLES.includes(r.key));
 	let canManageCombinations = isSuper;
-	let canExport = isSuper;
+	// academics.manage covers both the NECTA candidate export and the year /
+	// grade / stream writers added in migration 0030.
+	let canManageAcademics = isSuper;
 	if (!isSuper && roles.length > 0) {
 		const { data: perms } = await supabase
 			.from("role_permissions")
@@ -97,7 +102,7 @@ export default async function AcademicsPage() {
 			.in("permission_key", ["academics.combinations.manage", "academics.manage"]);
 		const keys = new Set((perms ?? []).map((p) => p.permission_key as string));
 		canManageCombinations = keys.has("academics.combinations.manage");
-		canExport = keys.has("academics.manage");
+		canManageAcademics = keys.has("academics.manage");
 	}
 
 	const { lang } = await getServerDict();
@@ -105,7 +110,8 @@ export default async function AcademicsPage() {
 	return (
 		<AppShell schoolName={tenant.name}>
 			<AcademicsView
-				canExport={canExport}
+				canExport={canManageAcademics}
+				canManage={canManageAcademics}
 				canManageCombinations={canManageCombinations}
 				gradeLevels={(gradeLevels ?? []) as unknown as GradeLevelRow[]}
 				lang={lang}

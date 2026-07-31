@@ -1,13 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DownloadIcon, LayersIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { DownloadIcon, LayersIcon, PlusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { getDict, type DictKey, type Lang, type Translator } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import {
 	Table,
 	TableBody,
@@ -38,7 +47,9 @@ export interface SectionRow {
 	name: string;
 	capacity: number | null;
 	status: string;
+	academic_year_id: string;
 	grade_levels: { name: string; sequence: number; education_level: string } | null;
+	academic_years: { name: string; starts_on: string } | null;
 	class_enrolments: Array<{ count: number }>;
 }
 
@@ -113,6 +124,7 @@ export function AcademicsView({
 	sections,
 	years,
 	tenantId,
+	canManage,
 	canManageCombinations,
 	canExport,
 	lang,
@@ -122,21 +134,28 @@ export function AcademicsView({
 	sections: SectionRow[];
 	years: YearRow[];
 	tenantId: string;
+	/** academics.manage — year rollover, grade levels, streams. */
+	canManage: boolean;
 	canManageCombinations: boolean;
 	canExport: boolean;
 	lang: Lang;
 }) {
 	const t = useMemo(() => getDict(lang), [lang]);
+	const router = useRouter();
+	const reload = useCallback(() => router.refresh(), [router]);
 	const levelLabel = (level: string) => {
 		const key = LEVEL_KEYS[level];
 		return key ? t(key) : level;
 	};
 
+	// Newest year first — after a rollover the grid holds two years of streams.
 	const sortedSections = [...sections].sort(
 		(a, b) =>
+			(b.academic_years?.starts_on ?? "").localeCompare(a.academic_years?.starts_on ?? "") ||
 			(a.grade_levels?.sequence ?? 99) - (b.grade_levels?.sequence ?? 99) ||
 			a.name.localeCompare(b.name),
 	);
+	const sortedGradeLevels = [...gradeLevels].sort((a, b) => a.sequence - b.sequence);
 	const sectionOptions: SectionOption[] = sortedSections
 		.filter((s) => s.status === "active")
 		.map((s) => ({
@@ -151,7 +170,12 @@ export function AcademicsView({
 
 			<Card className="shadow-none">
 				<CardHeader>
-					<CardTitle className="text-base">{t("academics.years")}</CardTitle>
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<CardTitle className="text-base">{t("academics.years")}</CardTitle>
+						{canManage && (
+							<NewYearDialog onDone={reload} t={t} tenantId={tenantId} years={years} />
+						)}
+					</div>
 				</CardHeader>
 				<CardContent>
 					{years.length === 0 ? (
@@ -204,7 +228,18 @@ export function AcademicsView({
 
 			<Card className="shadow-none">
 				<CardHeader>
-					<CardTitle className="text-base">{t("academics.sections")}</CardTitle>
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<CardTitle className="text-base">{t("academics.sections")}</CardTitle>
+						{canManage && (
+							<AddSectionDialog
+								gradeLevels={sortedGradeLevels}
+								onDone={reload}
+								t={t}
+								tenantId={tenantId}
+								years={years}
+							/>
+						)}
+					</div>
 				</CardHeader>
 				<CardContent>
 					{sortedSections.length === 0 ? (
@@ -215,6 +250,7 @@ export function AcademicsView({
 						<Table>
 							<TableHeader>
 								<TableRow>
+									<TableHead>{t("academics.year")}</TableHead>
 									<TableHead>{t("students.class")}</TableHead>
 									<TableHead>{t("academics.stream")}</TableHead>
 									<TableHead>{t("academics.enrolled")}</TableHead>
@@ -225,6 +261,9 @@ export function AcademicsView({
 							<TableBody>
 								{sortedSections.map((s) => (
 									<TableRow key={s.id}>
+										<TableCell className="text-muted-foreground">
+											{s.academic_years?.name ?? "—"}
+										</TableCell>
 										<TableCell>{s.grade_levels?.name ?? "—"}</TableCell>
 										<TableCell>{s.name}</TableCell>
 										<TableCell className="font-mono">
@@ -244,10 +283,20 @@ export function AcademicsView({
 
 			<Card className="shadow-none">
 				<CardHeader>
-					<CardTitle className="text-base">{t("academics.gradeLevels")}</CardTitle>
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<CardTitle className="text-base">{t("academics.gradeLevels")}</CardTitle>
+						{canManage && (
+							<AddGradeLevelDialog
+								gradeLevels={sortedGradeLevels}
+								onDone={reload}
+								t={t}
+								tenantId={tenantId}
+							/>
+						)}
+					</div>
 				</CardHeader>
 				<CardContent>
-					{gradeLevels.length === 0 ? (
+					{sortedGradeLevels.length === 0 ? (
 						<p className="py-6 text-center text-sm text-muted-foreground">
 							{t("academics.gradeLevelsEmpty")}
 						</p>
@@ -261,7 +310,7 @@ export function AcademicsView({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{gradeLevels.map((g) => (
+								{sortedGradeLevels.map((g) => (
 									<TableRow key={g.id}>
 										<TableCell>{g.name}</TableCell>
 										<TableCell>{levelLabel(g.education_level)}</TableCell>
@@ -323,6 +372,605 @@ export function AcademicsView({
 				<CandidatesExportCard sections={sectionOptions} t={t} tenantId={tenantId} />
 			)}
 		</div>
+	);
+}
+
+const EDUCATION_LEVELS = ["pre_primary", "primary", "o_level", "a_level"] as const;
+
+interface TermDraft {
+	name: string;
+	startsOn: string;
+	endsOn: string;
+}
+
+/**
+ * Terms are data, not UI copy — they are stored verbatim and printed on report
+ * cards, so the defaults mirror the bilingual names the onboarding wizard
+ * writes rather than being translated per viewer.
+ */
+function defaultTerms(): TermDraft[] {
+	return [
+		{ name: "Muhula wa Kwanza (Term 1)", startsOn: "", endsOn: "" },
+		{ name: "Muhula wa Pili (Term 2)", startsOn: "", endsOn: "" },
+		{ name: "Muhula wa Tatu (Term 3)", startsOn: "", endsOn: "" },
+	];
+}
+
+/**
+ * Academic-year rollover — migration 0030. academic_years, academic_terms and
+ * class_sections used to be written only inside app.onboard_school, which runs
+ * once, so a school onboarded in 2026 had no path into 2027 at all. Creating
+ * the year and activating it are two deliberate steps: activation moves every
+ * register, assessment and class list onto the new year.
+ */
+function NewYearDialog({
+	tenantId,
+	years,
+	t,
+	onDone,
+}: {
+	tenantId: string;
+	years: YearRow[];
+	t: Translator;
+	onDone: () => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [name, setName] = useState("");
+	const [startsOn, setStartsOn] = useState("");
+	const [endsOn, setEndsOn] = useState("");
+	const [cloneFrom, setCloneFrom] = useState("");
+	const [terms, setTerms] = useState<TermDraft[]>(defaultTerms);
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [created, setCreated] = useState<{
+		academicYearId: string;
+		terms: number;
+		sectionsCloned: number;
+	} | null>(null);
+	const [activated, setActivated] = useState(false);
+
+	// Reset on open AND close — a reopened dialog must never inherit the last
+	// draft, nor the "created / activate now" panel from a previous run.
+	function handleOpenChange(next: boolean) {
+		setName("");
+		setStartsOn("");
+		setEndsOn("");
+		setCloneFrom("");
+		setTerms(defaultTerms());
+		setPending(false);
+		setError(null);
+		setCreated(null);
+		setActivated(false);
+		setOpen(next);
+	}
+
+	function setTerm(index: number, field: keyof TermDraft, value: string) {
+		setTerms((prev) =>
+			prev.map((term, i) => (i === index ? { ...term, [field]: value } : term)),
+		);
+	}
+
+	async function submit(e: React.FormEvent) {
+		e.preventDefault();
+		if (pending) return;
+		// Cheap client guard so an obvious date slip does not cost a round trip;
+		// the API re-validates the same rules with zod either way.
+		if (
+			endsOn <= startsOn ||
+			terms.some((term) => !term.name.trim() || term.endsOn <= term.startsOn)
+		) {
+			setError(t("err.invalid"));
+			return;
+		}
+		setPending(true);
+		setError(null);
+		let payload: { academicYearId: string; terms: number; sectionsCloned: number } | null =
+			null;
+		try {
+			const response = await apiFetch("/api/v1/academics/years", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					name: name.trim(),
+					startsOn,
+					endsOn,
+					cloneSectionsFromYearId: cloneFrom || undefined,
+					terms: terms.map((term) => ({
+						name: term.name.trim(),
+						startsOn: term.startsOn,
+						endsOn: term.endsOn,
+					})),
+				}),
+			});
+			const body = (await response.json().catch(() => null)) as {
+				code?: string;
+				academicYearId?: string;
+				terms?: number;
+				sectionsCloned?: number;
+			} | null;
+			if (!response.ok || !body?.academicYearId) {
+				setError(apiErrorMessage(t, body, response.status));
+			} else {
+				payload = {
+					academicYearId: body.academicYearId,
+					terms: body.terms ?? 0,
+					sectionsCloned: body.sectionsCloned ?? 0,
+				};
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (payload) {
+			setCreated(payload);
+			onDone();
+		}
+	}
+
+	async function activate() {
+		if (pending || !created) return;
+		setPending(true);
+		setError(null);
+		let ok = false;
+		try {
+			const response = await apiFetch(
+				`/api/v1/academics/years/${created.academicYearId}/activate`,
+				{ method: "POST", tenantId, body: JSON.stringify({}) },
+			);
+			if (response.ok) {
+				ok = true;
+			} else {
+				const body = (await response.json().catch(() => null)) as { code?: string } | null;
+				setError(apiErrorMessage(t, body, response.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (ok) {
+			setActivated(true);
+			onDone();
+		}
+	}
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogTrigger render={<Button size="sm" />}>
+				<PlusIcon /> {t("academics.newYear")}
+			</DialogTrigger>
+			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>{t("academics.newYear")}</DialogTitle>
+				</DialogHeader>
+				{created ? (
+					<div className="flex flex-col gap-3">
+						<p className="text-sm font-medium text-primary">{t("academics.yearCreated")}</p>
+						<p className="text-sm text-muted-foreground">
+							<span className="font-mono">{created.terms}</span> {t("academics.termsCreated")}{" "}
+							· <span className="font-mono">{created.sectionsCloned}</span>{" "}
+							{t("academics.sectionsCloned")}
+						</p>
+						<p className="text-xs text-muted-foreground">{t("academics.activateHint")}</p>
+						{activated && (
+							<p className="text-sm font-medium text-primary">
+								{t("academics.yearActivated")}
+							</p>
+						)}
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<div className="flex justify-end gap-2">
+							<Button
+								disabled={pending}
+								onClick={() => handleOpenChange(false)}
+								type="button"
+								variant="outline"
+							>
+								{t("common.close")}
+							</Button>
+							{!activated && (
+								<Button disabled={pending} onClick={() => void activate()} type="button">
+									{pending ? t("common.loading") : t("academics.activateNow")}
+								</Button>
+							)}
+						</div>
+					</div>
+				) : (
+					<form className="flex flex-col gap-3" onSubmit={submit}>
+						<p className="text-xs text-muted-foreground">{t("academics.newYearHint")}</p>
+						<Input
+							maxLength={50}
+							onChange={(e) => setName(e.target.value)}
+							placeholder={t("academics.yearName")}
+							required
+							value={name}
+						/>
+						<div className="grid grid-cols-2 gap-3">
+							<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+								{t("academics.startsOn")}
+								<Input
+									onChange={(e) => setStartsOn(e.target.value)}
+									required
+									type="date"
+									value={startsOn}
+								/>
+							</label>
+							<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+								{t("academics.endsOn")}
+								<Input
+									onChange={(e) => setEndsOn(e.target.value)}
+									required
+									type="date"
+									value={endsOn}
+								/>
+							</label>
+						</div>
+
+						<div className="flex items-center justify-between gap-2">
+							<h3 className="text-sm font-semibold">{t("academics.terms")}</h3>
+							<Button
+								disabled={pending || terms.length >= 6}
+								onClick={() =>
+									setTerms((prev) => [...prev, { name: "", startsOn: "", endsOn: "" }])
+								}
+								size="sm"
+								type="button"
+								variant="outline"
+							>
+								{t("academics.addTerm")}
+							</Button>
+						</div>
+						{terms.map((term, index) => (
+							<div
+								className="flex flex-col gap-2 rounded-xl border p-3"
+								key={`term-${index}`}
+							>
+								<Input
+									maxLength={50}
+									onChange={(e) => setTerm(index, "name", e.target.value)}
+									placeholder={t("academics.termName")}
+									required
+									value={term.name}
+								/>
+								<div className="grid grid-cols-2 gap-2">
+									<Input
+										onChange={(e) => setTerm(index, "startsOn", e.target.value)}
+										required
+										type="date"
+										value={term.startsOn}
+									/>
+									<Input
+										onChange={(e) => setTerm(index, "endsOn", e.target.value)}
+										required
+										type="date"
+										value={term.endsOn}
+									/>
+								</div>
+								{terms.length > 1 && (
+									<Button
+										className="self-end"
+										disabled={pending}
+										onClick={() => setTerms((prev) => prev.filter((_, i) => i !== index))}
+										size="sm"
+										type="button"
+										variant="outline"
+									>
+										{t("academics.removeTerm")}
+									</Button>
+								)}
+							</div>
+						))}
+						<p className="text-xs text-muted-foreground">{t("academics.termsHint")}</p>
+
+						<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+							{t("academics.cloneFrom")}
+							<select
+								className={selectClass}
+								onChange={(e) => setCloneFrom(e.target.value)}
+								value={cloneFrom}
+							>
+								<option value="">{t("academics.cloneNone")}</option>
+								{years.map((y) => (
+									<option key={y.id} value={y.id}>
+										{y.name}
+									</option>
+								))}
+							</select>
+						</label>
+						<p className="text-xs text-muted-foreground">{t("academics.cloneHint")}</p>
+
+						{error && <p className="text-sm text-destructive">{error}</p>}
+						<div className="flex justify-end gap-2">
+							<Button
+								disabled={pending}
+								onClick={() => handleOpenChange(false)}
+								type="button"
+								variant="outline"
+							>
+								{t("common.cancel")}
+							</Button>
+							<Button disabled={pending} type="submit">
+								{pending ? t("common.loading") : t("common.save")}
+							</Button>
+						</div>
+					</form>
+				)}
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+/** Grade levels are tenant-wide and reused by every year's section grid. */
+function AddGradeLevelDialog({
+	tenantId,
+	gradeLevels,
+	t,
+	onDone,
+}: {
+	tenantId: string;
+	gradeLevels: GradeLevelRow[];
+	t: Translator;
+	onDone: () => void;
+}) {
+	const nextSequence = String(
+		Math.min(100, gradeLevels.reduce((max, g) => Math.max(max, g.sequence), 0) + 1),
+	);
+	const [open, setOpen] = useState(false);
+	const [educationLevel, setEducationLevel] = useState<string>("o_level");
+	const [name, setName] = useState("");
+	const [sequence, setSequence] = useState(nextSequence);
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	function handleOpenChange(next: boolean) {
+		setEducationLevel("o_level");
+		setName("");
+		setSequence(nextSequence);
+		setPending(false);
+		setError(null);
+		setOpen(next);
+	}
+
+	async function submit(e: React.FormEvent) {
+		e.preventDefault();
+		if (pending) return;
+		setPending(true);
+		setError(null);
+		let ok = false;
+		try {
+			const response = await apiFetch("/api/v1/academics/grade-levels", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					educationLevel,
+					name: name.trim(),
+					sequence: Number(sequence),
+				}),
+			});
+			if (response.ok) {
+				ok = true;
+			} else {
+				const body = (await response.json().catch(() => null)) as { code?: string } | null;
+				setError(apiErrorMessage(t, body, response.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (ok) {
+			setOpen(false);
+			onDone();
+		}
+	}
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogTrigger render={<Button size="sm" variant="outline" />}>
+				<PlusIcon /> {t("academics.addGradeLevel")}
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>{t("academics.addGradeLevel")}</DialogTitle>
+				</DialogHeader>
+				<form className="flex flex-col gap-3" onSubmit={submit}>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						{t("academics.level")}
+						<select
+							className={selectClass}
+							onChange={(e) => setEducationLevel(e.target.value)}
+							value={educationLevel}
+						>
+							{EDUCATION_LEVELS.map((level) => (
+								<option key={level} value={level}>
+									{t(LEVEL_KEYS[level])}
+								</option>
+							))}
+						</select>
+					</label>
+					<Input
+						maxLength={50}
+						onChange={(e) => setName(e.target.value)}
+						placeholder={t("academics.gradeName")}
+						required
+						value={name}
+					/>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						{t("academics.gradeSequence")}
+						<Input
+							max={100}
+							min={1}
+							onChange={(e) => setSequence(e.target.value)}
+							required
+							type="number"
+							value={sequence}
+						/>
+					</label>
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<div className="flex justify-end gap-2">
+						<Button
+							disabled={pending}
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							{t("common.cancel")}
+						</Button>
+						<Button disabled={pending} type="submit">
+							{pending ? t("common.loading") : t("common.save")}
+						</Button>
+					</div>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+/** A stream is a class_sections row — its `name` IS the stream label ("A"). */
+function AddSectionDialog({
+	tenantId,
+	years,
+	gradeLevels,
+	t,
+	onDone,
+}: {
+	tenantId: string;
+	years: YearRow[];
+	gradeLevels: GradeLevelRow[];
+	t: Translator;
+	onDone: () => void;
+}) {
+	const defaultYear = (years.find((y) => y.status === "active") ?? years[0])?.id ?? "";
+	const [open, setOpen] = useState(false);
+	const [academicYearId, setAcademicYearId] = useState(defaultYear);
+	const [gradeLevelId, setGradeLevelId] = useState("");
+	const [name, setName] = useState("");
+	const [capacity, setCapacity] = useState("");
+	const [pending, setPending] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	function handleOpenChange(next: boolean) {
+		setAcademicYearId(defaultYear);
+		setGradeLevelId("");
+		setName("");
+		setCapacity("");
+		setPending(false);
+		setError(null);
+		setOpen(next);
+	}
+
+	async function submit(e: React.FormEvent) {
+		e.preventDefault();
+		if (pending || !academicYearId || !gradeLevelId) return;
+		setPending(true);
+		setError(null);
+		let ok = false;
+		try {
+			const response = await apiFetch("/api/v1/academics/sections", {
+				method: "POST",
+				tenantId,
+				body: JSON.stringify({
+					academicYearId,
+					gradeLevelId,
+					name: name.trim(),
+					capacity: capacity ? Number(capacity) : undefined,
+				}),
+			});
+			if (response.ok) {
+				ok = true;
+			} else {
+				const body = (await response.json().catch(() => null)) as { code?: string } | null;
+				setError(apiErrorMessage(t, body, response.status));
+			}
+		} catch {
+			setError(t("common.apiUnreachable"));
+		} finally {
+			setPending(false);
+		}
+		if (ok) {
+			setOpen(false);
+			onDone();
+		}
+	}
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogTrigger render={<Button size="sm" variant="outline" />}>
+				<PlusIcon /> {t("academics.addSection")}
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>{t("academics.addSection")}</DialogTitle>
+				</DialogHeader>
+				<form className="flex flex-col gap-3" onSubmit={submit}>
+					{years.length === 0 && (
+						<p className="text-sm text-muted-foreground">{t("academics.noYears")}</p>
+					)}
+					{gradeLevels.length === 0 && (
+						<p className="text-sm text-muted-foreground">{t("academics.noGrades")}</p>
+					)}
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						{t("academics.year")}
+						<select
+							className={selectClass}
+							onChange={(e) => setAcademicYearId(e.target.value)}
+							value={academicYearId}
+						>
+							<option value="">{t("academics.pickYear")}</option>
+							{years.map((y) => (
+								<option key={y.id} value={y.id}>
+									{y.name}
+								</option>
+							))}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						{t("students.class")}
+						<select
+							className={selectClass}
+							onChange={(e) => setGradeLevelId(e.target.value)}
+							value={gradeLevelId}
+						>
+							<option value="">{t("academics.pickGrade")}</option>
+							{gradeLevels.map((g) => (
+								<option key={g.id} value={g.id}>
+									{g.name}
+								</option>
+							))}
+						</select>
+					</label>
+					<Input
+						maxLength={20}
+						onChange={(e) => setName(e.target.value)}
+						placeholder={t("academics.sectionName")}
+						required
+						value={name}
+					/>
+					<Input
+						max={500}
+						min={1}
+						onChange={(e) => setCapacity(e.target.value)}
+						placeholder={t("academics.sectionCapacity")}
+						type="number"
+						value={capacity}
+					/>
+					{error && <p className="text-sm text-destructive">{error}</p>}
+					<div className="flex justify-end gap-2">
+						<Button
+							disabled={pending}
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
+							{t("common.cancel")}
+						</Button>
+						<Button disabled={pending || !academicYearId || !gradeLevelId} type="submit">
+							{pending ? t("common.loading") : t("common.save")}
+						</Button>
+					</div>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

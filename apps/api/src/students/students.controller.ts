@@ -190,7 +190,10 @@ export class StudentsController {
         !req.tenant.isOwner &&
         !req.tenant.permissions.has('students.archive')
       ) {
-        throw new ForbiddenException('Missing permission: students.archive');
+        // Stable code, not a bare string: every other business error in this
+        // controller is `{ code: 'STABLE_CODE' }`, and the web/mobile error
+        // maps key off `code`. A message-only 403 renders as raw English.
+        throw new ForbiddenException({ code: 'STUDENTS_ARCHIVE_REQUIRED' });
       }
     }
 

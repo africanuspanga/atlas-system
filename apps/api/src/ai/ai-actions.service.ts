@@ -12,9 +12,17 @@ import { resolveWebOrigin } from '../config';
  * permission RE-CHECKED with a fresh TenantContext → execute through the SAME
  * RPCs the app uses → audit. Proposals are user-bound, single-use and expire.
  *
- * HARD-BLOCKED (never in this catalogue): deleting/archiving students,
- * modifying/reversing payments, publishing results, changing grades, payroll,
- * suspending accounts, changing subscription plans, platform operations.
+ * HARD-BLOCKED (never in this catalogue): DELETING students or any other
+ * record, modifying/reversing payments, publishing results, changing grades,
+ * payroll, suspending accounts, changing subscription plans, activating an
+ * academic year, platform operations.
+ *
+ * setStudentStatus is the one lifecycle exception and is NOT a deletion: it
+ * sets students.status (migration 0030) so a leaver stops being invoiced,
+ * stops receiving absence SMS and frees a plan seat. The row and its history
+ * survive, the terminal states demand `students.archive` on top of the action's
+ * `students.update`, and — like every action here — nothing happens until a
+ * human confirms.
  *
  * DEFERRED (allowed in principle, not proposable yet): bulk attendance
  * recording — a whole-class per-student payload does not fit the single-card
@@ -760,6 +768,243 @@ async function resolveGuardianLink(
     alreadyLinked: existing !== null,
     hasPrimary: (primaries ?? []).length > 0,
   };
+}
+
+/** Lifecycle states of a pupil (migration 0030). */
+const STUDENT_STATUSES = [
+  'active',
+  'transferred',
+  'withdrawn',
+  'graduated',
+  'archived',
+] as const;
+
+/**
+ * Business exceptions raised by the 0030 lifecycle RPCs. Mapped to exactly the
+ * same stable codes students.controller / academics.controller return, so the
+ * assistant and the app speak one error vocabulary.
+ */
+const LIFECYCLE_RPC_ERRORS = [
+  'STUDENT_NOT_FOUND',
+  'STUDENT_STATUS_INVALID',
+  'ENROLMENT_STUDENT_NOT_FOUND',
+  'ENROLMENT_SECTION_NOT_FOUND',
+  'ENROLMENT_YEAR_MISMATCH',
+  'YEAR_NAME_REQUIRED',
+  'YEAR_NAME_TAKEN',
+  'YEAR_TERMS_REQUIRED',
+  'YEAR_CLONE_SOURCE_NOT_FOUND',
+] as const;
+
+function lifecycleRpcThrow(error: { message: string }): never {
+  const known = LIFECYCLE_RPC_ERRORS.find((code) =>
+    error.message.includes(code),
+  );
+  if (known) throw new Error(known);
+  rpcThrow(error);
+}
+
+/**
+ * Retiring a pupil is a heavier act than a plain correction: students.controller
+ * requires `students.archive` ON TOP OF the route's `students.update` for every
+ * non-active status. The AI path applies the SAME rule — at propose time AND
+ * again at execute time, because roles can change while a proposal sits.
+ */
+function assertStudentStatusRight(ctx: TenantContext, status: string): void {
+  if (status === 'active') return;
+  if (ctx.isOwner || ctx.permissions.has('students.archive')) return;
+  throw new Error(
+    `PERMISSION_DENIED: students.archive is required to mark a pupil ${status}`,
+  );
+}
+
+/**
+ * Student lookup for the lifecycle actions: FULL name (middle name included)
+ * plus admission number, so the confirmation card names the human being
+ * affected. Tenant-scoped — the model supplies an admission number, never an id.
+ */
+async function resolveStudentForLifecycle(
+  supabase: SupabaseService,
+  ctx: TenantContext,
+  studentNumber: unknown,
+) {
+  const { data: student } = await supabase.admin
+    .from('students')
+    .select('id, first_name, middle_name, last_name, student_number, status')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('student_number', String(studentNumber).toUpperCase().trim())
+    .maybeSingle();
+  if (!student) {
+    throw new Error(`STUDENT_NOT_FOUND: no student ${String(studentNumber)}`);
+  }
+  const fullName = [student.first_name, student.middle_name, student.last_name]
+    .filter((part) => typeof part === 'string' && part.trim() !== '')
+    .join(' ');
+  return {
+    id: student.id as string,
+    fullName,
+    number: student.student_number as string,
+    label: `${fullName} (${student.student_number as string})`,
+    status: student.status as string,
+  };
+}
+
+/**
+ * The pupil's placement for one academic year, rendered as
+ * "<grade_levels.name> <class_sections.name>" — class_sections.name IS the
+ * stream label ("A"); there is no stream column.
+ */
+async function currentPlacement(
+  supabase: SupabaseService,
+  ctx: TenantContext,
+  studentId: string,
+  yearId: string,
+) {
+  const { data: enrolment } = await supabase.admin
+    .from('class_enrolments')
+    .select(
+      'id, status, class_section_id, class_sections(name, grade_levels(name))',
+    )
+    .eq('tenant_id', ctx.tenantId)
+    .eq('student_id', studentId)
+    .eq('academic_year_id', yearId)
+    .maybeSingle();
+  if (!enrolment) return null;
+  const section = enrolment.class_sections as unknown as {
+    name: string;
+    grade_levels: { name: string } | null;
+  } | null;
+  return {
+    sectionId: enrolment.class_section_id as string,
+    status: enrolment.status as string,
+    label:
+      `${section?.grade_levels?.name ?? ''} ${section?.name ?? ''}`.trim() ||
+      'Unknown class',
+  };
+}
+
+/**
+ * Resolves the human-friendly assignOrTransferClass args against live data.
+ * The target section is looked up INSIDE the target academic year — a school
+ * with several years has "Form 1 A" in each of them.
+ */
+async function resolveClassPlacement(
+  supabase: SupabaseService,
+  ctx: TenantContext,
+  args: Record<string, unknown>,
+) {
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  const student = await resolveStudentForLifecycle(
+    supabase,
+    ctx,
+    args.studentNumber,
+  );
+  const year = await resolveAcademicYear(supabase, ctx, args.academicYear);
+
+  const { data: sections } = await supabase.admin
+    .from('class_sections')
+    .select('id, name, capacity, grade_levels(name)')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('academic_year_id', year.id)
+    .eq('status', 'active')
+    .limit(1000);
+  const stream =
+    typeof args.stream === 'string' && args.stream.trim() !== ''
+      ? args.stream.trim()
+      : null;
+  const matches = (sections ?? []).filter((s) => {
+    const grade =
+      (s.grade_levels as unknown as { name: string } | null)?.name ?? '';
+    return (
+      norm(grade) === norm(String(args.className)) &&
+      (!stream || norm(s.name as string) === norm(stream))
+    );
+  });
+  if (matches.length === 0) {
+    throw new Error(
+      `ENROLMENT_SECTION_NOT_FOUND: no class "${String(args.className)}${stream ? ` ${stream}` : ''}" in ${year.name}`,
+    );
+  }
+  if (matches.length > 1) {
+    throw new Error(
+      `SECTION_AMBIGUOUS: ${matches.length} streams match "${String(args.className)}" in ${year.name} — name the stream (e.g. A)`,
+    );
+  }
+  const match = matches[0];
+  const grade =
+    (match.grade_levels as unknown as { name: string } | null)?.name ?? '';
+  const [placement, occupancyResult] = await Promise.all([
+    currentPlacement(supabase, ctx, student.id, year.id),
+    supabase.admin
+      .from('class_enrolments')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', ctx.tenantId)
+      .eq('class_section_id', match.id as string)
+      .eq('status', 'active'),
+  ]);
+
+  return {
+    student,
+    year,
+    target: {
+      id: match.id as string,
+      label: `${grade} ${match.name as string}`.trim(),
+      capacity: (match.capacity as number | null) ?? null,
+      occupancy: occupancyResult.count ?? 0,
+    },
+    current: placement,
+  };
+}
+
+/**
+ * Resolves the human-friendly createAcademicYear args: the clone source is
+ * given by year NAME (the model never handles ids) and is resolved to an id
+ * tenant-scoped, so a year from another school can never be copied.
+ */
+async function resolveYearCreation(
+  supabase: SupabaseService,
+  ctx: TenantContext,
+  args: Record<string, unknown>,
+) {
+  const name = String(args.name).trim();
+  const { data: existing } = await supabase.admin
+    .from('academic_years')
+    .select('id')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('name', name)
+    .maybeSingle();
+
+  let clone: { id: string; name: string; sections: number } | null = null;
+  if (
+    typeof args.cloneSectionsFromYear === 'string' &&
+    args.cloneSectionsFromYear.trim() !== ''
+  ) {
+    const sourceName = args.cloneSectionsFromYear.trim();
+    const { data: source } = await supabase.admin
+      .from('academic_years')
+      .select('id, name')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('name', sourceName)
+      .maybeSingle();
+    if (!source) {
+      throw new Error(
+        `YEAR_CLONE_SOURCE_NOT_FOUND: no academic year "${sourceName}" to copy classes from`,
+      );
+    }
+    const { count } = await supabase.admin
+      .from('class_sections')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', ctx.tenantId)
+      .eq('academic_year_id', source.id as string)
+      .eq('status', 'active');
+    clone = {
+      id: source.id as string,
+      name: source.name as string,
+      sections: count ?? 0,
+    };
+  }
+
+  return { name, nameTaken: existing !== null, clone };
 }
 
 const PAYMENT_METHODS = [
@@ -2216,6 +2461,363 @@ export const AI_ACTIONS: Record<string, ActionDef> = {
       };
     },
   },
+
+  setStudentStatus: {
+    description:
+      "PROPOSE changing a student's lifecycle status (by student number): active, transferred, withdrawn, graduated or archived. NOTHING is deleted — the record and its history stay for audit — but a non-active status closes the pupil's open class enrolment, so they stop being invoiced, stop receiving absence SMS and free a plan seat. Use it when a pupil leaves, transfers to another school or finishes Form 4/6. The user must confirm.",
+    parameters: {
+      type: 'object',
+      properties: {
+        studentNumber: { type: 'string', description: 'e.g. STU-00042' },
+        status: {
+          type: 'string',
+          enum: [...STUDENT_STATUSES],
+          description:
+            '"active" restores a pupil to the roster; the other four retire them',
+        },
+        reason: {
+          type: 'string',
+          description: 'Why (optional) — stored on the audit trail',
+        },
+      },
+      required: ['studentNumber', 'status'],
+    },
+    // Route-level key, mirroring PATCH /students/:id/status. The heavier
+    // students.archive right is additionally required for every non-active
+    // status — checked in preview AND execute (see assertStudentStatusRight).
+    permission: 'students.update',
+    argsSchema: z.object({
+      studentNumber: z.string().min(3).max(20),
+      status: z.enum(STUDENT_STATUSES),
+      reason: z.string().max(500).optional(),
+    }),
+    preview: async (supabase, ctx, args) => {
+      const status = String(args.status);
+      assertStudentStatusRight(ctx, status);
+      const student = await resolveStudentForLifecycle(
+        supabase,
+        ctx,
+        args.studentNumber,
+      );
+      const warnings: string[] = [];
+      const lines: Array<[string, string]> = [
+        ['Student', `${student.fullName} — admission number ${student.number}`],
+        ['Current status', student.status],
+        ['New status', status],
+        ...(args.reason
+          ? ([['Reason', args.reason as string]] as Array<[string, string]>)
+          : []),
+      ];
+      if (student.status === status) {
+        warnings.push(
+          `${student.fullName} is already ${status} — confirming changes nothing.`,
+        );
+      }
+
+      const { limits, usage } = ctx.entitlements;
+      if (status !== 'active') {
+        lines.push([
+          'What this does',
+          `${student.fullName} stops being invoiced, stops receiving absence SMS, and frees one plan seat`,
+        ]);
+        lines.push([
+          'Plan seats',
+          limits.students === null
+            ? `${usage.students} active students (no seat limit on this plan)`
+            : `${usage.students} of ${limits.students} used — this frees one`,
+        ]);
+        warnings.push(
+          `${student.fullName} (${student.number}) comes off the class register: no more fee invoices, no more absence SMS to the guardian, and the plan seat is freed. Nothing is deleted — the record and its history stay for audit.`,
+        );
+        const { count: openInvoices } = await supabase.admin
+          .from('invoices')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', ctx.tenantId)
+          .eq('student_id', student.id)
+          .in('status', ['issued', 'partially_paid']);
+        if ((openInvoices ?? 0) > 0) {
+          warnings.push(
+            `${openInvoices} unpaid invoice(s) stay on the books — settle or reverse them in Finance separately.`,
+          );
+        }
+      } else if (student.status !== 'active') {
+        lines.push([
+          'What this does',
+          'Puts the pupil back on the roster and re-occupies a plan seat',
+        ]);
+        warnings.push(
+          'Restoring does NOT bring back the old class enrolment — assign a class afterwards.',
+        );
+        if (limits.students !== null && usage.students + 1 > limits.students) {
+          warnings.push(
+            `Plan seat limit reached (${usage.students}/${limits.students} students) — free a seat before restoring this pupil.`,
+          );
+        }
+      }
+      return { title: `Set student status to ${status}`, lines, warnings };
+    },
+    execute: async (supabase, ctx, userId, args) => {
+      const status = String(args.status);
+      // Re-checked here, not just at propose time: the proposal has been at
+      // rest and the confirming user's roles may have changed since.
+      assertStudentStatusRight(ctx, status);
+      const student = await resolveStudentForLifecycle(
+        supabase,
+        ctx,
+        args.studentNumber,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { data, error } = await supabase.admin.rpc('set_student_status', {
+        p_tenant_id: ctx.tenantId,
+        p_actor: userId,
+        p_student_id: student.id,
+        p_status: status,
+        p_reason: (args.reason as string | undefined) ?? null,
+      });
+      if (error) lifecycleRpcThrow(error);
+      return data as Record<string, unknown>; // { studentId, status, changed }
+    },
+  },
+
+  assignOrTransferClass: {
+    description:
+      'PROPOSE giving a student a class for an academic year — either their FIRST placement (a pupil imported without a class is invisible to every register, mark sheet and report card) or a correction/transfer to a different class or stream. One enrolment per student per year: this replaces it. The user must confirm.',
+    parameters: {
+      type: 'object',
+      properties: {
+        studentNumber: { type: 'string', description: 'e.g. STU-00042' },
+        className: {
+          type: 'string',
+          description: 'Grade/class name, e.g. Form 1',
+        },
+        stream: {
+          type: 'string',
+          description:
+            'Stream label, e.g. A (optional when the grade has one stream only)',
+        },
+        academicYear: {
+          type: 'string',
+          description:
+            'Academic year name, e.g. "2027" (optional — defaults to the active year)',
+        },
+      },
+      required: ['studentNumber', 'className'],
+    },
+    permission: 'students.update',
+    argsSchema: z.object({
+      studentNumber: z.string().min(3).max(20),
+      className: z.string().min(1).max(40),
+      stream: z.string().max(20).optional(),
+      academicYear: z.string().max(20).optional(),
+    }),
+    preview: async (supabase, ctx, args) => {
+      const resolved = await resolveClassPlacement(supabase, ctx, args);
+      const warnings: string[] = [];
+      const currentLabel = resolved.current
+        ? `${resolved.current.label}${
+            resolved.current.status !== 'active'
+              ? ` (${resolved.current.status})`
+              : ''
+          }`
+        : 'Not assigned';
+      if (
+        resolved.current?.sectionId === resolved.target.id &&
+        resolved.current.status === 'active'
+      ) {
+        warnings.push(
+          `${resolved.student.fullName} is already in ${resolved.target.label} — confirming changes nothing.`,
+        );
+      }
+      if (resolved.student.status !== 'active') {
+        warnings.push(
+          `The pupil is ${resolved.student.status}, not active — set the status back to active first, or they stay off the register anyway.`,
+        );
+      }
+      if (
+        resolved.target.capacity !== null &&
+        resolved.target.occupancy >= resolved.target.capacity
+      ) {
+        warnings.push(
+          `${resolved.target.label} is already at capacity (${resolved.target.occupancy}/${resolved.target.capacity}) — the placement is still recorded.`,
+        );
+      }
+      return {
+        title: resolved.current
+          ? 'Transfer student to another class'
+          : 'Assign student to a class',
+        lines: [
+          [
+            'Student',
+            `${resolved.student.fullName} — admission number ${resolved.student.number}`,
+          ],
+          ['Academic year', resolved.year.name],
+          ['Current class', currentLabel],
+          ['New class', resolved.target.label],
+          [
+            'New class size',
+            resolved.target.capacity === null
+              ? `${resolved.target.occupancy} enrolled`
+              : `${resolved.target.occupancy} of ${resolved.target.capacity} enrolled`,
+          ],
+        ],
+        warnings,
+      };
+    },
+    execute: async (supabase, ctx, userId, args) => {
+      const resolved = await resolveClassPlacement(supabase, ctx, args);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { data, error } = await supabase.admin.rpc('set_class_enrolment', {
+        p_tenant_id: ctx.tenantId,
+        p_actor: userId,
+        p_student_id: resolved.student.id,
+        p_section_id: resolved.target.id,
+        p_year_id: resolved.year.id,
+      });
+      if (error) lifecycleRpcThrow(error);
+      return data as Record<string, unknown>; // { enrolmentId, changed }
+    },
+  },
+
+  createAcademicYear: {
+    description:
+      "PROPOSE opening the next academic year: its name, start/end dates, its terms, and optionally a copy of an existing year's class/stream grid so the school does not retype every stream. The year is created as a DRAFT — making it the active year stays in the app. The user must confirm.",
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Year name, e.g. "2027"' },
+        startsOn: { type: 'string', description: 'YYYY-MM-DD' },
+        endsOn: { type: 'string', description: 'YYYY-MM-DD' },
+        terms: {
+          type: 'array',
+          description: '1-6 terms, in order',
+          items: {
+            type: 'object',
+            properties: {
+              name: {
+                type: 'string',
+                description: 'e.g. "Muhula wa Kwanza"',
+              },
+              startsOn: { type: 'string', description: 'YYYY-MM-DD' },
+              endsOn: { type: 'string', description: 'YYYY-MM-DD' },
+            },
+            required: ['name', 'startsOn', 'endsOn'],
+          },
+        },
+        cloneSectionsFromYear: {
+          type: 'string',
+          description:
+            'Name of an existing year whose classes should be copied, e.g. "2026" (optional)',
+        },
+      },
+      required: ['name', 'startsOn', 'endsOn', 'terms'],
+    },
+    permission: 'academics.manage',
+    argsSchema: z
+      .object({
+        name: z.string().trim().min(1).max(50),
+        startsOn: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+        endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+        cloneSectionsFromYear: z.string().trim().max(50).optional(),
+        terms: z
+          .array(
+            z.object({
+              name: z.string().trim().min(1).max(50),
+              startsOn: z
+                .string()
+                .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+              endsOn: z
+                .string()
+                .regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+            }),
+          )
+          .min(1)
+          .max(6),
+      })
+      .refine((v) => v.endsOn > v.startsOn, {
+        message: 'endsOn must be after startsOn',
+        path: ['endsOn'],
+      })
+      .refine((v) => v.terms.every((t) => t.endsOn > t.startsOn), {
+        message: 'each term must end after it starts',
+        path: ['terms'],
+      }),
+    preview: async (supabase, ctx, args) => {
+      const resolved = await resolveYearCreation(supabase, ctx, args);
+      const terms = args.terms as Array<{
+        name: string;
+        startsOn: string;
+        endsOn: string;
+      }>;
+      const warnings: string[] = [];
+      if (resolved.nameTaken) {
+        warnings.push(
+          `An academic year named "${resolved.name}" already exists — execution will be rejected.`,
+        );
+      }
+      if (resolved.clone && resolved.clone.sections === 0) {
+        warnings.push(
+          `${resolved.clone.name} has no active classes to copy — the new year would start with none.`,
+        );
+      }
+      if (
+        terms.some(
+          (t, i) =>
+            t.startsOn < String(args.startsOn) ||
+            t.endsOn > String(args.endsOn) ||
+            (i > 0 && t.startsOn <= terms[i - 1].endsOn),
+        )
+      ) {
+        warnings.push(
+          'Term dates overlap each other or fall outside the year — check them before confirming.',
+        );
+      }
+      return {
+        title: `Open academic year ${resolved.name}`,
+        lines: [
+          ['Academic year', resolved.name],
+          ['Runs', `${String(args.startsOn)} → ${String(args.endsOn)}`],
+          ...terms.map((t, i): [string, string] => [
+            `Term ${i + 1} — ${t.name}`,
+            `${t.startsOn} → ${t.endsOn}`,
+          ]),
+          [
+            'Classes',
+            resolved.clone
+              ? `${resolved.clone.sections} section(s) copied from ${resolved.clone.name}`
+              : 'None copied — add classes on the Academics page afterwards',
+          ],
+          [
+            'Status',
+            'Created as DRAFT — making it the active year stays in the app',
+          ],
+        ],
+        warnings,
+      };
+    },
+    execute: async (supabase, ctx, userId, args) => {
+      const resolved = await resolveYearCreation(supabase, ctx, args);
+      // No `status` is ever passed: the RPC defaults to 'draft' and activating
+      // a year (which closes the current one) is not an AI-reachable act.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const { data, error } = await supabase.admin.rpc('create_academic_year', {
+        p_tenant_id: ctx.tenantId,
+        p_actor: userId,
+        p_payload: {
+          name: resolved.name,
+          startsOn: args.startsOn,
+          endsOn: args.endsOn,
+          terms: args.terms,
+          ...(resolved.clone
+            ? { cloneSectionsFromYearId: resolved.clone.id }
+            : {}),
+        },
+      });
+      if (error) lifecycleRpcThrow(error);
+      return data as Record<string, unknown>; // { academicYearId, terms, sectionsCloned }
+    },
+  },
 };
 
 export interface ProposalRecord {
@@ -2359,11 +2961,26 @@ export class AiActionsService {
     }
 
     try {
+      // Re-validate the STORED arguments before executing. Propose-time
+      // validation is not enough: the row has been at rest between propose and
+      // confirm, so execute must re-derive its inputs from the schema (unknown
+      // keys are stripped, types re-checked) rather than trust what it finds.
+      // Each action additionally re-resolves every entity tenant-scoped and
+      // re-checks any extra right it requires.
+      const revalidated = def.argsSchema.safeParse(proposal.arguments);
+      if (!revalidated.success) {
+        throw new Error(
+          `INVALID_ARGUMENTS: ${revalidated.error.issues
+            .map((i) => `${i.path.join('.')} ${i.message}`)
+            .join('; ')
+            .slice(0, 200)}`,
+        );
+      }
       const result = await def.execute(
         this.supabase,
         ctx,
         userId,
-        proposal.arguments,
+        revalidated.data,
       );
       // Redact secrets (e.g. one-time invite links) from the AT-REST copy; the
       // FULL result is still returned to the HTTP caller below.
