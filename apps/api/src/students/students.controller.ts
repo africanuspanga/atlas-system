@@ -4,6 +4,9 @@ import {
   Controller,
   ForbiddenException,
   InternalServerErrorException,
+  NotFoundException,
+  Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -14,6 +17,8 @@ import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
 import {
   importRequestSchema,
+  setEnrolmentSchema,
+  setStatusSchema,
   studentRowSchema,
   type StudentRow,
 } from './students.schema';
@@ -24,10 +29,45 @@ interface SectionRef {
   grade: string;
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Business errors raised by the 0030 lifecycle RPCs, mapped to stable codes.
+ * Anything unrecognised becomes a 500 rather than leaking raw Postgres text.
+ */
+const RPC_BUSINESS_ERRORS = new Set([
+  'STUDENT_NOT_FOUND',
+  'STUDENT_STATUS_INVALID',
+  'ENROLMENT_STUDENT_NOT_FOUND',
+  'ENROLMENT_SECTION_NOT_FOUND',
+  'ENROLMENT_YEAR_MISMATCH',
+]);
+
 @Controller('students')
 @UseGuards(AuthGuard, TenantGuard)
 export class StudentsController {
   constructor(private readonly supabase: SupabaseService) {}
+
+  /**
+   * Turns a plpgsql `raise exception 'CODE'` into a stable business 400 (or a
+   * 404 where that is the honest answer), and anything else into a 500 with no
+   * database text attached — a raw PostgrestError message would leak table and
+   * column names to the client, and the 500-scrub filter only covers >= 500.
+   */
+  private rpcError(message: string, fallback: string) {
+    const code = RPC_BUSINESS_ERRORS.has(message) ? message : null;
+    if (!code) {
+      return new InternalServerErrorException({ code: fallback });
+    }
+    if (
+      code === 'STUDENT_NOT_FOUND' ||
+      code === 'ENROLMENT_STUDENT_NOT_FOUND'
+    ) {
+      return new NotFoundException({ code });
+    }
+    return new BadRequestException({ code });
+  }
 
   private async loadContext(tenantId: string) {
     const [{ data: campus }, { data: year }, { data: sections }] =
@@ -117,6 +157,99 @@ export class StudentsController {
       });
     }
     return this.runImport(req, [parsed.data]);
+  }
+
+  /**
+   * Student lifecycle — LIFE-030-A. Marks a pupil transferred / withdrawn /
+   * graduated / archived and closes their open class enrolment, which frees
+   * the plan seat, stops invoicing and stops absence SMS. `students.archive`
+   * for terminal states, `students.update` for a plain correction; both keys
+   * were already seeded and granted, they simply had no endpoint behind them.
+   */
+  @Patch(':id/status')
+  @RequirePermission('students.update')
+  async setStatus(
+    @Req() req: TenantRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    if (!UUID_RE.test(id)) {
+      throw new BadRequestException({ code: 'STUDENT_NOT_FOUND' });
+    }
+    const parsed = setStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'STUDENT_STATUS_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // Retiring a pupil is a heavier act than editing their name: require the
+    // archive right for the terminal states, mirroring the seeded roles.
+    if (parsed.data.status !== 'active') {
+      if (
+        !req.tenant.isOwner &&
+        !req.tenant.permissions.has('students.archive')
+      ) {
+        throw new ForbiddenException('Missing permission: students.archive');
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'set_student_status',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_student_id: id,
+        p_status: parsed.data.status,
+        p_reason: parsed.data.reason ?? null,
+      },
+    );
+    if (error) {
+      throw this.rpcError(error.message, 'STUDENT_STATUS_FAILED');
+    }
+    return data as Record<string, unknown>;
+  }
+
+  /**
+   * Class placement — LIFE-030-B / LIFE-030-C. Assigns a class to a student
+   * who has none, or corrects a wrong one. `class_enrolments` was previously
+   * insert-only and `unique (student_id, academic_year_id)` blocked a second
+   * row, so a mistyped stream was permanent for the whole academic year and
+   * the pupil never appeared on their real register.
+   */
+  @Patch(':id/enrolment')
+  @RequirePermission('students.update')
+  async setEnrolment(
+    @Req() req: TenantRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    if (!UUID_RE.test(id)) {
+      throw new BadRequestException({ code: 'ENROLMENT_STUDENT_NOT_FOUND' });
+    }
+    const parsed = setEnrolmentSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'ENROLMENT_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'set_class_enrolment',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_student_id: id,
+        p_section_id: parsed.data.classSectionId,
+        p_year_id: parsed.data.academicYearId ?? null,
+      },
+    );
+    if (error) {
+      throw this.rpcError(error.message, 'ENROLMENT_FAILED');
+    }
+    return data as Record<string, unknown>;
   }
 
   @Post('import')

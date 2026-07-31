@@ -1,5 +1,55 @@
 import { z } from 'zod';
 
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
+/**
+ * Academic-year rollover (migration 0030, LIFE-030-D). academic_years,
+ * academic_terms, grade_levels and class_sections were written in exactly one
+ * place — inside app.onboard_school — so a school was permanently frozen in
+ * the single year it typed into the onboarding wizard.
+ */
+export const createYearSchema = z
+  .object({
+    name: z.string().trim().min(1).max(50),
+    startsOn: isoDay,
+    endsOn: isoDay,
+    /** Copy the grade/stream grid from a previous year instead of retyping it. */
+    cloneSectionsFromYearId: z.string().uuid().optional(),
+    terms: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1).max(50),
+          startsOn: isoDay,
+          endsOn: isoDay,
+        }),
+      )
+      .min(1)
+      .max(6),
+  })
+  .refine((v) => v.endsOn > v.startsOn, {
+    message: 'endsOn must be after startsOn',
+    path: ['endsOn'],
+  })
+  .refine((v) => v.terms.every((t) => t.endsOn > t.startsOn), {
+    message: 'each term must end after it starts',
+    path: ['terms'],
+  });
+
+export const createGradeLevelSchema = z.object({
+  educationLevel: z.enum(['pre_primary', 'primary', 'o_level', 'a_level']),
+  name: z.string().trim().min(1).max(50),
+  sequence: z.number().int().min(1).max(100),
+});
+
+export const createSectionSchema = z.object({
+  academicYearId: z.string().uuid(),
+  gradeLevelId: z.string().uuid(),
+  /** Stream label — class_sections.name holds "A"/"B"; there is no stream column. */
+  name: z.string().trim().min(1).max(20),
+  capacity: z.number().int().min(1).max(500).optional(),
+  campusId: z.string().uuid().optional(),
+});
+
 const educationLevel = z.enum(['pre_primary', 'primary', 'o_level', 'a_level']);
 
 export const createSubjectSchema = z.object({

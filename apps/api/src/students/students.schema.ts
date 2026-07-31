@@ -36,5 +36,27 @@ export const importRequestSchema = z.object({
   dryRun: z.boolean().default(false),
 });
 
+/**
+ * Student lifecycle (migration 0030). `students.status` previously had no
+ * writer anywhere in the codebase, so a leaver held a paid plan seat forever,
+ * kept being invoiced and kept receiving absence SMS.
+ */
+export const setStatusSchema = z.object({
+  status: z.enum([
+    'active',
+    'transferred',
+    'withdrawn',
+    'graduated',
+    'archived',
+  ]),
+  reason: z.string().trim().max(500).optional(),
+});
+
+/** Assign or correct a class placement (migration 0030). */
+export const setEnrolmentSchema = z.object({
+  classSectionId: z.string().uuid(),
+  academicYearId: z.string().uuid().optional(),
+});
+
 export type StudentRow = z.infer<typeof studentRowSchema>;
 export type ImportRow = z.infer<typeof importRowSchema>;

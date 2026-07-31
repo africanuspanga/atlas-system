@@ -17,6 +17,9 @@ import { SupabaseService } from '../supabase/supabase.service';
 import {
   assignCombinationSchema,
   caSummaryQuerySchema,
+  createGradeLevelSchema,
+  createSectionSchema,
+  createYearSchema,
   sectionQuerySchema,
 } from './assessments.schema';
 import { COMBINATION_PRESETS } from './combinations.presets';
@@ -65,6 +68,122 @@ export class AcademicsController {
    * code for this tenant. Combinations whose subjects are not all present
    * (or that already exist) are skipped — idempotent like /subjects/preset.
    */
+  /**
+   * Academic-year rollover — LIFE-030-D. Creates the next year, its terms and
+   * (optionally) a clone of an existing year's section grid. Without this a
+   * school onboarded in 2026 had no path into 2027 at all: every one of these
+   * four tables was written only inside app.onboard_school, which runs once.
+   */
+  @Post('years')
+  @RequirePermission('academics.manage')
+  async createYear(@Req() req: TenantRequest, @Body() body: unknown) {
+    const parsed = createYearSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'YEAR_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'create_academic_year',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_payload: parsed.data,
+      },
+    );
+    if (error) {
+      rpcError(error, [
+        'YEAR_NAME_REQUIRED',
+        'YEAR_NAME_TAKEN',
+        'YEAR_TERMS_REQUIRED',
+        'YEAR_CLONE_SOURCE_NOT_FOUND',
+      ]);
+    }
+    return data as Record<string, unknown>;
+  }
+
+  /**
+   * Makes a year the active one and closes the previous. students.controller's
+   * loadContext resolves sections via the newest year with status='active', so
+   * two simultaneously-active years would make that lookup non-deterministic.
+   */
+  @Post('years/:id/activate')
+  @RequirePermission('academics.manage')
+  async activateYear(@Req() req: TenantRequest, @Param('id') id: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'activate_academic_year',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_year_id: id,
+      },
+    );
+    if (error) rpcError(error, ['YEAR_NOT_FOUND']);
+    return data as Record<string, unknown>;
+  }
+
+  @Post('grade-levels')
+  @RequirePermission('academics.manage')
+  async createGradeLevel(@Req() req: TenantRequest, @Body() body: unknown) {
+    const parsed = createGradeLevelSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'GRADE_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'create_grade_level',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_education_level: parsed.data.educationLevel,
+        p_name: parsed.data.name,
+        p_sequence: parsed.data.sequence,
+      },
+    );
+    if (error) rpcError(error, ['GRADE_LEVEL_INVALID', 'GRADE_NAME_TAKEN']);
+    return data as Record<string, unknown>;
+  }
+
+  @Post('sections')
+  @RequirePermission('academics.manage')
+  async createSection(@Req() req: TenantRequest, @Body() body: unknown) {
+    const parsed = createSectionSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'SECTION_INVALID',
+        issues: parsed.error.issues,
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const { data, error } = await this.supabase.admin.rpc(
+      'create_class_section',
+      {
+        p_tenant_id: req.tenant.tenantId,
+        p_actor: req.user.id,
+        p_year_id: parsed.data.academicYearId,
+        p_grade_id: parsed.data.gradeLevelId,
+        p_name: parsed.data.name,
+        p_capacity: parsed.data.capacity ?? null,
+        p_campus_id: parsed.data.campusId ?? null,
+      },
+    );
+    if (error) {
+      rpcError(error, [
+        'SECTION_YEAR_NOT_FOUND',
+        'SECTION_GRADE_NOT_FOUND',
+        'SECTION_CAMPUS_NOT_FOUND',
+        'SECTION_NAME_TAKEN',
+      ]);
+    }
+    return data as Record<string, unknown>;
+  }
+
   @Post('combinations/preset')
   @RequirePermission('academics.combinations.manage')
   async preset(@Req() req: TenantRequest) {
