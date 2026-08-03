@@ -61,20 +61,25 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 	const [loadError, setLoadError] = useState<string | null>(null);
 
 	const reload = useCallback(async () => {
-		const [staffRes, invRes] = await Promise.all([
-			apiFetch("/api/v1/staff", { tenantId }),
-			apiFetch("/api/v1/invitations", { tenantId }),
-		]);
-		if (staffRes.ok) {
-			setMembers((await staffRes.json()).data);
-		} else {
-			const body = await staffRes.json().catch(() => null);
-			setLoadError(apiErrorMessage(t, body, staffRes.status));
+		setLoaded(false);
+		setLoadError(null);
+		try {
+			const [staffRes, invRes] = await Promise.all([
+				apiFetch("/api/v1/staff", { tenantId }),
+				apiFetch("/api/v1/invitations", { tenantId }),
+			]);
+			if (staffRes.ok) {
+				setMembers((await staffRes.json()).data);
+			} else {
+				const body = await staffRes.json().catch(() => null);
+				setLoadError(apiErrorMessage(t, body, staffRes.status));
+			}
+			if (invRes.ok) setInvitations((await invRes.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
 		}
-		if (invRes.ok) {
-			setInvitations((await invRes.json()).data);
-		}
-		setLoaded(true);
 	}, [tenantId, t]);
 
 	useEffect(() => {
@@ -89,7 +94,14 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 				<h1 className="text-xl font-semibold">{t("staff.title")}</h1>
 				<InviteDialog lang={lang} onCreated={reload} tenantId={tenantId} />
 			</div>
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 
 			{!loaded ? (
 				<ListSkeleton rows={6} />

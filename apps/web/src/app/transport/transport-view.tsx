@@ -73,15 +73,20 @@ export function TransportView({
 	const [rosterRoute, setRosterRoute] = useState<RouteRow | null>(null);
 
 	const reload = useCallback(async () => {
-		const response = await apiFetch("/api/v1/transport", { tenantId });
-		if (!response.ok) {
-			setLoadError(`${t("transport.loadFailed")} (HTTP ${response.status})`);
-			setLoaded(true);
-			return;
-		}
+		setLoaded(false);
 		setLoadError(null);
-		setRoutes((await response.json()).data);
-		setLoaded(true);
+		try {
+			const response = await apiFetch("/api/v1/transport", { tenantId });
+			if (!response.ok) {
+				setLoadError(`${t("transport.loadFailed")} (HTTP ${response.status})`);
+				return;
+			}
+			setRoutes((await response.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, t]);
 
 	useEffect(() => {
@@ -106,7 +111,14 @@ export function TransportView({
 				)}
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 			{canManage && !academicYear && (
 				<p className="text-sm text-muted-foreground">{t("transport.noYear")}</p>
 			)}

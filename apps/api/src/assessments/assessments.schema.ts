@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+const isoDay = z.string().date('Expected YYYY-MM-DD');
 
 /**
  * Academic-year rollover (migration 0030, LIFE-030-D). academic_years,

@@ -1,5 +1,6 @@
 import type { DictKey } from "@atlas/i18n";
 import * as Haptics from "expo-haptics";
+import * as Crypto from "expo-crypto";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -373,6 +374,9 @@ function RecordPaymentSheet({
   const [reference, setReference] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    Crypto.randomUUID(),
+  );
 
   // Re-prime the amount each time the sheet opens for the current balance.
   const [wasOpen, setWasOpen] = useState(open);
@@ -381,6 +385,7 @@ function RecordPaymentSheet({
     if (open) {
       setAmount(String(balance));
       setError(null);
+      setIdempotencyKey(Crypto.randomUUID());
     }
   }
 
@@ -400,6 +405,7 @@ function RecordPaymentSheet({
           method: "POST",
           tenantId,
           body: JSON.stringify({
+            idempotencyKey,
             amount: value,
             method,
             reference: reference.trim() || undefined,

@@ -11,6 +11,8 @@
  * smoke test — same pattern as SMS_DRIVER=console for the outbox.
  */
 
+import { todayInTanzania } from '../common/tanzania-date';
+
 export interface ProviderMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
@@ -49,7 +51,7 @@ export interface AiProvider {
 // Moonshot Kimi (OpenAI-compatible)
 // ---------------------------------------------------------------------------
 class MoonshotProvider implements AiProvider {
-  readonly model = process.env.MOONSHOT_MODEL ?? 'kimi-k2-0905-preview';
+  readonly model = process.env.MOONSHOT_MODEL ?? 'kimi-k2.6';
   private readonly baseUrl = (
     process.env.MOONSHOT_BASE_URL ?? 'https://api.moonshot.ai/v1'
   ).replace(/\/$/, '');
@@ -131,14 +133,14 @@ const MOCK_RULES: Array<{
     pattern: /collect|tumekusanya|makusanyo/i,
     tool: 'getFeeCollectionSummary',
     args: () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInTanzania();
       return { from: today, to: today };
     },
   },
   {
     pattern: /absent|hawakuhudhuria/i,
     tool: 'getAbsentStudents',
-    args: () => ({ date: new Date().toISOString().slice(0, 10) }),
+    args: () => ({ date: todayInTanzania() }),
   },
   {
     pattern: /how many students|wanafunzi wangapi/i,
@@ -259,6 +261,14 @@ class MockProvider implements AiProvider {
 }
 
 export function resolveAiProvider(): AiProvider {
-  if (process.env.AI_DRIVER === 'mock') return new MockProvider();
+  if (process.env.AI_DRIVER === 'mock') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AI_DRIVER=mock is not allowed in production');
+    }
+    return new MockProvider();
+  }
+  if (process.env.NODE_ENV === 'production' && !process.env.MOONSHOT_API_KEY) {
+    throw new Error('MOONSHOT_API_KEY must be set in production');
+  }
   return new MoonshotProvider();
 }

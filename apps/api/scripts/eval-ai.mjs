@@ -76,7 +76,9 @@ const issa = students.find((s) => s.first_name === 'Issa');
 const inv = await api('/finance/invoices', owner.token, tenantId, {
   studentId: halima.id, lines: [{ description: 'Ada', amount: 900000 }],
 });
-await api(`/finance/invoices/${inv.body.invoiceId}/payments`, owner.token, tenantId, { amount: 600000, method: 'mpesa' });
+await api(`/finance/invoices/${inv.body.invoiceId}/payments`, owner.token, tenantId, {
+  amount: 600000, method: 'mpesa', idempotencyKey: crypto.randomUUID(),
+});
 const today = new Date().toISOString().slice(0, 10);
 await api('/attendance', owner.token, tenantId, {
   classSectionId: sections[0].id, date: today,

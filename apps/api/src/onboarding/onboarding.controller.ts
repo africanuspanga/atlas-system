@@ -38,11 +38,16 @@ export class OnboardingController {
     }
 
     const slug = parsed.data.school.slug;
-    const { data: existing } = await this.supabase.admin
+    const { data: existing, error: slugError } = await this.supabase.admin
       .from('tenants')
       .select('id')
       .eq('slug', slug)
       .maybeSingle();
+    if (slugError) {
+      throw new InternalServerErrorException({
+        code: 'ONBOARDING_SLUG_LOOKUP_FAILED',
+      });
+    }
     if (existing) {
       throw new ConflictException({
         code: 'ONBOARDING_SLUG_TAKEN',
@@ -51,10 +56,13 @@ export class OnboardingController {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const { data, error } = await this.supabase.admin.rpc('onboard_school', {
-      p_user_id: req.user.id,
-      p_payload: parsed.data,
-    });
+    const { data, error } = await this.supabase.admin.rpc(
+      'onboard_school_with_trial',
+      {
+        p_user_id: req.user.id,
+        p_payload: parsed.data,
+      },
+    );
 
     if (error) {
       if (error.message.includes('duplicate key')) {
@@ -69,46 +77,10 @@ export class OnboardingController {
       });
     }
 
-    const result = data as {
+    return data as {
       tenantId: string;
       campusId: string;
       academicYearId: string;
     };
-
-    // Every new school starts on a 30-day trial subscription — this is what
-    // the TenantGuard's entitlement enforcement (mig 0013) evaluates. Without
-    // it the tenant is half-provisioned: it exists but the guard fails closed
-    // on every request. If provisioning the subscription fails, archive the
-    // just-created tenant (never hard-delete — audit_logs FK) and fail loudly.
-    const { data: trialPlan, error: planError } = await this.supabase.admin
-      .from('plans')
-      .select('id')
-      .eq('key', 'trial')
-      .single();
-    let subError: { message: string } | null = null;
-    if (trialPlan) {
-      ({ error: subError } = await this.supabase.admin
-        .from('subscriptions')
-        .insert({
-          tenant_id: result.tenantId,
-          plan_id: trialPlan.id as string,
-          status: 'trialing',
-          trial_ends_at: new Date(
-            Date.now() + 30 * 24 * 3600 * 1000,
-          ).toISOString(),
-        }));
-    }
-    if (planError || !trialPlan || subError) {
-      await this.supabase.admin
-        .from('tenants')
-        .update({ status: 'archived' })
-        .eq('id', result.tenantId);
-      throw new InternalServerErrorException({
-        code: 'ONBOARDING_SUBSCRIPTION_FAILED',
-        message: (planError ?? subError)?.message,
-      });
-    }
-
-    return result;
   }
 }

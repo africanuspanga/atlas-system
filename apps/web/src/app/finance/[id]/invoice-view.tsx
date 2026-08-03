@@ -285,6 +285,7 @@ function RecordPaymentDialog({
 	const [amount, setAmount] = useState(String(balance));
 	const [method, setMethod] = useState("mpesa");
 	const [reference, setReference] = useState("");
+	const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
 	async function submit(e: React.FormEvent) {
 		e.preventDefault();
@@ -294,8 +295,9 @@ function RecordPaymentDialog({
 			const response = await apiFetch(`/api/v1/finance/invoices/${invoiceId}/payments`, {
 				method: "POST",
 				tenantId,
-				body: JSON.stringify({
-					amount: Number(amount),
+					body: JSON.stringify({
+						idempotencyKey,
+						amount: Number(amount),
 					method,
 					reference: reference || undefined,
 				}),
@@ -315,7 +317,13 @@ function RecordPaymentDialog({
 	}
 
 	return (
-		<Dialog onOpenChange={setOpen} open={open}>
+		<Dialog
+			onOpenChange={(next) => {
+				setOpen(next);
+				if (next) setIdempotencyKey(crypto.randomUUID());
+			}}
+			open={open}
+		>
 			<DialogTrigger render={<Button size="sm" />}>
 				<BanknoteIcon /> {t("finance.recordPayment")}
 			</DialogTrigger>

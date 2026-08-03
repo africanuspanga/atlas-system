@@ -43,6 +43,8 @@ DATA="$REPO/.shadow/data"
 SOCK="/tmp/atsh"
 PORT="${SHADOW_PORT:-55432}"
 DB=atlas_shadow
+MAX_VERSION="${SHADOW_MAX_VERSION:-}"
+SKIP_SEED="${SHADOW_SKIP_SEED:-0}"
 
 KEEP=0
 OPEN_PSQL=0
@@ -146,6 +148,10 @@ echo "==> applying migrations"
 failed=""
 for f in "$REPO"/supabase/migrations/*.sql; do
   name="$(basename "$f")"
+  version="${name%%_*}"
+  if [ -n "$MAX_VERSION" ] && [ "$version" -gt "$MAX_VERSION" ]; then
+    break
+  fi
   if out="$(psql_ -d "$DB" -v ON_ERROR_STOP=1 -q -f "$f" 2>&1)"; then
     notices="$(printf '%s' "$out" | grep -i 'NOTICE' || true)"
     printf '  ok   %s\n' "$name"
@@ -164,9 +170,13 @@ if [ -n "$failed" ]; then
   exit 1
 fi
 
-echo "==> applying seed.sql"
-psql_ -d "$DB" -q -v ON_ERROR_STOP=1 -f "$REPO/supabase/seed.sql" >/dev/null
-echo "==> seed OK"
+if [ "$SKIP_SEED" -eq 0 ]; then
+  echo "==> applying seed.sql"
+  psql_ -d "$DB" -q -v ON_ERROR_STOP=1 -f "$REPO/supabase/seed.sql" >/dev/null
+  echo "==> seed OK"
+else
+  echo "==> seed skipped (SHADOW_SKIP_SEED=1)"
+fi
 
 echo
 echo "==> summary"

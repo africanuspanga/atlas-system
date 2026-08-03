@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { SupabaseService } from '../supabase/supabase.service';
 import type { TenantContext } from '../tenancy/tenant.guard';
 import { resolveWebOrigin } from '../config';
+import { todayInTanzania } from '../common/tanzania-date';
 
 /**
  * AI write-action framework (CTO §9): the model may PROPOSE these actions,
@@ -53,6 +54,7 @@ interface ActionDef {
     ctx: TenantContext,
     userId: string,
     args: Record<string, unknown>,
+    actionId: string,
   ) => Promise<Record<string, unknown>>;
   /**
    * Optional: strip secrets from the execute result BEFORE it is persisted to
@@ -1071,7 +1073,7 @@ export const AI_ACTIONS: Record<string, ActionDef> = {
         warnings,
       };
     },
-    execute: async (supabase, ctx, userId, args) => {
+    execute: async (supabase, ctx, userId, args, actionId) => {
       const invoice = await findInvoice(
         supabase,
         ctx,
@@ -1086,6 +1088,7 @@ export const AI_ACTIONS: Record<string, ActionDef> = {
         p_method: args.method,
         p_reference: (args.reference as string | undefined) ?? null,
         p_paid_on: null,
+        p_idempotency_key: actionId,
       });
       if (error) rpcThrow(error);
       return data as Record<string, unknown>; // { paymentId, receiptNumber, balance }
@@ -2166,7 +2169,7 @@ export const AI_ACTIONS: Record<string, ActionDef> = {
     }),
     preview: async (supabase, ctx, args) => {
       const resolved = await resolveActiveLoan(supabase, ctx, args);
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInTanzania();
       const daysLate = Math.max(
         0,
         Math.floor(
@@ -2981,6 +2984,7 @@ export class AiActionsService {
         ctx,
         userId,
         revalidated.data,
+        proposal.id,
       );
       // Redact secrets (e.g. one-time invite links) from the AT-REST copy; the
       // FULL result is still returned to the HTTP caller below.

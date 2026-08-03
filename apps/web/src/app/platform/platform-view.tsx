@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BuildingIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -146,7 +147,7 @@ const HEALTH_VARIANT: Record<
 /** Suspension can hit a school mid-onboarding — reactivate to where it was. */
 const REACTIVATE_STATUSES = PIPELINE_STATUSES;
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => todayInTanzania();
 const monthStartIso = () => `${todayIso().slice(0, 8)}01`;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE =

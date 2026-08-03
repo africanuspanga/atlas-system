@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { getServerDict } from "@/i18n/server";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import {
 	AttendanceView,
 	type ExistingSession,
@@ -25,11 +27,7 @@ export default async function AttendancePage({
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id, name")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 	const tenantId = tenant.id as string;
@@ -37,7 +35,7 @@ export default async function AttendancePage({
 	const date =
 		params.date && DATE_RE.test(params.date)
 			? params.date
-			: new Date().toISOString().slice(0, 10);
+			: todayInTanzania();
 
 	const { data: sections } = await supabase
 		.from("class_sections")

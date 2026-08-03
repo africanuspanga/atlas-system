@@ -75,13 +75,19 @@ export class TenantGuard implements CanActivate {
       throw new UnauthorizedException('Missing or invalid x-tenant-id header');
     }
 
-    const { data: membership } = await this.supabase.admin
-      .from('tenant_memberships')
-      .select('id, status')
-      .eq('tenant_id', tenantId)
-      .eq('user_id', request.user.id)
-      .eq('status', 'active')
-      .maybeSingle();
+    const { data: membership, error: membershipError } =
+      await this.supabase.admin
+        .from('tenant_memberships')
+        .select('id, status')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', request.user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+    if (membershipError) {
+      throw new InternalServerErrorException({
+        code: 'TENANT_MEMBERSHIP_LOOKUP_FAILED',
+      });
+    }
     if (!membership) {
       throw new ForbiddenException('Not an active member of this school');
     }
@@ -133,10 +139,15 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException({ code: 'SUBSCRIPTION_LAPSED' });
     }
 
-    const { data: roleRows } = await this.supabase.admin
+    const { data: roleRows, error: roleError } = await this.supabase.admin
       .from('membership_roles')
       .select('roles(key, id)')
       .eq('membership_id', membership.id);
+    if (roleError) {
+      throw new InternalServerErrorException({
+        code: 'TENANT_ROLE_LOOKUP_FAILED',
+      });
+    }
     const roles = (roleRows ?? [])
       .map((r) => r.roles as unknown as { key: string; id: string } | null)
       .filter((r): r is { key: string; id: string } => r !== null);
@@ -145,13 +156,18 @@ export class TenantGuard implements CanActivate {
 
     const permissions = new Set<string>();
     if (!isOwner && roles.length > 0) {
-      const { data: perms } = await this.supabase.admin
+      const { data: perms, error: permissionError } = await this.supabase.admin
         .from('role_permissions')
         .select('permission_key')
         .in(
           'role_id',
           roles.map((r) => r.id),
         );
+      if (permissionError) {
+        throw new InternalServerErrorException({
+          code: 'TENANT_PERMISSION_LOOKUP_FAILED',
+        });
+      }
       for (const p of perms ?? []) permissions.add(p.permission_key as string);
     }
 

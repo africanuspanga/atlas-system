@@ -31,7 +31,12 @@ export class SupabaseService implements OnModuleInit {
   /** Validate a user access token and return the user, or null. */
   async getUserFromToken(accessToken: string): Promise<User | null> {
     const { data, error } = await this.client.auth.getUser(accessToken);
-    if (error) return null;
+    if (error) {
+      // Invalid/expired credentials are an authentication outcome. Provider
+      // outages are operational failures and must reach the 500/Sentry path.
+      if (error.status && [400, 401, 403].includes(error.status)) return null;
+      throw new Error(`AUTH_PROVIDER_UNAVAILABLE: ${error.message}`);
+    }
     return data.user;
   }
 }

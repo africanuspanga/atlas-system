@@ -1,85 +1,120 @@
-# ATLAS Security Audit
+# ATLAS security audit
 
-_Audit date: 2026-07-05_
+_Current review: 3 August 2026 · migration `0033`._
 
-Scope: authentication, authorization, secrets, injection, redirects, transport,
-dependencies. Tenant isolation has its own document
-(ATLAS_TENANT_ISOLATION_AUDIT.md).
+## Verdict
 
-## Authentication
+No known code-level P0/P1 remained after the audited migration and test pass.
+Tenant isolation, platform-role escalation, financial integrity, and AI action
+boundaries passed adversarial tests. Production is still blocked on deployment
+secrets/monitoring, current restore evidence, SMS-provider verification, and
+Tanzania privacy/cross-border processing sign-off.
 
-- Supabase Auth (JWT). API `AuthGuard` calls `supabase.auth.getUser()` per
-  request — no local JWT trust. `TenantGuard` runs after it.
-- Membership is resolved from the authenticated session + `x-tenant-id`, and
-  requires `status = 'active'` — a revoked member is rejected even mid-session.
-- Password min length 8 (Supabase default policy). Email confirmation is ON
-  (AUD-023: no transactional email wired — turn off for dev or wire before
-  parent self-signup at scale).
+## Authentication and sessions
 
-**Edge cases reviewed:** expired token (getUser fails → 401), revoked membership
-(active check fails → 403), archived tenant (outbox join excludes it; UI reads
-return nothing). **Not yet handled explicitly:** subscription expiry/downgrade
-enforcement (no billing layer yet — platform milestone), multi-school tenant
-selection (AUD-012).
+- Supabase Auth access tokens are validated with `auth.getUser`; an auth
+  provider outage is not misreported as invalid credentials.
+- Active school membership is checked on every tenant API request. Revoked,
+  suspended, and archived access fails closed.
+- Multi-school selection uses a validated HTTP-only tenant cookie in web; the
+  API still validates `x-tenant-id` independently.
+- Native mobile sessions use chunked `expo-secure-store`; legacy plaintext
+  AsyncStorage sessions migrate once and are removed. Browser storage remains
+  browser-appropriate AsyncStorage/cookies.
+- Invite links are single-use/expiring; redirect targets are restricted to
+  same-origin paths.
 
-## Authorization
+Production must verify email delivery/confirmation and account recovery; no
+documentation should treat development/demo credentials as customer accounts.
 
-- `@RequirePermission` enforced in `TenantGuard` against `role_permissions`;
-  school_owner/director are superusers in code.
-- Server-enforced on every mutation — hiding a sidebar item is never the control.
-  Proven by `smoke-*` RBAC steps (teacher 403 on create/publish/staff/announce;
-  cashier 403 on invoice/reverse; parent 403 on cross-child).
-- **AUD-004 fixed:** the one permission gate that degraded to open on a DB error
-  (attendance correction) now fails closed.
+## Authorization and tenant isolation
 
-## Secrets & config
+- `AuthGuard → TenantGuard → @RequirePermission` protects tenant endpoints.
+- Service-role queries use the server-resolved tenant and fail closed on lookup
+  errors. RLS protects direct browser/PostgREST reads.
+- Permission-aware RLS limits teachers/class teachers; parents see only their
+  own guardian record and linked children rather than broad school membership.
+- `profiles.platform_role` cannot be updated by anon/authenticated users.
+  Platform access has a separate guard and append-only platform audit trail.
+- Tenant ownership triggers block cross-school links even under service-role
+  code.
 
-- Service-role key confined to API/workers/scripts; never in `NEXT_PUBLIC_*`.
-  Verified by sweep. Only public values are exposed to the browser.
-- **AUD-005 fixed:** `WEB_ORIGIN` now fails fast in production instead of
-  falling back to localhost (which had leaked into invite links + CORS).
-- Demo credentials are intentionally in the client bundle (public demo);
-  guardrail tracked as AUD-022.
+Live JWT attacks passed for linked parent, pure teacher, finance user, and
+platform self-escalation. The full shadow found no unintended RLS table with no
+policy. See `ATLAS_TENANT_ISOLATION_AUDIT.md`.
 
-## Injection & output safety
+## Input, injection, and browser controls
 
-- **SQL injection:** none possible from user input — all data access is через
-  the Supabase client (parameterised) or `security definer` RPCs with typed
-  args and `set search_path = public`. No string-built SQL anywhere.
-- **XSS:** no `dangerouslySetInnerHTML` in the codebase. React escapes by
-  default. CSV/PDF formula-injection escaping is a **requirement for the unbuilt
-  reporting module** (ATLAS_REPORTING_SPEC.md §CSV).
-- **Open redirects:** AUD-006 and AUD-007 fixed via `safeNext()`
-  (`apps/web/src/lib/safe-redirect.ts`) — rejects absolute, `//host`,
-  backslash, and control-char targets on both the login and email-confirm flows.
+- Mutating API bodies/queries use bounded Zod schemas, real calendar dates,
+  money precision/rate bounds, and cross-tenant ownership checks.
+- Supabase parameterization/typed RPC arguments prevent string-built SQL. Every
+  security-definer function uses a controlled `search_path` and narrow wrapper
+  grants.
+- React escaping is used; no application requirement depends on raw HTML.
+- CSV/NECTA/report exports neutralize spreadsheet formulas.
+- Helmet supplies API security headers; CORS is exactly `WEB_ORIGIN` and fails
+  startup when missing in production.
+- Global/per-onboarding throttles exist; `TRUST_PROXY` must equal the deployed
+  proxy-hop count. Multiple API replicas need shared rate-limit storage before
+  public self-service scale.
 
-## Input validation
+## Financial and payroll security
 
-Every API mutation parses `body`/`query` through zod with tight bounds (import
-≤2000 rows, scores/attendance ≤500, invoice lines ≤50, string caps). Two loose
-UUID regexes produce 500s instead of 400s on malformed ids (AUD-017, cosmetic).
+- Payments carry tenant-scoped idempotency keys; exact retries return the same
+  receipt and changed retries fail.
+- Future/pre-invoice payment dates fail; event and journal dates align to the
+  Tanzania calendar.
+- Payment, invoice-line, journal, and journal-line records are immutable at the
+  database layer. Corrections are reversal rows and all journals balance.
+- Payroll cannot run on unverified rates; rate changes invalidate verification;
+  invalid net pay fails; wage and employer-contribution journals are separate
+  and balanced.
+- Payroll tables are API-only and individual salary data is not exposed through
+  the AI catalogue.
 
-## Transport & headers
+## AI security
 
-- CORS locked to `WEB_ORIGIN` with credentials. **Not yet added:** security
-  headers (HSTS, CSP, X-Frame-Options), rate limiting (AUD-016), CSRF is N/A for
-  the Bearer-token API but must be considered if cookie auth is added.
+- Production rejects the deterministic mock driver and missing provider key.
+- The model cannot choose tenant ids, query SQL, hold credentials, or reach the
+  action-confirmation endpoint.
+- Each tool checks server-derived tenant, user, permissions, arguments, and DB
+  errors. Results are bounded; clinical results are de-identified and payroll
+  is aggregate-only.
+- Actions are user-bound, expiring proposals; confirmation rechecks permission
+  and current live data before the normal RPC executes.
+- Real-provider evaluation passed 40/40, including unauthorized requests,
+  cross-tenant prompts, direct/data-embedded injection, Kiswahili, and attempts
+  to self-confirm writes.
 
-## Dependencies
+This does not replace privacy approval. Student identity, attendance, finance,
+and health information sent to an external model requires a documented lawful
+basis, minimization, DPA/processor terms, retention policy, and any required
+cross-border authorization.
 
-- **AUD-010 fixed:** `pnpm audit --prod` → "No known vulnerabilities found"
-  after pinning `xlsx@0.20.3`, `multer>=2.2.0`, `postcss>=8.5.10`.
-- Run `pnpm audit --prod` in CI.
+## Secrets, dependencies, and operations
 
-## Prompt injection (AI)
+- Service-role/database/Moonshot/Beem credentials belong only in API/workers or
+  the deployment secret manager. Only anon/public URLs/keys may use
+  `NEXT_PUBLIC_*` or `EXPO_PUBLIC_*`.
+- Dependency audit reported no known moderate-or-higher vulnerability after
+  Next and transitive package hardening.
+- Structured logs redact tokens/bodies; SMS console logs only destination
+  suffix/length. `SENTRY_DSN` and `HEALTH_TOKEN` remain required production
+  settings.
+- SMS claims/retries/caps are hardened, but an external provider success
+  followed by DB failure can cause an at-least-once duplicate on retry. Use
+  provider ids/status reconciliation when available.
 
-Not applicable yet — the AI assistant is unbuilt. The spec
-(ATLAS_AI_ASSISTANT_SPEC.md) mandates treating uploaded document text as
-untrusted and never letting it override permissions or tool scoping.
+## Outstanding security/operational actions
 
-## Open security items
-
-All P3, in the bug register: AUD-011 (typed RPC returns), AUD-013 (pagination),
-AUD-016 (rate limiting + tenant-creation gating), AUD-017 (UUID validation),
-AUD-018 (surface DB errors), AUD-022 (demo guardrails), AUD-023 (email
-confirmation). **No P0/P1 security issues remain open.**
+1. Deploy through an approved secret manager; rotate anything previously
+   shared or logged; verify no server secret reaches web/mobile artifacts.
+2. Enable Sentry, protected health checks, log retention/access control, and
+   alerts; test incident paging.
+3. Complete a migration-33 full restore and confirm Supabase backup/PITR.
+4. Complete `TANZANIA_PRIVACY_CHECKLIST.md`, including PDPC/DPA/privacy,
+   cross-border AI, retention, rights, and breach-response sign-off.
+5. Test Beem sender identity, delivery callbacks/status, duplicate handling,
+   and opt-out/notice rules.
+6. Expand automated unit/browser/load tests and rerun isolation/AI attacks on
+   every permission, migration, prompt, or model change.

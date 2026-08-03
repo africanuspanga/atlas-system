@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { Dashboard, type DashboardData } from "@/components/dashboard";
 import { getDict } from "@/i18n";
 import { getServerDict } from "@/i18n/server";
 import type { DictKey } from "@/i18n";
+import { todayInTanzania } from "@/lib/tanzania-date";
 
 export default async function Home() {
 	const supabase = await createClient();
@@ -17,11 +19,7 @@ export default async function Home() {
 
 	// RLS: members only see their own tenants. Oldest membership-visible school
 	// is the deterministic default.
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id, name, status")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) {
 		// Linked parents are not tenant members — route them to their portal.
 		const { data: guardianLinks } = await supabase
@@ -36,10 +34,10 @@ export default async function Home() {
 	const tenantId = tenants[0].id as string;
 
 	const now = new Date();
-	const today = now.toISOString().slice(0, 10);
-	const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-		.toISOString()
-		.slice(0, 10);
+	const today = todayInTanzania(now);
+	const monthAgo = todayInTanzania(
+		new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+	);
 
 	// Supabase caps row reads at 1000; paginate money-summation reads so busy
 	// schools' totals stay correct.

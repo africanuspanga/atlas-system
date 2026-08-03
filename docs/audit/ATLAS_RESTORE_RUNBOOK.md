@@ -1,82 +1,105 @@
-# ATLAS Backup & Restore Runbook
+# ATLAS backup and restore runbook
 
-_Restore test performed: **2026-07-08** (passed) · Closes release-readiness
-item 17 for pilot scope. Repeat quarterly and after any migration touching
-finance tables._
+_Updated 3 August 2026._
 
-## Backup posture
+## Current evidence and gap
 
-- Supabase project `zwbsyiwtrabpysylyaaj` (Postgres 17, eu-west-3): daily
-  automated backups on the current plan. **Ops step before pilot:** confirm
-  the plan includes point-in-time recovery (PITR); if not, upgrade — RPO with
-  daily backups alone is up to 24h, with PITR ≈ 2 min.
-- Logical backup (this runbook) supplements Supabase's own backups and is the
-  portable path (works to any Postgres, no vendor dependency).
-- Storage buckets (`imports`, `reports`) hold regenerable artifacts (uploaded
-  source files, generated reports); DB restore does not depend on them.
+- A full logical restore was performed on 8 July 2026 at the then-current
+  schema and passed object/row, ledger, orphan, and immutability checks.
+- On 3 August 2026, a copy of existing live public data at the migration-15
+  boundary successfully upgraded through the go-live hardening batch; all 75
+  tenants, 422 students, and 356 payments survived. The complete schema chain
+  through `0033` also passed from scratch.
+- These prove upgrade compatibility, but they are **not a current full disaster
+  recovery drill** for Auth, Storage, backups/PITR, DNS, secrets, and deployed
+  applications together. A full migration-33 restore is required before pilot.
 
-## Tested procedure (local restore — no Docker required)
+Do not assume the Supabase plan's backup/PITR entitlement. Confirm it in the
+project dashboard, assign an owner, and record the actual retention/RPO.
+
+## Handling rules
+
+- Dumps contain student, guardian, finance, health, and identity data. Use an
+  access-controlled encrypted location, never the repository or chat/email.
+- Prefer a sanitized staging copy for routine migration testing.
+- Record who created/accessed/destroyed each real-data dump and when.
+- Verify the `pg_dump`/`pg_restore` major version is at least the server's.
+- Never restore over the live project to “test” a backup. Use a new project or
+  isolated local cluster.
+
+## Logical backup
 
 ```bash
-brew install postgresql@17         # pg_dump/pg_restore must be >= server version
 export PATH="/usr/local/opt/postgresql@17/bin:$PATH"
+restore_workdir="$(mktemp -d /tmp/atlas-restore.XXXXXX)"
+dump_path="$restore_workdir/atlas.dump"
 
-# 1. Dump application + identity schemas over the session pooler
-pg_dump "$DATABASE_URL" --schema=public --schema=app --schema=auth \
-  --schema=storage -Fc -f atlas-$(date +%Y%m%d).dump
-
-# 2. Scratch cluster
-initdb -D ./pgdata -U postgres --auth=trust -E UTF8 --locale=en_US.UTF-8
-pg_ctl -D ./pgdata -o "-p 5544" -l pg.log start
-createdb -p 5544 -h localhost -U postgres atlas_restore
-
-# 3. Pre-create Supabase roles + extensions (dump references them)
-for r in anon authenticated service_role authenticator supabase_admin \
-         supabase_auth_admin supabase_storage_admin dashboard_user; do
-  psql -p 5544 -h localhost -U postgres -d atlas_restore -c "create role $r nologin"
-done
-psql -p 5544 -h localhost -U postgres -d atlas_restore <<'SQL'
-create schema extensions;
-create extension citext;
-create extension pgcrypto with schema extensions;
-create extension "uuid-ossp" with schema extensions;
-SQL
-
-# 4. Restore (the single "schema public already exists" error is benign)
-pg_restore --no-owner --no-privileges -h localhost -p 5544 -U postgres \
-  -d atlas_restore atlas-YYYYMMDD.dump
+pg_dump "$DATABASE_URL" \
+  --schema=public --schema=app --schema=auth --schema=storage \
+  --format=custom --file="$dump_path"
+pg_restore --list "$dump_path" >/dev/null
 ```
 
-## Validation gates (all must pass — 2026-07-08 results in parens)
+Also capture, through the approved secret manager/operations record: Supabase
+project settings, Auth provider/redirect settings, Storage bucket policies,
+deployed environment-variable names (not plaintext secrets), DNS, Redis, Beem,
+Sentry, Moonshot model/config, and release tag.
 
-| Check | Result |
-|---|---|
-| Object parity: tables / policies / RLS tables / app functions | 70 / 37 / 39 / 22 — identical to live |
-| Row parity: tenants, auth.users, students, invoices, payments, journal_lines, audit_logs | all identical (38 / 92 / 344 / 266 / 328 / 1188 / 1135) |
-| Every tenant ledger balances (Σdebit = Σcredit) | 0 unbalanced |
-| Every journal entry balances individually | 0 unbalanced |
-| FK orphans (journal→entries, payments→invoices, memberships→auth.users) | 0 / 0 / 0 |
-| Cross-tenant integrity (no journal line under another tenant's entry) | 0 |
-| Financial immutability triggers present **and fire** (UPDATE payment / DELETE journal line rejected) | 4 triggers, both mutations rejected |
+## Isolated local restore outline
 
-## Cleanup (dumps contain real PII — never leave them around)
+Supabase-managed schemas depend on roles/extensions. The exact bootstrap used by
+the schema rehearsal is in `scripts/shadow-migrations.sh`; use that as the
+reference instead of copying an old role list from a dated audit.
 
 ```bash
-pg_ctl -D ./pgdata stop && rm -rf ./pgdata atlas-*.dump
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+initdb -D "$restore_workdir/data" -U postgres -E UTF8 --locale=en_US.UTF-8
+pg_ctl -D "$restore_workdir/data" \
+  -o "-p 5544 -k $restore_workdir" -l "$restore_workdir/postgres.log" start
+createdb -h "$restore_workdir" -p 5544 -U postgres atlas_restore
+
+# Bootstrap required Supabase roles/schemas/extensions, then:
+pg_restore --no-owner --no-privileges \
+  -h "$restore_workdir" -p 5544 -U postgres \
+  -d atlas_restore "$dump_path"
 ```
 
-## Cloud restore (staging/production replacement)
+A managed replacement project already supplies Supabase roles/extensions; use
+the provider's documented restore path and test it in a separate project.
 
-Same dump restores into a fresh Supabase project (`psql $NEW_DATABASE_URL` +
-steps 3–4; roles/extensions already exist there, so step 3 is skipped and
-`--clean` is added if the target has the schema). Then: run the validation
-gates, point `SUPABASE_URL`/keys at the new project, and verify login with a
-known account. Note: both free-tier project slots are currently occupied by
-unrelated projects — a dedicated staging project needs a paid org or a freed
-slot; the local path above is the tested fallback until then.
+## Required validation
 
-## Targets
+All must pass before calling the backup restorable:
 
-- **RPO:** 24h with daily backups (2 min once PITR is confirmed).
-- **RTO:** measured end-to-end locally ≈ 4 minutes for the current data volume
-  (dump 1.0 MB); budget 1h for a cloud restore including DNS/env swaps.
+1. Migration history ends at `0033`; expected application tables/functions/
+   policies exist and no unintended RLS table has zero policies.
+2. Row parity for tenants, Auth users, memberships, students, guardians,
+   invoices, payments, journal entries/lines, payroll, audit logs, imports,
+   reports, outbox, and AI audit/usage.
+3. Every journal entry balances; every tenant ledger balances.
+4. No cross-tenant or FK orphan among memberships, enrolments, guardians,
+   finance, payroll, and jobs.
+5. Immutability triggers reject payment/invoice/journal edits/deletes.
+6. Parent/teacher/finance RLS attacks pass as non-superuser JWT roles.
+7. Login, tenant switcher, one read-only report, signed Storage download,
+   worker claims/heartbeats, and health endpoints work.
+8. Secrets/DNS can be switched without putting service credentials in clients.
+9. Measure dump time, restore time, application cutover time, and data loss
+   window; compare them with the approved RTO/RPO.
+
+Run `scripts/go-live-regression.sql` on the isolated target and confirm it
+rolls back cleanly. Do not run the mutating smoke suite until the restored
+environment is unmistakably isolated from customer integrations.
+
+## Cleanup
+
+Stop the scratch cluster, verify the target path is the task-specific temporary
+directory, remove the temporary directory through the approved secure-disposal
+procedure, and record disposal. Do not leave unencrypted dumps under `/tmp`.
+
+## Schedule
+
+- Verify automated backup/PITR status daily through monitoring.
+- Perform and document a full restore before the first pilot, quarterly, after
+  finance/Auth/Storage migration changes, and after changing backup plans.
+- Treat an overdue/failed restore as a go-live blocker.

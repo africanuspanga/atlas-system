@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { getServerDict } from "@/i18n/server";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { ReportCardView, type TermOption } from "./report-card-view";
 
 export const metadata = { title: "Report card" };
@@ -18,11 +20,7 @@ export default async function ReportCardPage({
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id, name")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 
@@ -40,7 +38,7 @@ export default async function ReportCardPage({
 	if (!student) notFound();
 
 	// default to the term covering today, else the latest
-	const today = new Date().toISOString().slice(0, 10);
+	const today = todayInTanzania();
 	const current =
 		(terms ?? []).find((t) => t.starts_on <= today && t.ends_on >= today) ??
 		(terms ?? []).at(-1);

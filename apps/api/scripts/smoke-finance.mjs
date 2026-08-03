@@ -100,6 +100,7 @@ console.log('3. fee item + invoice INV-00001 (550,000 TZS); cashier denied invoi
 // 4. Cashier records partial M-Pesa payment → partially_paid
 const pay1 = await api(`/finance/invoices/${invoiceId}/payments`, cashier.token, tenantId, {
   amount: 200000, method: 'mpesa', reference: `MP${stamp.toUpperCase()}`,
+  idempotencyKey: crypto.randomUUID(),
 });
 if (pay1.status !== 201 || pay1.body.receiptNumber !== 'RCT-00001' || Number(pay1.body.balance) !== 350000) {
   throw new Error(`pay1: ${JSON.stringify(pay1.body)}`);
@@ -110,13 +111,13 @@ console.log('4. partial M-Pesa payment RCT-00001 → partially_paid');
 
 // 5. Overpayment rejected; remainder in cash → paid
 const over = await api(`/finance/invoices/${invoiceId}/payments`, cashier.token, tenantId, {
-  amount: 350001, method: 'cash',
+  amount: 350001, method: 'cash', idempotencyKey: crypto.randomUUID(),
 });
 if (over.status !== 400 || over.body.code !== 'PAYMENT_EXCEEDS_BALANCE') {
   throw new Error(`overpay: ${JSON.stringify(over.body)}`);
 }
 const pay2 = await api(`/finance/invoices/${invoiceId}/payments`, cashier.token, tenantId, {
-  amount: 350000, method: 'cash',
+  amount: 350000, method: 'cash', idempotencyKey: crypto.randomUUID(),
 });
 if (pay2.status !== 201 || Number(pay2.body.balance) !== 0) throw new Error(`pay2: ${JSON.stringify(pay2.body)}`);
 ({ data: inv } = await owner.client.from('invoices').select('status').eq('id', invoiceId).single());

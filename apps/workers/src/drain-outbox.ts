@@ -1,11 +1,9 @@
 /**
  * Notification outbox drain — no Redis required. Polls pending rows in
  * public.notification_outbox and delivers them through the configured SMS
- * driver. Rows are claimed atomically (update ... where status='pending') so a
- * duplicate drainer never double-sends. Delivery is AT-MOST-ONCE: the claim
- * flips pending→sent BEFORE the driver call, so a crash between claim and send
- * can lose that one message. This is deliberate — for SMS a duplicate charge is
- * worse than a rare miss.
+ * driver. A database RPC atomically applies the tenant's monthly SMS limit and
+ * claims pending→sending. Only a successful provider response marks a row sent;
+ * stale claims recover after 10 minutes.
  *
  * Usage:
  *   node dist/drain-outbox.js --once    # drain what's pending, then exit
@@ -29,11 +27,11 @@ const supabase = createClient(url, serviceKey, { auth: { persistSession: false }
 const driver = resolveDriver();
 
 const BATCH = 50;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 8;
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 15_000);
 
 /** Renders the SMS text for an outbox row from its template + payload. */
-function renderBody(template: string, payload: Record<string, unknown>): string {
+function renderBodyRaw(template: string, payload: Record<string, unknown>): string {
   if (template === "announcement") {
     return String(payload.body ?? "");
   }
@@ -49,7 +47,7 @@ function renderBody(template: string, payload: Record<string, unknown>): string 
     // Kiswahili first — queued by app.record_clinic_visit (migration 0023).
     const treatment =
       typeof payload.treatment === "string" && payload.treatment.trim() !== ""
-        ? ` Matibabu: ${payload.treatment}.`
+        ? ` Matibabu: ${payload.treatment.slice(0, 120)}.`
         : "";
     return (
       `Mpendwa ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
@@ -70,9 +68,16 @@ function renderBody(template: string, payload: Record<string, unknown>): string 
   return JSON.stringify(payload);
 }
 
-interface OutboxRow {
+/** One notification can never fan out into an unbounded multipart SMS. */
+function renderBody(template: string, payload: Record<string, unknown>): string {
+  const body = renderBodyRaw(template, payload);
+  return body.length > 480 ? `${body.slice(0, 477)}...` : body;
+}
+
+interface ClaimedOutboxRow {
+  status: "claimed" | "limit" | "unavailable";
   id: string;
-  tenant_id: string;
+  tenantId: string;
   recipient: string;
   template: string;
   payload: Record<string, unknown>;
@@ -83,12 +88,27 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
 
+  // A process may have stopped after claiming but before completing delivery.
+  // Provider calls time out at 15s, so a 10-minute claim is unquestionably stale.
+  const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { error: recoveryError } = await supabase
+    .from("notification_outbox")
+    .update({
+      status: "pending",
+      claimed_at: null,
+      next_attempt_at: new Date().toISOString(),
+      last_error: "RECOVERED_STALE_CLAIM",
+    })
+    .eq("status", "sending")
+    .lt("claimed_at", staleBefore);
+  if (recoveryError) throw new Error(recoveryError.message);
+
   for (;;) {
     // !inner join so draft/suspended/archived tenants never send queued
     // messages; next_attempt_at gate skips rows still in backoff.
     const { data: rows, error } = await supabase
       .from("notification_outbox")
-      .select("id, tenant_id, recipient, template, payload, attempts, tenants!inner(status)")
+      .select("id, tenants!inner(status)")
       .eq("status", "pending")
       .in("tenants.status", ["configuration", "data_review", "training", "live"])
       .lte("next_attempt_at", new Date().toISOString())
@@ -101,59 +121,75 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
     // delivered, break out and let the POLL_MS cadence back us off rather than
     // spinning tightly through claimed-then-failed rows.
     let batchSent = 0;
-    for (const row of rows as OutboxRow[]) {
-      // Claim the row BEFORE sending: only the drainer whose conditional
-      // update actually flips pending→sent proceeds to deliver. A second
-      // drainer (or an overlapping pass) gets zero rows back and skips it,
-      // so a message is never billed twice. Trade-off: a crash between claim
-      // and send loses that one message (at-most-once) — acceptable for SMS,
-      // where a duplicate charge is worse than a rare miss.
-      const { data: claimed } = await supabase
-        .from("notification_outbox")
-        .update({
-          status: "sent",
-          attempts: row.attempts + 1,
-          sent_at: new Date().toISOString(),
-        })
-        .eq("id", row.id)
-        .eq("status", "pending")
-        .select("id");
-      if (!claimed || claimed.length === 0) continue; // another drainer won it
+    let attemptedDelivery = 0;
+    for (const row of rows as Array<{ id: string }>) {
+      // claim_notification serialises usage checks per tenant, so multiple
+      // worker replicas cannot race past the plan's smsMonthly allowance.
+      const { data, error: claimError } = await supabase.rpc(
+        "claim_notification",
+        { p_id: row.id },
+      );
+      if (claimError) throw new Error(claimError.message);
+      const claimed = data as ClaimedOutboxRow;
+      if (claimed.status === "limit") {
+        failed += 1;
+        continue;
+      }
+      if (claimed.status !== "claimed") continue;
 
-      const body = renderBody(row.template, row.payload);
+      attemptedDelivery += 1;
+      const body = renderBody(claimed.template, claimed.payload).slice(0, 480);
       try {
-        await driver.send({ recipient: row.recipient, body });
+        await driver.send({ recipient: claimed.recipient, body });
+        const { error: sentError } = await supabase
+          .from("notification_outbox")
+          .update({
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            claimed_at: null,
+            last_error: null,
+          })
+          .eq("id", claimed.id)
+          .eq("status", "sending");
+        if (sentError) throw new Error(`SMS_STATUS_UPDATE_FAILED: ${sentError.message}`);
         sent += 1;
         batchSent += 1;
       } catch (err) {
-        const attempts = row.attempts + 1;
+        const attempts = claimed.attempts;
         const exhausted = attempts >= MAX_ATTEMPTS;
-        // Release the claim: back to pending for another attempt (with an
-        // exponential backoff on next_attempt_at, capped at 60 min), or failed.
-        await supabase
+        const { error: releaseError } = await supabase
           .from("notification_outbox")
           .update({
             status: exhausted ? "failed" : "pending",
             sent_at: null,
+            claimed_at: null,
+            last_error: (err as Error).message.slice(0, 300),
             ...(exhausted
               ? {}
               : {
                   next_attempt_at: new Date(
-                    Date.now() + Math.min(2 ** attempts, 60) * 60_000,
+                    Date.now() + Math.min(2 ** attempts, 360) * 60_000,
                   ).toISOString(),
                 }),
           })
-          .eq("id", row.id);
+          .eq("id", claimed.id)
+          .eq("status", "sending");
+        if (releaseError) {
+          logger.error(
+            { id: claimed.id, err: releaseError.message },
+            "failed to release outbox claim",
+          );
+        }
         if (exhausted) failed += 1;
         logger.error(
-          { id: row.id, tenantId: row.tenant_id, attempts, err: (err as Error).message },
+          { id: claimed.id, tenantId: claimed.tenantId, attempts, err: (err as Error).message },
           "outbox delivery failed",
         );
       }
     }
     // A batch that delivered nothing means the provider is likely down — stop
     // draining now so we yield to POLL_MS instead of spinning.
-    if (batchSent === 0) break;
+    if (attemptedDelivery > 0 && batchSent === 0) break;
     if (rows.length < BATCH) break;
   }
 

@@ -1,79 +1,89 @@
-# ATLAS Tenant Isolation Audit
+# ATLAS tenant-isolation audit
 
-_Audit date: 2026-07-05 · Automated proof: `apps/api/scripts/smoke-isolation.mjs`_
+_Updated 3 August 2026 · automated suite:
+`apps/api/scripts/smoke-isolation.mjs`._
 
-Tenant isolation is the single most important security property for a
-multi-school SaaS. This audit both reviews the design and **proves it with an
-automated attack suite** that runs like any other smoke test.
+Tenant isolation is the primary security property of ATLAS. The current design
+uses independent UI-correctness, API-authorization, RLS, RPC, and constraint
+layers; no single client-supplied tenant value is trusted.
 
-## Design
+## Layers
 
-Three independent layers, any one of which alone would prevent cross-tenant access:
+1. **Active tenant selection:** web pages use `active-tenant.ts` and a validated
+   HTTP-only tenant cookie. Users can switch only to a school they can read.
+2. **API guard:** `x-tenant-id` is accepted only after active membership,
+   tenant lifecycle, subscription, plan, and permission checks.
+3. **Service-role scoping:** every sensitive query/RPC filters by the guard's
+   tenant. Lookups fail closed on database/auth errors.
+4. **RLS:** direct browser/PostgREST access is tenant-status and permission
+   aware. Parents use linked-child policies rather than a staff membership.
+5. **Database ownership checks:** child records and cross-references carry or
+   verify tenant ownership; mismatched ids fail inside RPCs/triggers.
+6. **Platform separation:** `platform_role` is independent from school roles,
+   cannot be self-assigned, and platform actions are separately audited.
 
-1. **RLS** on every tenant table (`app.is_tenant_member(tenant_id)`), so even a
-   valid user's own Supabase session returns zero rows for another school.
-2. **API `TenantGuard`** resolves the tenant from the `x-tenant-id` header,
-   verifies the caller has an *active membership* in that tenant, loads role
-   permissions, and enforces `@RequirePermission`. The frontend cannot assert a
-   tenant it is not a member of.
-3. **RPC parameter scoping** — every business RPC takes `p_tenant_id` and filters
-   entity ids against it, so passing another school's id fails inside Postgres.
+The service-role key is confined to API/workers/approved scripts and is never a
+browser or mobile variable.
 
-The service-role key is confined to `apps/api/src/supabase`, `apps/workers`, and
-dev-only scripts. It never reaches the browser (`NEXT_PUBLIC_*` carries only the
-URL and anon key).
+## Current adversarial evidence
 
-## Automated attack suite — `smoke-isolation.mjs`
+The two-school isolation suite proves:
 
-Builds School A and School B (each with a student, guardian, invoice, payment),
-then attempts every crossing. **All pass** (2026-07-05):
+- owner A reads zero tenant-owned rows from school B under their own JWT;
+- owner A cannot update/delete B's records through direct Supabase access;
+- A's JWT plus B's `x-tenant-id` is rejected across protected endpoints;
+- cross-tenant entity ids fail without side effects inside business RPCs;
+- a parent cannot retrieve another child/report card;
+- service-role attempts to mutate immutable finance records are rejected.
 
-| # | Attack | Result |
-|---|--------|--------|
-| 2 | A's owner SELECTs B's rows across 14 tables via own Supabase session | 0 rows every table |
-| 3 | A's owner UPDATE/DELETE B's student & invoice via own session | No change (RLS blocks) |
-| 4 | A's token + B's `x-tenant-id` header on 5 mutating endpoints | 403 every endpoint |
-| 5 | A (legit A member) passes B's section/student/fee/payment/guardian ids to 10 RPC-backed endpoints | 400 with clean, specific error codes; no cross-tenant effect |
-| 6 | A's linked parent requests B's child report card; reads `students` via own session | 403; 0 RLS rows |
-| 7 | Service role UPDATE/DELETE on `payments` and `journal_lines` | Blocked by immutability triggers; amount intact |
+Additional live post-migration JWT probes on 3 August proved:
 
-Cross-tenant reference codes proven in step 5: `IMPORT_SECTION_NOT_FOUND`,
-`ATTENDANCE_SECTION_NOT_FOUND`, `ASSESSMENT_BAD_SECTION_OR_TERM`,
-`INVOICE_STUDENT_NOT_FOUND`, `INVOICE_FEE_ITEM_NOT_FOUND`,
-`ANNOUNCEMENT_SECTION_NOT_FOUND`, `PAYMENT_INVOICE_NOT_FOUND`,
-`REVERSAL_PAYMENT_NOT_FOUND`, guardian invite 404, `REPORT_STUDENT_NOT_FOUND`.
+- linked parent: zero students/invoices outside their links and one own guardian
+  row;
+- pure teacher: only authorized students, zero invoices, zero guardians;
+- finance user: authorized invoices only for their tenant;
+- anon/authenticated: zero ability to update `profiles.platform_role`;
+- no unintended RLS-enabled public table with zero policies.
 
-## `tenant_id` coverage
+The parent policies fixed the previously dangerous broad-member model, and the
+tenant-status policies prevent former staff from continuing to browse an
+archived/suspended school under an old token.
 
-Every table holding school data carries `tenant_id not null`. Verified global
-(intentionally no `tenant_id`): `plans`, `plan_features`, `permissions`,
-`roles` (system rows), `profiles`. Child tables scoped via FK **and** their own
-`tenant_id`: `student_guardians`, `invoice_lines`, `journal_lines`,
-`membership_roles`.
+## Background jobs and AI
 
-## Storage
+- Durable job/outbox rows carry `tenant_id`; atomic claims preserve that scope.
+- Outbox claiming excludes tenants that should not send and applies plan caps.
+- AI tenant/user/permission context is built by the server. The model cannot
+  provide or override tenant ids.
+- The real-provider eval passed cross-tenant and injection cases without data
+  leakage. Proposals/confirmations are user- and tenant-bound.
 
-No Supabase Storage buckets are in use yet (no file uploads implemented).
-**Action for the reporting/import milestones:** any bucket introduced must use a
-tenant-prefixed path (`{bucket}/{tenant_id}/…`) with a tenant-aware access
-policy, and downloads must be served via signed URLs — never public buckets.
-Tracked in ATLAS_IMPORT_PIPELINE_SPEC.md and ATLAS_REPORTING_SPEC.md.
+## Storage and exports
 
-## Background jobs
+Import/report Storage objects use private tenant-prefixed paths and signed
+downloads. New buckets must remain private and encode tenant ownership in both
+path and policy. Export generators escape spreadsheet formulas and must never
+produce a cross-tenant aggregate outside the guarded platform/report service.
 
-The outbox drainer joins `tenants!inner` and only drains `active`/`configuration`
-tenants, so an archived/suspended school never sends queued messages (verified
-in `smoke-communication.mjs`). The BullMQ base worker asserts `context.tenantId`
-on every job.
+## Regression rules
 
-## Residual items (P3, tracked in bug register)
+- Test RLS as `authenticated` with a JWT claim inside a transaction; Postgres
+  superusers and service-role sessions bypass RLS and prove nothing.
+- Run `smoke-isolation.mjs` after every permission, membership, parent, tenant
+  lifecycle, policy, Storage, or service-role query change.
+- Rehearse all migrations and inspect for RLS-enabled tables with zero policies.
+- Include at least owner, pure teacher, class teacher, finance, linked parent,
+  support, and platform super-admin in manual acceptance.
+- Never “fix” an empty result by broadening member-read policies. Determine the
+  required permission/scope and add a specific tested rule.
 
-- AUD-012: multi-school users get an arbitrary tenant via `limit(1)` — a
-  correctness/UX gap, not a leak (RLS + guard hold). Needs a tenant switcher.
-- Platform/support staff access is **not yet built**; when added it must be a
-  separately-authorised, fully-audited path (see ATLAS_OWNER_DASHBOARD_AUDIT.md).
+## Residual risks
 
-## Verdict
-
-Tenant isolation is **strong and now regression-tested**. `smoke-isolation.mjs`
-should run in CI on every migration or permission change.
+- Service-role code has broad database power; missing tenant filters remain a
+  severe code-review category even with RLS as the browser safety net.
+- Platform aggregates intentionally cross tenants and must stay aggregate-only
+  without PII.
+- Browser/device E2E coverage is not exhaustive; pilot role walkthroughs remain
+  required.
+- Hard deletion is not a tenant-offboarding mechanism. Archive/suspend access,
+  then follow approved retention/deletion procedures.

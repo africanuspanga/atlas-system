@@ -21,6 +21,7 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { color, font, radius, space } from "@/lib/theme";
 
 type Status = "present" | "absent" | "late" | "excused";
@@ -40,7 +41,7 @@ interface RosterStudent {
 }
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return todayInTanzania(d);
 }
 
 function shiftDate(date: string, days: number) {

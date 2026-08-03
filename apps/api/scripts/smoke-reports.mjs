@@ -97,9 +97,10 @@ const inv2 = await api('/finance/invoices', owner.token, tenantId, {
 });
 await api(`/finance/invoices/${inv1.body.invoiceId}/payments`, owner.token, tenantId, {
   amount: 150000, method: 'mpesa', reference: `MP${stamp}`,
+  idempotencyKey: crypto.randomUUID(),
 });
 await api(`/finance/invoices/${inv2.body.invoiceId}/payments`, owner.token, tenantId, {
-  amount: 600000, method: 'cash',
+  amount: 600000, method: 'cash', idempotencyKey: crypto.randomUUID(),
 });
 console.log('1. school seeded: 2 students, 2 invoices (1,000,000), payments 750,000');
 

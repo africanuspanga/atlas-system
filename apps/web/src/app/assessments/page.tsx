@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { getServerDict } from "@/i18n/server";
 import {
@@ -19,11 +20,7 @@ export default async function AssessmentsPage() {
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id, name")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 	const tenantId = tenant.id as string;

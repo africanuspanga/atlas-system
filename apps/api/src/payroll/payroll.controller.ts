@@ -118,7 +118,7 @@ export class PayrollController {
     const { data, error } = await this.supabase.admin
       .from('staff_salaries')
       .select(
-        'id, user_id, basic_salary, allowances, has_heslb, created_at, profiles(full_name)',
+        'id, user_id, basic_salary, allowances, has_heslb, created_at, profiles!staff_salaries_user_id_fkey(full_name)',
       )
       .eq('tenant_id', req.tenant.tenantId)
       .eq('active', true)
@@ -223,6 +223,8 @@ export class PayrollController {
         'PAYROLL_PERIOD_EXISTS',
         'PAYROLL_NO_SALARIES',
         'PAYROLL_BAD_PERIOD',
+        'PAYROLL_SETTINGS_UNVERIFIED',
+        'PAYROLL_RATES_INVALID',
       ]);
     }
     return data as {

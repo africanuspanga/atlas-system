@@ -93,7 +93,7 @@ const invoice = await api('/finance/invoices', owner.token, tenantId, {
   studentId: neema, lines: [{ feeItemId: fee.body.feeItemId }],
 });
 await api(`/finance/invoices/${invoice.body.invoiceId}/payments`, owner.token, tenantId, {
-  amount: 200000, method: 'mpesa',
+  amount: 200000, method: 'mpesa', idempotencyKey: crypto.randomUUID(),
 });
 console.log('2. attendance + published marks + invoice (300,000 TZS balance) ready');
 

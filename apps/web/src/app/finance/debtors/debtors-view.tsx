@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BellRingIcon, ChevronDownIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { getDict, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,7 @@ interface DebtorsPayload {
 }
 
 function today() {
-	return new Date().toISOString().slice(0, 10);
+	return todayInTanzania();
 }
 
 export function DebtorsView({ tenantId, lang }: { tenantId: string; lang: Lang }) {

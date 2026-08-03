@@ -15,6 +15,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import { todayInTanzania } from '../common/tanzania-date';
 import {
   createFeeItemSchema,
   createInvoiceSchema,
@@ -51,7 +52,7 @@ export class FinanceController {
         issues: parsed.error.issues,
       });
     }
-    const { data: year } = await this.supabase.admin
+    const { data: year, error: yearError } = await this.supabase.admin
       .from('academic_years')
       .select('id')
       .eq('tenant_id', req.tenant.tenantId)
@@ -59,28 +60,43 @@ export class FinanceController {
       .order('starts_on', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (yearError) {
+      throw new InternalServerErrorException({
+        code: 'FEE_ITEM_YEAR_LOOKUP_FAILED',
+      });
+    }
     if (!year) {
       throw new BadRequestException({ code: 'FEE_ITEM_NO_ACTIVE_YEAR' });
     }
     if (parsed.data.gradeLevelId) {
-      const { data: gradeLevel } = await this.supabase.admin
+      const { data: gradeLevel, error: gradeError } = await this.supabase.admin
         .from('grade_levels')
         .select('id')
         .eq('id', parsed.data.gradeLevelId)
         .eq('tenant_id', req.tenant.tenantId)
         .maybeSingle();
+      if (gradeError) {
+        throw new InternalServerErrorException({
+          code: 'FEE_ITEM_GRADE_LOOKUP_FAILED',
+        });
+      }
       if (!gradeLevel) {
         throw new BadRequestException({ code: 'FEE_ITEM_GRADE_NOT_FOUND' });
       }
     }
     if (parsed.data.academicTermId) {
-      const { data: term } = await this.supabase.admin
+      const { data: term, error: termError } = await this.supabase.admin
         .from('academic_terms')
         .select('id')
         .eq('id', parsed.data.academicTermId)
         .eq('tenant_id', req.tenant.tenantId)
         .eq('academic_year_id', year.id)
         .maybeSingle();
+      if (termError) {
+        throw new InternalServerErrorException({
+          code: 'FEE_ITEM_TERM_LOOKUP_FAILED',
+        });
+      }
       if (!term) {
         throw new BadRequestException({ code: 'FEE_ITEM_TERM_NOT_FOUND' });
       }
@@ -241,7 +257,7 @@ export class FinanceController {
       (sum, p) => sum + Number(p.amount),
       0,
     );
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInTanzania();
     let remaining = paid;
     let dueSeen = false;
     const rows = (invoice.invoice_instalments ?? [])
@@ -315,7 +331,7 @@ export class FinanceController {
         issues: parsed.error.issues,
       });
     }
-    const asOf = parsed.data.asOf ?? new Date().toISOString().slice(0, 10);
+    const asOf = parsed.data.asOf ?? todayInTanzania();
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await this.supabase.admin.rpc('report_debtors', {
       p_tenant_id: req.tenant.tenantId,
@@ -383,12 +399,16 @@ export class FinanceController {
       p_method: parsed.data.method,
       p_reference: parsed.data.reference ?? null,
       p_paid_on: parsed.data.paidOn ?? null,
+      p_idempotency_key: parsed.data.idempotencyKey,
     });
     if (error) {
       rpcError(error, [
         'PAYMENT_INVOICE_NOT_FOUND',
         'PAYMENT_BAD_AMOUNT',
+        'PAYMENT_BAD_DATE',
         'PAYMENT_EXCEEDS_BALANCE',
+        'PAYMENT_IDEMPOTENCY_KEY_REQUIRED',
+        'PAYMENT_IDEMPOTENCY_CONFLICT',
       ]);
     }
     return data as {

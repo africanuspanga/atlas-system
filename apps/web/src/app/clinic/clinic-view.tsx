@@ -68,19 +68,24 @@ export function ClinicView({
 	const [recordOpen, setRecordOpen] = useState(false);
 
 	const reload = useCallback(async () => {
-		const params = new URLSearchParams();
-		if (from !== "") params.set("from", from);
-		if (to !== "") params.set("to", to);
-		const suffix = params.size > 0 ? `?${params.toString()}` : "";
-		const response = await apiFetch(`/api/v1/clinic/visits${suffix}`, { tenantId });
-		if (!response.ok) {
-			setLoadError(`${t("clinic.loadFailed")} (HTTP ${response.status})`);
-			setLoaded(true);
-			return;
-		}
+		setLoaded(false);
 		setLoadError(null);
-		setVisits((await response.json()).data);
-		setLoaded(true);
+		try {
+			const params = new URLSearchParams();
+			if (from !== "") params.set("from", from);
+			if (to !== "") params.set("to", to);
+			const suffix = params.size > 0 ? `?${params.toString()}` : "";
+			const response = await apiFetch(`/api/v1/clinic/visits${suffix}`, { tenantId });
+			if (!response.ok) {
+				setLoadError(`${t("clinic.loadFailed")} (HTTP ${response.status})`);
+				return;
+			}
+			setVisits((await response.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, from, to, t]);
 
 	useEffect(() => {
@@ -121,7 +126,14 @@ export function ClinicView({
 				</label>
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 
 			{!loaded && !loadError ? (
 				<ListSkeleton rows={6} />

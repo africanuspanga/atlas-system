@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { getServerDict } from "@/i18n/server";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { InvoiceView, type InvoiceDetail } from "./invoice-view";
 
 export const metadata = { title: "Invoice" };
@@ -18,11 +20,7 @@ export default async function InvoicePage({
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login");
 
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id, name")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 	const tenantId = tenant.id as string;
@@ -63,7 +61,7 @@ export default async function InvoicePage({
 
 	// Paid-so-far waterfalls across the instalment plan by seq (display only;
 	// payments stay on the invoice).
-	const today = new Date().toISOString().slice(0, 10);
+	const today = todayInTanzania();
 	const sortedPlan = ((invoice.invoice_instalments ?? []) as unknown as Array<{
 		id: string;
 		seq: number;

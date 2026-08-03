@@ -15,22 +15,46 @@ export const createRunSchema = z.object({
   period: z.string().regex(periodRegex, 'Expected YYYY-MM'),
 });
 
-/**
- * Payroll settings (statutory rates). Kept permissive but typed — the RPC
- * (`update_payroll_settings`) validates the shape and raises
- * PAYROLL_SETTINGS_INVALID on bad values.
- */
 export const payeBandSchema = z.object({
-  up_to: z.number().nonnegative().nullable(),
-  rate: z.number().nonnegative(),
+  up_to: z.number().nonnegative().max(1_000_000_000).nullable(),
+  rate: z.number().min(0).max(1),
 });
+
+const payeBandsSchema = z
+  .array(payeBandSchema)
+  .min(1)
+  .max(20)
+  .superRefine((bands, ctx) => {
+    if (bands.at(-1)?.up_to !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Last PAYE band must be open-ended',
+      });
+    }
+    let previous = -1;
+    bands.slice(0, -1).forEach((band, index) => {
+      if (band.up_to === null || band.up_to <= previous) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, 'up_to'],
+          message: 'PAYE bands must be strictly ascending',
+        });
+      } else {
+        previous = band.up_to;
+      }
+    });
+  });
 
 export const payrollRatesSchema = z
   .object({
-    paye_bands: z.array(payeBandSchema),
-    nssf_employee_rate: z.number().nonnegative(),
-    heslb_rate: z.number().nonnegative(),
-    employer: z.record(z.string(), z.number()),
+    paye_bands: payeBandsSchema,
+    nssf_employee_rate: z.number().min(0).max(1),
+    heslb_rate: z.number().min(0).max(1),
+    employer: z.object({
+      nssf_rate: z.number().min(0).max(1),
+      wcf_rate: z.number().min(0).max(1),
+      sdl_rate: z.number().min(0).max(1),
+    }),
   })
   .passthrough();
 

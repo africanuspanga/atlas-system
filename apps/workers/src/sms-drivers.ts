@@ -32,7 +32,10 @@ const consoleDriver: SmsDriver = {
   name: "console",
   send(message) {
     logger.info(
-      { recipient: message.recipient, body: message.body },
+      {
+        recipientSuffix: message.recipient.replace(/\D/g, "").slice(-4),
+        characters: message.body.length,
+      },
       "SMS (console driver — not actually sent)",
     );
     return Promise.resolve();
@@ -43,6 +46,10 @@ function beemDriver(apiKey: string, secretKey: string, senderId: string): SmsDri
   return {
     name: "beem",
     async send(message) {
+      const recipient = toMsisdn(message.recipient);
+      if (!/^255\d{9}$/.test(recipient)) {
+        throw new Error("SMS_INVALID_TANZANIA_RECIPIENT");
+      }
       const response = await fetch("https://apisms.beem.africa/v1/send", {
         method: "POST",
         headers: {
@@ -53,12 +60,13 @@ function beemDriver(apiKey: string, secretKey: string, senderId: string): SmsDri
           source_addr: senderId,
           schedule_time: "",
           encoding: 0,
-          message: message.body,
+          message: message.body.slice(0, 480),
           recipients: [
             // Beem expects an international msisdn (255XXXXXXXXX), no leading +.
-            { recipient_id: 1, dest_addr: toMsisdn(message.recipient) },
+            { recipient_id: 1, dest_addr: recipient },
           ],
         }),
+        signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok) {
         const text = await response.text().catch(() => "");
@@ -74,10 +82,19 @@ export function resolveDriver(): SmsDriver {
     const apiKey = process.env.BEEM_API_KEY;
     const secretKey = process.env.BEEM_SECRET_KEY;
     if (!apiKey || !secretKey) {
-      logger.warn("SMS_DRIVER=beem but BEEM_API_KEY/BEEM_SECRET_KEY missing — using console driver");
-      return consoleDriver;
+      throw new Error(
+        "SMS_DRIVER=beem requires BEEM_API_KEY and BEEM_SECRET_KEY",
+      );
     }
     return beemDriver(apiKey, secretKey, process.env.BEEM_SENDER_ID ?? "ATLAS");
+  }
+  if (requested !== "console") {
+    throw new Error(`Unsupported SMS_DRIVER: ${requested}`);
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SMS_DRIVER=console is disabled in production; configure SMS_DRIVER=beem",
+    );
   }
   return consoleDriver;
 }

@@ -1,5 +1,13 @@
 # ATLAS — Go-to-Market Playbook (Tanzania)
 
+> **Internal pre-launch playbook — do not start customer campaigns yet.** The
+> code is controlled-pilot capable, but the production deployment, workers,
+> Sentry/health, Beem delivery, current restore, PDPC/cross-border AI, payroll,
+> and school-acceptance gates in
+> `docs/audit/GO_LIVE_READINESS_2026-08-03.md` must close first. Treat every SMS,
+> AI, mobile, timeline, price, and outcome statement below as conditional on
+> that evidence and founder approval.
+
 _For the founder and future sales team. How to find, win, and keep schools.
 Companion document: `SCHOOL_OWNER_OFFER.md` (the offer you put in front of
 owners). Product facts in this document are grounded in the shipped
@@ -10,36 +18,38 @@ platform — nothing here promises a feature that doesn't exist._
 ## 1. Positioning
 
 **One-liner (EN):** ATLAS runs your whole school — students, fees, exams,
-SMS to parents — in Swahili and English, with an AI assistant that answers
-any question about your school in seconds.
+provider-enabled SMS to parents — in Swahili and English, with an AI assistant
+that answers approved operational questions within each user's role.
 
 **One-liner (SW):** ATLAS inaendesha shule yako yote — wanafunzi, ada,
-mitihani, SMS kwa wazazi — kwa Kiswahili na Kiingereza, na msaidizi wa AI
-anayejibu swali lolote kuhusu shule yako kwa sekunde.
+mitihani, na SMS kwa wazazi baada ya huduma kuidhinishwa — kwa Kiswahili na
+Kiingereza, na msaidizi wa AI anayejibu maswali ya uendeshaji yanayoruhusiwa
+na nafasi ya mtumiaji.
 
-**Category:** School management system (SMS/ERP). **Wedge:** the only one
-that is (a) genuinely bilingual, (b) NECTA-native (PSLE/CSEE/ACSEE grading,
-divisions, CA summaries, candidate exports), and (c) AI-native — "Ask
-ATLAS" is on every page and can operate the system, not just chat.
+**Category:** School management system (SMS/ERP). **Wedge:** a combined
+bilingual, NECTA-oriented, ledger-backed product with a permission-scoped AI
+agent. “Ask ATLAS” is available throughout the authenticated application and
+can propose approved operations as well as answer role-authorized questions.
 
 **We are NOT selling software. We are selling three outcomes:**
+
 1. **Collect more of the fees you are owed** (invoices, receipts, debtors
-   list, automatic SMS reminders, instalment tracking).
+   list, provider-enabled SMS reminders, instalment tracking).
 2. **Cut the term-end panic to hours** (marks in, report cards and NECTA
    paperwork out).
-3. **Parents who feel informed** (absence SMS the same morning, a portal
-   with fees and results).
+3. **Parents who feel informed** (absence SMS after the approved gateway is
+   active, plus a portal with fees and results).
 
 ## 2. Ideal customer profile (ICP)
 
-| Attribute | Target |
-|---|---|
-| Type | Private (non-government) primary & secondary schools |
-| Size | 200–2,000 students (sweet spot 300–800 → Msingi/Kati plans) |
-| Geography (first wave) | Arusha & Manyara (home turf + demo school), then Dar es Salaam, Mwanza, Dodoma, Moshi, Mbeya |
-| Decision maker | Owner / Director (often also the founder) |
-| Champions | Head teacher (academics), Bursar (money) — win BOTH in the demo |
-| Pain signals | Fees tracked in exercise books or Excel; report cards typed one by one in Word; parents complain "sikujua" (I didn't know); NECTA CA deadline scramble |
+| Attribute              | Target                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Type                   | Private (non-government) primary & secondary schools                                                                                                   |
+| Size                   | 200–2,000 students (sweet spot 300–800 → Msingi/Kati plans)                                                                                            |
+| Geography (first wave) | Arusha & Manyara (home turf + demo school), then Dar es Salaam, Mwanza, Dodoma, Moshi, Mbeya                                                           |
+| Decision maker         | Owner / Director (often also the founder)                                                                                                              |
+| Champions              | Head teacher (academics), Bursar (money) — win BOTH in the demo                                                                                        |
+| Pain signals           | Fees tracked in exercise books or Excel; report cards typed one by one in Word; parents complain "sikujua" (I didn't know); NECTA CA deadline scramble |
 
 **Disqualify (for now):** government schools (procurement cycles),
 schools under ~100 students (price sensitivity), schools demanding offline-
@@ -47,32 +57,33 @@ only operation.
 
 ## 3. The pain map → what we show
 
-| Their pain | What ATLAS does about it | Where in demo |
-|---|---|---|
-| "Parents owe us millions and we don't know who" | Debtors list (wadaiwa) reconciled to a real ledger; one-tap fee-reminder SMS per unpaid invoice | `/finance/debtors` |
-| Fee leakage / receipts in a notebook | Numbered receipts (RCT-…), immutable payments — corrections are audited reversals, nothing is ever quietly edited | `/finance` invoice detail |
-| Report card week is a nightmare | Marks grid per subject → publish → ranked report cards with NECTA divisions, printable, in Swahili too | `/assessments`, report card |
-| Parents feel ignored | Absent child → guardian gets a Kiswahili SMS that morning; announcements to all guardians or one class | `/attendance`, `/communication` |
-| "I can't see what's happening unless I'm at school" | Owner dashboard + **Ask ATLAS**: "Nani hajalipa ada?" answered in seconds, from anywhere | Ask ATLAS button |
-| Teacher/staff data everywhere | Students, guardians, staff, timetable (with clash detection), hostel, transport, library, clinic, inventory, payroll (PAYE/NSSF/HESLB) in one place | sidebar tour |
+| Their pain                                          | What ATLAS does about it                                                                                                                            | Where in demo                   |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| "Parents owe us millions and we don't know who"     | Debtors list (wadaiwa) reconciled to a real ledger; one-tap fee-reminder queue per unpaid invoice                                                   | `/finance/debtors`              |
+| Fee leakage / receipts in a notebook                | Numbered receipts (RCT-…), immutable payments — corrections are audited reversals, nothing is ever quietly edited                                   | `/finance` invoice detail       |
+| Report card week is a nightmare                     | Marks grid per subject → publish → ranked report cards with NECTA divisions, printable, in Swahili too                                              | `/assessments`, report card     |
+| Parents feel ignored                                | With the production gateway active, an absent child queues a Kiswahili guardian SMS; announcements reach all guardians or one class                 | `/attendance`, `/communication` |
+| "I can't see what's happening unless I'm at school" | Owner dashboard + **Ask ATLAS**: "Nani hajalipa ada?" answered in seconds, from anywhere                                                            | Ask ATLAS button                |
+| Teacher/staff data everywhere                       | Students, guardians, staff, timetable (with clash detection), hostel, transport, library, clinic, inventory, payroll (PAYE/NSSF/HESLB) in one place | sidebar tour                    |
 
 ## 4. Pricing & packaging (as shipped)
 
-| Plan | Monthly (TZS) | Annual (TZS, 2 months free) | Students | Staff | SMS/month | AI tokens/month |
-|---|---|---|---|---|---|---|
-| Trial | 0 (30 days) | — | 300 | 20 | 200 | 500k |
-| **Msingi** | 150,000 | 1,500,000 | 800 | 60 | 2,000 | 2M |
-| **Kati** | 350,000 | 3,500,000 | 2,000 | 200 (3 campuses) | 10,000 | 5M |
-| **Juu** | 800,000 | 8,000,000 | Unlimited | Unlimited | 50,000 | 10M |
+| Plan       | Monthly (TZS) | Annual (TZS, 2 months free) | Students  | Staff            | SMS/month | AI tokens/month |
+| ---------- | ------------- | --------------------------- | --------- | ---------------- | --------- | --------------- |
+| Trial      | 0 (30 days)   | —                           | 300       | 20               | 200       | 500k            |
+| **Msingi** | 150,000       | 1,500,000                   | 800       | 60               | 2,000     | 2M              |
+| **Kati**   | 350,000       | 3,500,000                   | 2,000     | 200 (3 campuses) | 10,000    | 5M              |
+| **Juu**    | 800,000       | 8,000,000                   | Unlimited | Unlimited        | 50,000    | 10M             |
 
 **The money math (memorise this):** Msingi costs 150,000 TZS/month. If a
 school's fees are ~600,000 TZS/student/year, recovering **the unpaid fees of
 just 3 students** pays for ATLAS for the whole year. Every debtors demo
-should end on this sentence.
+should use this only as an illustration, never a collection/ROI guarantee.
 
 Billing today is manual reconciliation: the school pays by bank/M-Pesa,
 platform staff record it in `/platform` (Record payment) and the paid-until
-date extends. Lapsed schools go read-only — they never lose their data.
+date extends. A lapse makes the school read-only rather than deleting records;
+the signed agreement governs retention and exit export after termination.
 
 ## 5. Channels (in order of expected yield)
 
@@ -85,8 +96,9 @@ date extends. Lapsed schools go read-only — they never lose their data.
    managers/owners association) regional meetings; ask to give a 15-minute
    "digital fee collection" talk, not a sales pitch. Faith-based school
    networks (diocese/mosque school boards) decide for many schools at once.
-4. **WhatsApp** — owners live on WhatsApp. Short video (90 seconds: absence
-   SMS arriving on a parent's phone + the debtors list) outperforms any PDF.
+4. **WhatsApp** — owners live on WhatsApp. After live provider delivery is
+   verified, test a short video showing an approved absence SMS and the debtors
+   list; measure performance rather than asserting it in advance.
 5. **Head-teacher word of mouth** — head teachers move schools and take
    tools with them. Treat every head teacher as a future champion.
 6. **Later (post 20 schools):** local radio in school-dense regions,
@@ -114,10 +126,12 @@ Order matters:
 1. **Open with Ask ATLAS** (2 min): ask in Swahili "wanafunzi wangapi
    hawajalipa ada?" — let them watch it answer. This is the moment they
    lean in.
-2. **Debtors + reminders** (5 min): the wadaiwa list, then send a fee
-   reminder — show the SMS text in Kiswahili. Say the money math sentence.
-3. **Attendance → parent SMS** (3 min): mark a child absent, show the SMS
-   the guardian receives the same morning.
+2. **Debtors + reminders** (5 min): the wadaiwa list, then queue a fee
+   reminder and show its Kiswahili text. Only claim delivery when the approved
+   production gateway is active and the provider result is visible.
+3. **Attendance → parent SMS** (3 min): mark a child absent and show the
+   minimal guardian message. In a pre-gateway demo, call it a queued message,
+   not a delivered SMS.
 4. **Marks → report card** (5 min): the marks grid, publish, then a ranked
    report card with NECTA division. If secondary school: show the CA
    summary/candidate export.
@@ -127,9 +141,12 @@ Order matters:
 6. **Close** (3 min): put the Founding Schools offer (one page, printed) on
    the table. Ask: "Tukianze na muhula huu?" (Shall we start this term?)
 
-**Step 4 — Pilot / onboarding (the offer's promise: live in 48 hours).**
-Collect their student list in any Excel/paper form → our imports wizard
-takes it (guardian phones included, so parents are linked from day one).
+**Step 4 — Pilot / onboarding (scheduled, signed cutover—not an automatic
+48-hour promise).**
+Collect their student list in a supported Excel/CSV file → the imports wizard
+maps and validates it (guardian phones included, so parents can be linked from
+day one). Paper records require a separately scoped transcription and school
+verification step; the product does not ingest paper directly.
 Configure fees, invite 3–5 staff, train the bursar and one teacher (30 min
 each). The trial supports this; extend it to a full term for founding
 schools (trial-extend exists in `/platform`).
@@ -140,23 +157,23 @@ annual where possible (2 months free). Then ask for two referrals.
 
 ## 7. Objection handling
 
-| Objection | Answer |
-|---|---|
-| "We already use Excel / exercise books" | "Keep them — ATLAS imports your Excel in minutes. The difference: Excel doesn't SMS a parent when their child is absent, and it can't tell you who owes what across 3 years without a weekend of work." |
-| "Teachers won't manage" | "It's in Kiswahili, and if anyone gets stuck they literally ask the assistant in Kiswahili. We train your staff ourselves; a teacher marks attendance in under a minute." |
-| "Internet/power is unreliable" | "It works on a phone over normal bundles — attendance and receipts are light pages. Parents don't need internet at all; they get SMS." |
-| "What about our data if we leave?" | "Your data is yours. Every register, mark and payment exports to Excel/PDF/CSV free, any time, including if you cancel. It's in the offer in writing." |
-| "Is our data safe from other schools?" | "Every school is isolated at the database level; this is audited. Your staff see only what their role allows — even we log every time platform staff touch your account, and you can request that log." |
-| "It's expensive" | Money math (§4). Then: "What did the last mistake in the fee book cost you?" |
-| "Another system burned us" | "That's why the pilot is free for a term and we do the setup, not you. If it doesn't earn its place, you walk away with your data and pay nothing." |
+| Objection                               | Answer                                                                                                                                                                                                                  |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "We already use Excel / exercise books" | "ATLAS accepts supported Excel/CSV files through a mapped, validated import. Paper records need an agreed transcription step. Once verified, the same data powers role-controlled attendance, fees and reporting."      |
+| "Teachers won't manage"                 | "It's in Kiswahili, and if anyone gets stuck they literally ask the assistant in Kiswahili. We train your staff ourselves; a teacher marks attendance in under a minute."                                               |
+| "Internet/power is unreliable"          | "It works on a phone over normal bundles. The parent portal needs data; after the approved gateway is active, operational SMS alerts need only mobile signal."                                                          |
+| "What about our data if we leave?"      | "Your data remains yours. ATLAS currently exports the reports listed in the product catalogue; your signed agreement will define the additional exit-export package, format, verification and secure handover process." |
+| "Is our data safe from other schools?"  | "Every school is isolated at the database level; this is audited. Your staff see only what their role allows — even we log every time platform staff touch your account, and you can request that log."                 |
+| "It's expensive"                        | Money math (§4). Then: "What did the last mistake in the fee book cost you?"                                                                                                                                            |
+| "Another system burned us"              | "That is why the proposed founding-school pilot has written scope, signed data totals, supervised training, agreed exit export and acceptance gates. Final pricing/guarantee terms are confirmed in the contract."      |
 
 ## 8. First-90-days launch plan
 
-- **Weeks 1–2:** list of 50 schools (Arusha/Manyara), print offer one-pagers,
-  rehearse the 20-min demo until it's < 20 min.
-- **Weeks 3–6:** 30 demos booked → target 10 founding pilots live (the
-  48-hour onboarding promise is the constraint — don't sell faster than
-  you can onboard).
+- **Weeks 1–2:** list 50 candidate schools (Arusha/Manyara), keep offer drafts
+  internal, close the release blockers, and rehearse the 20-minute demo.
+- **Weeks 3–6:** after the first supervised pilot is accepted, book demos and
+  add only the cohort the implementation/operations team can support. Do not
+  promise an onboarding SLA until measured production cutovers meet it.
 - **Weeks 7–12:** convert pilots (target ≥6 paying), collect 3 written
   testimonials + 1 video, ask every convert for 2 referrals, present at one
   association meeting.
@@ -170,14 +187,17 @@ pilot→paid rate (target 60%). Health (already in `/platform`): silent
 schools list = churn-risk call list; unit costs (SMS/AI vs plan price) =
 margin watch. North star: **schools that ran attendance AND recorded a
 payment this week** — a school doing both has embedded ATLAS in its daily
-operations and will renew.
+operations and is a stronger renewal signal.
 
 ## 10. Honesty rules for everyone who sells ATLAS
 
 Never promise: offline mode, a payment gateway ("pay school fees inside
 ATLAS" — it's on the roadmap, `docs/product/PAYMENTS_INTEGRATION_PLAN.md`),
-a mobile app, or government/NECTA integration. Never guarantee revenue
+an App Store/Play Store release before approval, or government/NECTA system
+integration. Never guarantee revenue
 outcomes — say "schools use the debtors list and reminders to recover fees"
-and show it. What we CAN promise, in writing: bilingual UI, NECTA grading,
-same-morning absence SMS, ledger-grade money records, free data export,
-and setup done for them in 48 hours.
+and show it. What we CAN promise, in writing: bilingual UI, tested NECTA
+workflows, ledger-backed money records, the current report catalogue, and
+implementation according to the signed pilot plan. Promise SMS delivery or an
+exit-export format only after the provider/process is configured, tested,
+contracted, and monitored.

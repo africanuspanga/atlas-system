@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpenIcon, PlusIcon, Undo2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
+import { dateInTanzaniaAfterDays } from "@/lib/tanzania-date";
 import { ListSkeleton } from "@/components/list-skeleton";
 import { getDict, type DictKey, type Lang } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,7 @@ const ERROR_KEYS: Partial<Record<string, DictKey>> = {
 };
 
 function defaultDueOn(): string {
-	return new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+	return dateInTanzaniaAfterDays(14);
 }
 
 export function LibraryView({
@@ -100,21 +101,26 @@ export function LibraryView({
 	const [openBook, setOpenBook] = useState<BookRow | null>(null);
 
 	const reload = useCallback(async () => {
-		const [booksResponse, overdueResponse] = await Promise.all([
-			apiFetch("/api/v1/library", { tenantId }),
-			apiFetch("/api/v1/library/overdue", { tenantId }),
-		]);
-		if (!booksResponse.ok || !overdueResponse.ok) {
-			setLoadError(
-				`${t("library.loadFailed")} (HTTP ${booksResponse.ok ? overdueResponse.status : booksResponse.status})`,
-			);
-			setLoaded(true);
-			return;
-		}
+		setLoaded(false);
 		setLoadError(null);
-		setBooks((await booksResponse.json()).data);
-		setOverdue((await overdueResponse.json()).data);
-		setLoaded(true);
+		try {
+			const [booksResponse, overdueResponse] = await Promise.all([
+				apiFetch("/api/v1/library", { tenantId }),
+				apiFetch("/api/v1/library/overdue", { tenantId }),
+			]);
+			if (!booksResponse.ok || !overdueResponse.ok) {
+				setLoadError(
+					`${t("library.loadFailed")} (HTTP ${booksResponse.ok ? overdueResponse.status : booksResponse.status})`,
+				);
+				return;
+			}
+			setBooks((await booksResponse.json()).data);
+			setOverdue((await overdueResponse.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, t]);
 
 	useEffect(() => {
@@ -139,7 +145,14 @@ export function LibraryView({
 				)}
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 
 			<Card className="shadow-none">
 				<CardHeader>

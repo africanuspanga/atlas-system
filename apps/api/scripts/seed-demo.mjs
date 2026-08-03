@@ -327,12 +327,18 @@ await pool(allStudents, async (student) => {
     const pay = await api(`/finance/invoices/${invoice.invoiceId}/payments`, {
       amount, method,
       reference: method === 'cash' ? undefined : `TX${Math.floor(rand() * 1e9)}`,
+      idempotencyKey: crypto.randomUUID(),
     }, 'POST', bursar.token);
     paymentCount += 1;
     if (!reversalDone && r < 0.65 && payments.length === 2 && amount === payments[0]) {
       // one demo reversal with its paper trail
       await api(`/finance/payments/${pay.paymentId}/reverse`, { reason: 'Muamala wa M-Pesa ulirudishwa na mtandao' }, 'POST', bursar.token);
-      await api(`/finance/invoices/${invoice.invoiceId}/payments`, { amount, method: 'bank', reference: `TX${Math.floor(rand() * 1e9)}` }, 'POST', bursar.token);
+      await api(`/finance/invoices/${invoice.invoiceId}/payments`, {
+        amount,
+        method: 'bank',
+        reference: `TX${Math.floor(rand() * 1e9)}`,
+        idempotencyKey: crypto.randomUUID(),
+      }, 'POST', bursar.token);
       paymentCount += 1;
       reversalDone = true;
     }

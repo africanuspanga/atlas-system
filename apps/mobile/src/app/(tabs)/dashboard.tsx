@@ -20,6 +20,7 @@ import { Symbol } from "@/components/symbol";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
+import { todayInTanzania } from "@/lib/tanzania-date";
 import { color, font, radius, space } from "@/lib/theme";
 
 interface DashboardData {
@@ -65,7 +66,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInTanzania();
       const monthStart = `${today.slice(0, 7)}-01`;
 
       // Same RLS aggregation the web dashboard uses (apps/web/src/app/page.tsx),

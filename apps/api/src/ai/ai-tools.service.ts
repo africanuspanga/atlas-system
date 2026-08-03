@@ -4,6 +4,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import type { TenantContext } from '../tenancy/tenant.guard';
 import { CATALOGUE, type ReportKey } from '../reports/reports.controller';
 import { AI_ACTIONS, AiActionsService } from './ai-actions.service';
+import { tanzaniaDateRange, todayInTanzania } from '../common/tanzania-date';
 
 /**
  * The AI's ONLY window into ATLAS data: a fixed, read-only tool catalogue
@@ -304,7 +305,7 @@ export const AI_TOOLS: Record<string, ToolDef> = {
     },
     permission: 'finance.debtors.view',
     execute: async (supabase, ctx, args) => {
-      const asOf = new Date().toISOString().slice(0, 10);
+      const asOf = todayInTanzania();
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const { data, error } = await supabase.admin.rpc('report_debtors', {
         p_tenant_id: ctx.tenantId,
@@ -1113,7 +1114,7 @@ export const AI_TOOLS: Record<string, ToolDef> = {
     parameters: { type: 'object', properties: {}, required: [] },
     permission: 'library.view',
     execute: async (supabase, ctx) => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayInTanzania();
       const { data: loans, error } = await supabase.admin
         .from('library_loans')
         .select(
@@ -1216,7 +1217,7 @@ export const AI_TOOLS: Record<string, ToolDef> = {
   },
   getClinicVisits: {
     description:
-      'Clinic (zahanati) visits between two dates: each visit with the student, symptoms, treatment and whether the guardian was notified by SMS.',
+      'Clinic (zahanati) visit log between two dates: date, student number and guardian-notification delivery status. Clinical notes and student names are never sent to the AI provider.',
     parameters: {
       type: 'object',
       properties: { from: DATE, to: DATE },
@@ -1224,34 +1225,57 @@ export const AI_TOOLS: Record<string, ToolDef> = {
     },
     permission: 'clinic.view',
     execute: async (supabase, ctx, args) => {
+      const range = tanzaniaDateRange(args.from, args.to);
       const { data: visits, error } = await supabase.admin
         .from('clinic_visits')
-        .select(
-          `id, visited_at, symptoms, treatment, notify_guardian,
-           students(student_number, first_name, last_name)`,
-        )
+        .select(`id, visited_at, notify_guardian, students(student_number)`)
         .eq('tenant_id', ctx.tenantId)
-        .gte('visited_at', `${args.from}T00:00:00Z`)
-        .lte('visited_at', `${args.to}T23:59:59.999Z`)
+        .gte('visited_at', range.from)
+        .lte('visited_at', range.to)
         .order('visited_at', { ascending: false })
-        .limit(500);
+        .limit(100);
       if (error) throw new Error(error.message.slice(0, 200));
+      const visitIds = (visits ?? []).map((visit) => visit.id as string);
+      const notificationStatus = new Map<string, string>();
+      if (visitIds.length > 0) {
+        const { data: notifications, error: notificationError } =
+          await supabase.admin
+            .from('notification_outbox')
+            .select('status, payload')
+            .eq('tenant_id', ctx.tenantId)
+            .eq('template', 'clinic.visit')
+            .in('payload->>visitId', visitIds);
+        if (notificationError) {
+          throw new Error(notificationError.message.slice(0, 200));
+        }
+        for (const notification of notifications ?? []) {
+          const payload = notification.payload as Record<string, unknown>;
+          if (typeof payload.visitId === 'string') {
+            notificationStatus.set(
+              payload.visitId,
+              notification.status as string,
+            );
+          }
+        }
+      }
       const rows = (visits ?? []).map((v) => {
         const student = v.students as unknown as {
           student_number: string;
-          first_name: string;
-          last_name: string;
         } | null;
         return {
-          date: (v.visited_at as string).slice(0, 10),
-          student: `${student?.first_name ?? ''} ${student?.last_name ?? ''} (${student?.student_number ?? ''})`,
-          symptoms: v.symptoms as string,
-          treatment: (v.treatment as string | null) ?? null,
-          guardianNotified: v.notify_guardian as boolean,
+          date: todayInTanzania(new Date(v.visited_at as string)),
+          studentNumber: student?.student_number ?? null,
+          guardianNotificationStatus: v.notify_guardian
+            ? (notificationStatus.get(v.id as string) ?? 'not_queued')
+            : 'not_requested',
         };
       });
       return {
-        data: { visits: rows, filters: { from: args.from, to: args.to } },
+        data: {
+          visits: rows,
+          filters: { from: args.from, to: args.to },
+          truncated: rows.length === 100,
+        },
         rowCount: rows.length,
       };
     },

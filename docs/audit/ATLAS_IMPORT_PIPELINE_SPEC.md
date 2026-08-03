@@ -1,72 +1,54 @@
-# ATLAS Import Pipeline Specification
+# ATLAS import pipeline — implemented scope
 
-_Audit date: 2026-07-05 · Status of current importer: **partial (students only)**_
+_Updated 3 August 2026 · introduced in migration `0011` and hardened later._
 
-## Current state
+## Current workflow
 
-`app.import_students` + `/students/import` + the web Excel dialog exist and are
-tested (`smoke-students.mjs`):
+`upload → private storage → detect/map → dry run → validation/deduplication →
+human approval → durable job claim → staged commit → summary/error report`.
 
-- Parses `.xlsx/.xls/.csv` client-side (SheetJS), maps `className`+`stream` to a
-  section server-side, validates via zod, supports **dry-run**, and is
-  **all-or-nothing** (any bad row aborts the batch).
-- **AUD-001 fixed:** the RPC now rejects a `classSectionId` from another tenant.
-- Guardian email captured; phone-deduped guardians backfilled.
+The current `/imports` workflow supports:
 
-### Gaps vs. a customer-grade migration
-- **No staging tables** — rows go straight into production inside one RPC. Fine
-  for a few hundred rows; wrong for a 2,400-row whole-school migration.
-- **Single domain** — only students+guardians+enrolment. No importer for staff,
-  subjects, historical results, historical payments/opening balances, etc.
-- **No private upload storage, no import history, no downloadable error report**
-  (errors are returned inline only).
-- **No column-mapping UI** — headers are fixed to the template.
-- **Runs in the request**, not a BullMQ worker — large files will time out.
+- students, guardians, class enrolments;
+- finance opening balances posted as invoices and balanced journal entries;
+- CSV/XLSX parsing with English/Swahili column mapping;
+- private tenant-prefixed source/error files and signed downloads;
+- bounded file/row validation, formula/macro/workbook safety checks;
+- exact string handling for phone/student numbers and leading zeros;
+- chunked, resumable DB-backed jobs with BullMQ kick/poll fallback;
+- idempotent commits and paginated validation/error handling;
+- audit/history from import job and original row to resulting records.
 
-## Target design (per CTO §8)
+`smoke-imports.mjs` verifies dry run, approval, commit, financial
+reconciliation, error output, and idempotent rerun.
 
-Per-domain import contracts (students, guardians, staff, classes, subjects,
-teacher assignments, enrolments, fee structures, opening balances, historical
-invoices, historical payments, historical results, attendance history). **Not**
-one universal importer.
+## Controls
 
-### Pipeline
-`Upload → detect type → store privately → parse → map columns → validate →
-dedupe → preview/dry-run → approve → queue → write to staging → commit →
-summary → error report → history`.
+- Import jobs and every staging/result row carry `tenant_id`.
+- The API resolves section/year/entity ownership; source ids cannot select
+  another tenant.
+- A malformed row never weakens finance or RLS constraints.
+- Opening balances are not raw balance edits; they create traceable financial
+  documents and journals.
+- A worker claim is conditional and recoverable. Redis is only a kick; job-table
+  state is authoritative.
+- Imported financial history uses Tanzania dates and must reconcile before
+  school acceptance.
 
-### Storage
-Private bucket, tenant-prefixed: `imports/{tenant_id}/{import_job_id}/original.xlsx`.
-Never trust the original filename as an id. (No buckets exist yet — first one
-must be tenant-scoped with a signed-URL download policy.)
+## Pilot procedure
 
-### Staging tables (to add)
-`import_jobs`, `import_files`, `import_column_mappings`, `import_staging_rows`,
-`import_validation_errors`, `import_row_decisions`, `import_results`. Each
-staging row: `tenant_id, import_job_id, row_number, raw_data, mapped_data,
-validation_status, validation_errors, duplicate_status, final_record_id`.
+Use staging first. Save mappings, compare ATLAS totals with the school's source,
+resolve every rejected/duplicate row, and obtain head-teacher plus bursar
+signatures using `ATLAS_PILOT_RUNBOOK.md`. Reuse the signed files/mappings in
+production and abort on any summary difference.
 
-### Parsing rules
-Treat phone numbers and admission/student numbers as **strings** (preserve
-leading zeros). Handle comma/semicolon/tab delimiters, UTF-8 + fallbacks,
-trimmed/duplicate headers, numeric-stored-as-text, Excel date serials, multiple
-sheets, formulas. Reject encrypted workbooks, macros, dangerous formulas.
+## Remaining domains
 
-### Execution
-BullMQ workers, chunked, idempotent (re-running must not duplicate students or
-payments — use natural keys / import_job dedupe), progress-reported, retry with
-backoff, tenant context on every job, transaction boundaries per chunk.
+Dedicated import contracts are still needed for staff, subjects/teacher
+assignments, historical results, historical attendance, hostel/transport/
+library/inventory, and richer historical payment/provider data. Do not create a
+single permissive universal importer. Each new domain requires its own schema,
+permission, dedupe key, dry-run behavior, audit mapping, and smoke test.
 
-### Financial imports (extra controls)
-Never write opening balances as raw edits. Create opening-balance **invoices**
-and **journal entries**, historical payment records, and adjustment entries,
-each traceable `import_job → original row → ATLAS record → journal entry`. This
-preserves the immutability + double-entry guarantees the finance module already
-enforces (AUD-002).
-
-## Recommendation
-
-Before a real school migration: build the staging-table workflow + private
-bucket + BullMQ execution for **students/guardians first** (upgrade the existing
-importer), then add the financial importer with the invoice/journal-backed
-opening-balance approach. AI may *suggest* column mappings but must never commit.
+AI may propose mappings or explain validation errors; it may not approve or
+commit an import.

@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export async function proxy(request: NextRequest) {
 	let response = NextResponse.next({ request });
+	let applyRotatedCookies = (target: NextResponse) => target;
 
 	const supabase = createServerClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +19,13 @@ export async function proxy(request: NextRequest) {
 				getAll() {
 					return request.cookies.getAll();
 				},
-				setAll(cookiesToSet) {
+					setAll(cookiesToSet) {
+						applyRotatedCookies = (target) => {
+							for (const { name, value, options } of cookiesToSet) {
+								target.cookies.set(name, value, options);
+							}
+							return target;
+						};
 					for (const { name, value } of cookiesToSet) {
 						request.cookies.set(name, value);
 					}
@@ -43,12 +50,12 @@ export async function proxy(request: NextRequest) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/login";
 		url.search = path !== "/" ? `?next=${encodeURIComponent(path)}` : "";
-		return NextResponse.redirect(url);
+			return applyRotatedCookies(NextResponse.redirect(url));
 	}
 	if (user && path.startsWith("/login")) {
 		const url = request.nextUrl.clone();
 		url.pathname = "/";
-		return NextResponse.redirect(url);
+			return applyRotatedCookies(NextResponse.redirect(url));
 	}
 
 	return response;

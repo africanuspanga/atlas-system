@@ -117,20 +117,28 @@ export function TimetableView({
 		: [];
 
 	const reload = useCallback(async () => {
-		if (!teacherMode && !sectionId) return;
-		const response = await apiFetch(
-			`/api/v1/timetable?${teacherMode ? "teacherUserId=me" : `sectionId=${sectionId}`}`,
-			{ tenantId },
-		);
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setLoadError(apiErrorMessage(t, body, response.status));
+		if (!teacherMode && !sectionId) {
 			setLoaded(true);
 			return;
 		}
+		setLoaded(false);
 		setLoadError(null);
-		setSlots((await response.json()).data);
-		setLoaded(true);
+		try {
+			const response = await apiFetch(
+				`/api/v1/timetable?${teacherMode ? "teacherUserId=me" : `sectionId=${sectionId}`}`,
+				{ tenantId },
+			);
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setLoadError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			setSlots((await response.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, sectionId, teacherMode, t]);
 
 	useEffect(() => {
@@ -212,7 +220,14 @@ export function TimetableView({
 				</div>
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 
 			{periods.length === 0 ? (
 				<Card className="shadow-none">

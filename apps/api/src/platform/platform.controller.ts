@@ -14,6 +14,10 @@ import {
 import { z } from 'zod';
 import { AuthGuard } from '../auth/auth.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import {
+  addUtcCalendarMonthsClamped,
+  todayInTanzania,
+} from '../common/tanzania-date';
 import { PlatformGuard, PlatformWrite } from './platform.guard';
 import type { PlatformRequest } from './platform.guard';
 
@@ -169,10 +173,10 @@ export class PlatformController {
     if (!parsed.success) {
       throw new BadRequestException({ code: 'INVALID_DATE_RANGE' });
     }
-    // Default range: the current calendar month (UTC) to date.
-    const now = new Date();
-    const from = parsed.data.from ?? `${now.toISOString().slice(0, 8)}01`;
-    const to = parsed.data.to ?? now.toISOString().slice(0, 10);
+    // Platform finance follows the Tanzania operating calendar.
+    const today = todayInTanzania();
+    const from = parsed.data.from ?? `${today.slice(0, 8)}01`;
+    const to = parsed.data.to ?? today;
     if (from > to) {
       throw new BadRequestException({ code: 'INVALID_DATE_RANGE' });
     }
@@ -415,9 +419,9 @@ export class PlatformController {
     // if the insert then fails, the tenant is locked (fails closed) rather
     // than left with two live subscriptions.
     const start = new Date();
-    const end = new Date(start);
-    end.setUTCMonth(
-      end.getUTCMonth() + (parsed.data.cycle === 'annual' ? 12 : 1),
+    const end = addUtcCalendarMonthsClamped(
+      start,
+      parsed.data.cycle === 'annual' ? 12 : 1,
     );
     if (sub) {
       const { error: cancelErr } = await this.supabase.admin
@@ -480,6 +484,9 @@ export class PlatformController {
       throw new InternalServerErrorException({ code: 'TRIAL_EXTEND_FAILED' });
     }
     if (!sub) throw new BadRequestException({ code: 'NO_SUBSCRIPTION' });
+    if (sub.status !== 'trialing') {
+      throw new BadRequestException({ code: 'TRIAL_EXTENSION_NOT_APPLICABLE' });
+    }
     const base = Math.max(
       Date.now(),
       sub.trial_ends_at ? new Date(sub.trial_ends_at as string).getTime() : 0,
@@ -489,7 +496,7 @@ export class PlatformController {
     ).toISOString();
     const { error: updateErr } = await this.supabase.admin
       .from('subscriptions')
-      .update({ trial_ends_at: newEnd, status: 'trialing' })
+      .update({ trial_ends_at: newEnd })
       .eq('id', sub.id);
     if (updateErr) {
       throw new InternalServerErrorException({ code: 'TRIAL_EXTEND_FAILED' });
@@ -540,8 +547,7 @@ export class PlatformController {
           : 0,
       ),
     );
-    const newEnd = new Date(base);
-    newEnd.setUTCMonth(newEnd.getUTCMonth() + parsed.data.months);
+    const newEnd = addUtcCalendarMonthsClamped(base, parsed.data.months);
     const { error: updateErr } = await this.supabase.admin
       .from('subscriptions')
       .update({

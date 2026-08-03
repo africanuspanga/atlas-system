@@ -1,98 +1,74 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ATLAS API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 business API for ATLAS. It owns server-side authorization and the
+business workflows that must not live in React: onboarding, invitations,
+finance, attendance, assessments, imports, reporting, school operations,
+payroll, platform administration, and AI tools/actions.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Run locally
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+Load the root environment file before starting the API:
 
 ```bash
-$ pnpm install
+set -a && source ../../.env && set +a
+pnpm start:dev
 ```
 
-## Compile and run the project
+The API defaults to `http://localhost:4000/api/v1`. Production starts the built
+artifact with:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm build
+pnpm start:prod
 ```
 
-## Run tests
+`NODE_ENV=production` intentionally fails startup when `WEB_ORIGIN`, Supabase
+server credentials, the real AI provider, or other required production values
+are unsafe or missing. `AI_DRIVER=mock` is test-only.
+
+## Request security model
+
+Protected school endpoints use this order:
+
+1. `AuthGuard` validates the Supabase access token with Supabase Auth.
+2. `TenantGuard` resolves `x-tenant-id`, active membership, tenant lifecycle,
+   subscription entitlements, plan limits, and permission keys.
+3. The controller validates body/query inputs with Zod.
+4. Service-role queries always filter by the server-resolved tenant.
+
+Platform endpoints use a separate `PlatformGuard`. School membership never
+grants a platform role. Detailed behavior is in the
+[security audit](../../docs/audit/ATLAS_SECURITY_AUDIT.md).
+
+## AI
+
+The AI agent can only access data through the fixed tool catalogue. Every tool
+receives server-derived user/tenant/permission context. Write tools create
+short-lived, user-bound proposals; only `POST /ai/actions/:id/confirm` can
+execute them, and permissions are rechecked at confirmation.
+
+## Health and observability
+
+- `GET /api/v1/health` — public liveness
+- `GET /api/v1/health/database`
+- `GET /api/v1/health/redis`
+- `GET /api/v1/health/workers`
+- `GET /api/v1/health/outbox`
+
+Set `HEALTH_TOKEN` in production; the detailed routes then require a Bearer
+token. Logs are structured and include `request_id`; `SENTRY_DSN` enables 5xx
+reporting. See [monitoring](../../docs/audit/ATLAS_MONITORING.md).
+
+## Verification
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+The live-connected suites in `scripts/smoke-*.mjs` create isolated test
+tenants, assert API and database state, then archive them. Run instructions and
+the real-provider AI gate are in the
+[testing guide](../../docs/ATLAS_TESTING_GUIDE.md).

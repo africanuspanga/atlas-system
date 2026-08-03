@@ -1,5 +1,11 @@
 # ATLAS Bug Register
 
+> **Historical July 5 register.** Individual OPEN/FIXED labels below describe
+> that audit pass and are not the current backlog. The August hardening closed
+> or changed several of them, including tenant switching, backoff, dates, and
+> permission behavior. Use `GO_LIVE_READINESS_2026-08-03.md` for the current
+> decision and residual risks.
+
 _Audit date: 2026-07-05 · Branch: `audit/production-readiness`_
 
 Findings from the static warning-sign sweep (Explore agent, 45 file reads),

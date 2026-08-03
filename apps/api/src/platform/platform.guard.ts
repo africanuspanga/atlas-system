@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -33,11 +34,16 @@ export class PlatformGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<PlatformRequest>();
-    const { data: profile } = await this.supabase.admin
+    const { data: profile, error } = await this.supabase.admin
       .from('profiles')
       .select('platform_role')
       .eq('id', request.user.id)
       .maybeSingle();
+    if (error) {
+      throw new InternalServerErrorException({
+        code: 'PLATFORM_ROLE_LOOKUP_FAILED',
+      });
+    }
     const role = profile?.platform_role as string | null | undefined;
     if (!role) {
       throw new ForbiddenException({ code: 'NOT_PLATFORM_STAFF' });

@@ -93,16 +93,21 @@ export function HostelView({
 	const [openRoom, setOpenRoom] = useState<RoomRow | null>(null);
 
 	const reload = useCallback(async () => {
-		const response = await apiFetch("/api/v1/hostel", { tenantId });
-		if (!response.ok) {
-			const body = await response.json().catch(() => null);
-			setLoadError(apiErrorMessage(t, body, response.status));
-			setLoaded(true);
-			return;
-		}
+		setLoaded(false);
 		setLoadError(null);
-		setHostels((await response.json()).data);
-		setLoaded(true);
+		try {
+			const response = await apiFetch("/api/v1/hostel", { tenantId });
+			if (!response.ok) {
+				const body = await response.json().catch(() => null);
+				setLoadError(apiErrorMessage(t, body, response.status));
+				return;
+			}
+			setHostels((await response.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, t]);
 
 	useEffect(() => {
@@ -133,7 +138,14 @@ export function HostelView({
 				)}
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 			{canManage && !academicYear && (
 				<p className="text-sm text-muted-foreground">{t("hostel.noYear")}</p>
 			)}

@@ -36,6 +36,7 @@ export const createInvoiceSchema = z.object({
 });
 
 export const recordPaymentSchema = z.object({
+  idempotencyKey: z.string().uuid(),
   amount: z.number().positive().multipleOf(0.01).max(1_000_000_000),
   method: z.enum(PAYMENT_METHODS),
   reference: z.string().trim().max(100).optional(),

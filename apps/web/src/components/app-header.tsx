@@ -14,8 +14,18 @@ import {
 import { NavUser } from "@/components/nav-user";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { getDict, type Lang } from "@/i18n";
+import type { VisibleTenant } from "@/lib/active-tenant";
+import { TenantSwitcher } from "@/components/tenant-switcher";
 
-export function AppHeader({ lang = "en" }: { lang?: Lang }) {
+export function AppHeader({
+	lang = "en",
+	tenants = [],
+	activeTenantId,
+}: {
+	lang?: Lang;
+	tenants?: VisibleTenant[];
+	activeTenantId?: string;
+}) {
 	const t = getDict(lang);
 	const pathname = usePathname();
 
@@ -44,6 +54,7 @@ export function AppHeader({ lang = "en" }: { lang?: Lang }) {
 				<AppBreadcrumbs page={activeItem} />
 			</div>
 			<div className="flex items-center gap-3">
+				<TenantSwitcher activeTenantId={activeTenantId} lang={lang} tenants={tenants} />
 				<LanguageSwitcher current={lang} />
 				<Separator
 					className="h-4 data-[orientation=vertical]:self-center"

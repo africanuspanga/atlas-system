@@ -1,5 +1,10 @@
 # ATLAS Deep Bug Hunt - 2026-07-12
 
+> **Historical record, superseded 3 August 2026.** Findings and evidence are
+> preserved, but migration state, open/fixed status, commands, and launch
+> verdict are not current. Use `docs/ATLAS_TESTING_GUIDE.md` and
+> `docs/audit/GO_LIVE_READINESS_2026-08-03.md` operationally.
+
 This report reviews the current working tree of the ATLAS school management SaaS for Tanzania. It is based on code inspection of the NestJS API, Next.js web app, worker processes, Supabase migrations/RLS/RPCs, and repo hygiene. I did not change product code. The only intended change from this review is this Markdown report.
 
 ## Verification Run

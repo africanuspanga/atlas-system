@@ -129,19 +129,40 @@ const denied = await api('/payroll/salaries', teacher1.token, tenantId);
 if (denied.status !== 403) throw new Error(`teacher salaries should be 403, got ${denied.status}`);
 console.log('4. teacher denied salary read (403)');
 
-// 5. Run payroll and verify the maths EXACTLY against the default rates
+// Statutory settings are seeded but must be explicitly reviewed before a run.
+const settings = await api('/payroll/settings', owner.token, tenantId);
+if (settings.status !== 200 || !settings.body.rates || settings.body.verifiedAt !== null) {
+  throw new Error(`payroll settings: ${JSON.stringify(settings.body)}`);
+}
+const blockedUnverified = await api('/payroll/runs', owner.token, tenantId, { period: '2027-02' });
+if (blockedUnverified.status !== 400
+  || blockedUnverified.body.code !== 'PAYROLL_SETTINGS_UNVERIFIED') {
+  throw new Error(`unverified run: ${JSON.stringify(blockedUnverified.body)}`);
+}
+const verified = await api('/payroll/settings', owner.token, tenantId, {
+  rates: settings.body.rates,
+  verified: true,
+}, 'PUT');
+if (verified.status !== 200 || verified.body.verified !== true) {
+  throw new Error(`verify settings: ${JSON.stringify(verified.body)}`);
+}
+console.log('5. statutory settings gate blocks unverified payroll; reviewed rates accepted');
+
+// 6. Run payroll and verify the maths EXACTLY against the default rates
 const run = await api('/payroll/runs', owner.token, tenantId, { period: '2027-02' });
 if (run.status !== 201 || run.body.employees !== 2) throw new Error(`run: ${JSON.stringify(run.body)}`);
 const runId = run.body.runId;
 
 // teacher1: mid-band earner — gross 650,000
-const t1 = { gross: 650000, paye: expectedPaye(650000), nssf: 60000, heslb: 0 };
+const t1 = { gross: 650000, nssf: 65000, heslb: 0 };
+t1.paye = expectedPaye(t1.gross - t1.nssf);
 t1.net = t1.gross - t1.paye - t1.nssf - t1.heslb;
-if (t1.paye !== 46000) throw new Error(`script self-check: PAYE(650000) = ${t1.paye}, expected 46000`);
+if (t1.paye !== 33000) throw new Error(`script self-check: PAYE(585000) = ${t1.paye}, expected 33000`);
 // teacher2: top-band + HESLB — gross 1,200,000
-const t2 = { gross: 1200000, paye: expectedPaye(1200000), nssf: 120000, heslb: 180000 };
+const t2 = { gross: 1200000, nssf: 120000, heslb: 180000 };
+t2.paye = expectedPaye(t2.gross - t2.nssf);
 t2.net = t2.gross - t2.paye - t2.nssf - t2.heslb;
-if (t2.paye !== 188000) throw new Error(`script self-check: PAYE(1200000) = ${t2.paye}, expected 188000`);
+if (t2.paye !== 152000) throw new Error(`script self-check: PAYE(1080000) = ${t2.paye}, expected 152000`);
 
 const detail = await api(`/payroll/runs/${runId}`, owner.token, tenantId);
 if (detail.status !== 200 || detail.body.status !== 'draft' || detail.body.items.length !== 2) {
@@ -157,25 +178,27 @@ for (const [item, exp, who] of [[i1, t1, 'teacher1'], [i2, t2, 'teacher2']]) {
   }
 }
 const totalGross = t1.gross + t2.gross;           // 1,850,000
-const totalDeductions = t1.paye + t1.nssf + t2.paye + t2.nssf + t2.heslb; // 594,000
-const totalNet = t1.net + t2.net;                 // 1,256,000
+const totalDeductions = t1.paye + t1.nssf + t2.paye + t2.nssf + t2.heslb; // 550,000
+const totalNet = t1.net + t2.net;                 // 1,300,000
 if (detail.body.totals.gross !== totalGross || detail.body.totals.net !== totalNet) {
   throw new Error(`run totals: ${JSON.stringify(detail.body.totals)}`);
 }
-// employer contributions are informational and present
-if (detail.body.employer.nssf !== 180000) {
+// employer contributions are stored and later posted as a separate journal.
+if (detail.body.employer.nssf !== 185000
+    || detail.body.employer.wcf !== 9250
+    || detail.body.employer.sdl !== 64750) {
   throw new Error(`employer nssf: ${JSON.stringify(detail.body.employer)}`);
 }
-console.log('5. draft run maths exact: PAYE 46,000 / 188,000; net 544,000 / 712,000');
+console.log('6. draft maths exact: PAYE 33,000 / 152,000; net 552,000 / 748,000');
 
-// 6. Duplicate period rejected
+// 7. Duplicate period rejected
 const dup = await api('/payroll/runs', owner.token, tenantId, { period: '2027-02' });
 if (dup.status !== 400 || dup.body.code !== 'PAYROLL_PERIOD_EXISTS') {
   throw new Error(`dup run: ${JSON.stringify(dup.body)}`);
 }
-console.log('6. duplicate period rejected (PAYROLL_PERIOD_EXISTS)');
+console.log('7. duplicate period rejected (PAYROLL_PERIOD_EXISTS)');
 
-// 7. Post to the ledger: one balanced journal entry, accounts lazy-created
+// 8. Post to the ledger: wages plus employer statutory contributions.
 const post = await api(`/payroll/runs/${runId}/post`, owner.token, tenantId, {});
 if (post.status !== 201 || !post.body.journalEntryId) throw new Error(`post: ${JSON.stringify(post.body)}`);
 if (Number(post.body.totalGross) !== totalGross
@@ -200,23 +223,36 @@ if (Number(byCode['5000']?.debit) !== totalGross
   throw new Error(`journal lines: ${JSON.stringify(lines)}`);
 }
 const { data: accounts } = await admin
-  .from('ledger_accounts').select('code, name, type').eq('tenant_id', tenantId).in('code', ['5000', '2100']);
-if (accounts.length !== 2) throw new Error(`payroll accounts missing: ${JSON.stringify(accounts)}`);
+  .from('ledger_accounts').select('code, name, type').eq('tenant_id', tenantId)
+  .in('code', ['5000', '2100', '5010', '2110']);
+if (accounts.length !== 4) throw new Error(`payroll accounts missing: ${JSON.stringify(accounts)}`);
+const { data: employerEntries } = await admin
+  .from('journal_entries').select('id').eq('tenant_id', tenantId)
+  .eq('source_type', 'payroll').eq('source_id', runId).neq('id', entry.id);
+if (employerEntries.length !== 1) throw new Error(`employer journal missing: ${JSON.stringify(employerEntries)}`);
+const { data: employerLines } = await admin
+  .from('journal_lines').select('debit, credit, ledger_accounts(code)')
+  .eq('entry_id', employerEntries[0].id);
+const employerByCode = Object.fromEntries(employerLines.map((l) => [l.ledger_accounts.code, l]));
+if (Number(employerByCode['5010']?.debit) !== 259000
+    || Number(employerByCode['2110']?.credit) !== 259000) {
+  throw new Error(`employer journal lines: ${JSON.stringify(employerLines)}`);
+}
 const { data: runRow } = await admin
   .from('payroll_runs').select('status, journal_entry_id, posted_at').eq('id', runId).single();
 if (runRow.status !== 'posted' || runRow.journal_entry_id !== entry.id || !runRow.posted_at) {
   throw new Error(`run row after post: ${JSON.stringify(runRow)}`);
 }
-console.log('7. posted: balanced journal (debits == credits == 1,850,000), 5000/2100 lazy-created');
+console.log('8. wage journal balanced at 1,850,000; employer journal balanced at 259,000');
 
-// 8. Posted run is immutable — second post rejected
+// 9. Posted run is immutable — second post rejected
 const again = await api(`/payroll/runs/${runId}/post`, owner.token, tenantId, {});
 if (again.status !== 400 || again.body.code !== 'PAYROLL_ALREADY_POSTED') {
   throw new Error(`double post: ${JSON.stringify(again.body)}`);
 }
-console.log('8. second post rejected (PAYROLL_ALREADY_POSTED)');
+console.log('9. second post rejected (PAYROLL_ALREADY_POSTED)');
 
-// 9. Audit trail
+// 10. Audit trail
 const { data: audits } = await admin
   .from('audit_logs').select('action').eq('tenant_id', tenantId)
   .in('action', ['payroll.salary_set', 'payroll.run_created', 'payroll.run_posted']);
@@ -224,9 +260,9 @@ const counts = audits.reduce((m, a) => ({ ...m, [a.action]: (m[a.action] ?? 0) +
 if (counts['payroll.salary_set'] !== 3 || counts['payroll.run_created'] !== 1 || counts['payroll.run_posted'] !== 1) {
   throw new Error(`audits: ${JSON.stringify(counts)}`);
 }
-console.log('9. audit trail complete (3 salary sets, 1 run, 1 post)');
+console.log('10. audit trail complete (3 salary sets, 1 run, 1 post)');
 
 // Cleanup
 await admin.from('tenants').update({ status: 'archived', name: `[test] ${stamp}` }).eq('id', tenantId);
 await admin.from('tenant_memberships').update({ status: 'revoked' }).eq('tenant_id', tenantId);
-console.log('10. test tenant archived\n\nSMOKE TEST PASSED');
+console.log('11. test tenant archived\n\nSMOKE TEST PASSED');

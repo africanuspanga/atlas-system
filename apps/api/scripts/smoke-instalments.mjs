@@ -148,6 +148,7 @@ console.log('5. plan set (3 instalments) and replaced atomically — 3 rows in D
 // 6. Partial payment 250,000 → waterfall: #1 paid, #2 overdue (50k in), #3 due
 const pay = await api(`/finance/invoices/${invoiceId}/payments`, owner.token, tenantId, {
   amount: 250000, method: 'mpesa', reference: `MP${stamp.toUpperCase()}`,
+  idempotencyKey: crypto.randomUUID(),
 });
 if (pay.status !== 201) throw new Error(`pay: ${JSON.stringify(pay.body)}`);
 const schedule = await api(`/finance/invoices/${invoiceId}/instalments`, owner.token, tenantId);
@@ -165,7 +166,7 @@ console.log('6. 250,000 paid waterfalls by seq: paid / overdue / due');
 // 7. Net-of-reversals: an extra 50,000 payment that is immediately reversed
 //    must not move the debtors numbers.
 const extra = await api(`/finance/invoices/${invoiceId}/payments`, owner.token, tenantId, {
-  amount: 50000, method: 'cash',
+  amount: 50000, method: 'cash', idempotencyKey: crypto.randomUUID(),
 });
 if (extra.status !== 201) throw new Error(`extra pay: ${JSON.stringify(extra.body)}`);
 const rev = await api(`/finance/payments/${extra.body.paymentId}/reverse`, owner.token, tenantId, {
@@ -184,12 +185,13 @@ if (Number(debtors.body.totals.outstanding) !== 350000
   || Number(debtors.body.totals.overdue) !== 150000) {
   throw new Error(`debtors totals2: ${JSON.stringify(debtors.body.totals)}`);
 }
-// Floor at zero: before instalment #1's due date nothing is overdue.
+// Historical report before the invoice was issued must exclude it entirely.
 const early = await api(`/finance/debtors?asOf=${d(-130)}`, owner.token, tenantId);
-if (Number(early.body.classes[0].rows[0].overdue) !== 0) {
-  throw new Error(`early overdue: ${JSON.stringify(early.body.classes[0].rows[0])}`);
+if (early.status !== 200 || early.body.classes.length !== 0
+  || Number(early.body.totals.outstanding) !== 0) {
+  throw new Error(`historical debtors: ${JSON.stringify(early.body)}`);
 }
-console.log('7. reversal leaves paid net 250,000; overdue 150,000 today, 0 before first due date; ties to A/R');
+console.log('7. reversal leaves paid net 250,000; overdue 150,000 today; pre-issue history is empty');
 
 // 8. Reminders queue once, dedupe on the second call
 const reminders = await api('/finance/reminders', owner.token, tenantId, {});
@@ -224,7 +226,7 @@ console.log('9. cashier: schedule readable, debtors + set-instalments denied');
 
 // 10. Fully paid invoice: schedule can no longer be changed
 const settle = await api(`/finance/invoices/${invoiceId}/payments`, owner.token, tenantId, {
-  amount: 350000, method: 'cash',
+  amount: 350000, method: 'cash', idempotencyKey: crypto.randomUUID(),
 });
 if (settle.status !== 201 || Number(settle.body.balance) !== 0) {
   throw new Error(`settle: ${JSON.stringify(settle.body)}`);

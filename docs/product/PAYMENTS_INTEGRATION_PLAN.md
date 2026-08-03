@@ -1,7 +1,9 @@
 # ATLAS Payments Integration Plan
 
-Status: **planned** (requires external provider credentials/contracts — cannot
-be built without them). Written 2026-07-10. Owner: platform.
+Status: **external provider integration planned**. Internal payment recording,
+idempotency, receipts, reversals, dates, and ledger posting are built and live-
+verified; provider contracts/credentials/webhooks/reconciliation are not.
+Written 2026-07-10; updated 2026-08-03. Owner: platform.
 
 ## Goal
 
@@ -11,12 +13,15 @@ job becomes reviewing exceptions, not entering receipts.
 
 ## Context (why this wins deals)
 
-- Payment reality in Tanzania: M-Pesa (Vodacom), Tigo Pesa, Airtel Money,
-  HaloPesa dominate; banks (NMB, CRDB) offer school fee collection accounts
-  keyed by **reference/control numbers**.
+- Payment reality in Tanzania: M-Pesa (Vodacom), Mixx by Yas, Airtel Money,
+  and HaloPesa are common rails; banks such as NMB and CRDB offer school-fee
+  collection products. Confirm current product names, APIs, and reference/
+  control-number support during procurement.
 - Today ATLAS records payments manually (`POST /finance/invoices/:id/payments`,
-  immutable + ledger-posted). That machinery is exactly right — integration
-  only needs to *feed* it.
+  immutable + ledger-posted). Requests carry an idempotency key: an exact retry
+  returns the original receipt, while a changed retry conflicts. Future and
+  pre-invoice dates are rejected. Provider integration should feed this same
+  path with a deterministic provider-event idempotency key.
 
 ## Architecture
 
@@ -39,8 +44,9 @@ Key decisions (all consistent with iron rules):
    `--once` smoke mode) does matching and posts via the existing
    `record_payment` RPC so ledger/journal/receipt behavior is identical to a
    manual payment.
-2. **Idempotency.** `payment_events` has `unique(provider, external_id)`;
-   replayed webhooks are no-ops. The matcher marks events
+2. **Idempotency.** `payment_events` has `unique(provider, external_id)` and
+   passes a deterministic key into the already-idempotent payment RPC; replayed
+   webhooks are no-ops at both layers. The matcher marks events
    `pending → matched|unmatched|posted|failed` with atomic conditional claims.
 3. **Control numbers.** Every invoice gets a short human reference
    (e.g. `SARW-INV-00042`, derived from tenant slug prefix + invoice number,
@@ -55,23 +61,29 @@ Key decisions (all consistent with iron rules):
    posted vs exceptions) reconciled against the ledger's mobile-money/bank
    accounts; mismatch raises like `REPORT_RECONCILE_FAILED`.
 
-## Provider on-ramps (in order)
+## Candidate provider sequence
 
-| Phase | Provider | Why first | Prereqs |
-|---|---|---|---|
-| 1 | **Selcom or Azampay aggregator** (single API → all four mobile wallets) | one integration, C2B collections, USSD push | merchant KYC, API keys, settlement account |
-| 2 | **NMB / CRDB school collections** | boarding/urban schools bank-heavy | per-school bank onboarding, bank file/API access |
-| 3 | Direct M-Pesa OpenAPI (cost optimisation) | cut aggregator fees at volume | Vodacom merchant contract |
-| 4 | **USSD self-service** (`*150*XX#`-style balance check + pay prompt) | non-smartphone parents | aggregator USSD short code lease |
+These are procurement candidates, not a current commercial recommendation.
+Before selecting one, re-verify Tanzania wallet coverage, webhook signatures,
+idempotency/status APIs, settlement model, support, uptime, security/privacy,
+fees, tax/regulatory position, and current contract terms.
+
+| Phase | Provider                                                                | Why first                                   | Prereqs                                          |
+| ----- | ----------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------ |
+| 1     | **Selcom or Azampay aggregator** (single API → all four mobile wallets) | one integration, C2B collections, USSD push | merchant KYC, API keys, settlement account       |
+| 2     | **NMB / CRDB school collections**                                       | boarding/urban schools bank-heavy           | per-school bank onboarding, bank file/API access |
+| 3     | Direct M-Pesa OpenAPI (cost optimisation)                               | cut aggregator fees at volume               | Vodacom merchant contract                        |
+| 4     | **USSD self-service** (`*150*XX#`-style balance check + pay prompt)     | non-smartphone parents                      | aggregator USSD short code lease                 |
 
 Also phase 1: **pay-the-SaaS** — the same rails collect ATLAS subscription
 fees from schools (control number per tenant subscription).
 
 ## Data model (migration sketch, additive)
 
-- `payment_events(id, provider, external_id, raw jsonb, msisdn, amount,
-  currency, reference, received_at, status, matched_invoice_id, posted_payment_id,
-  error, tenant_id nullable until matched)` — RLS: platform + tenant read own.
+- `payment_events` — `id`, `provider`, `external_id`, raw payload, MSISDN,
+  amount/currency, reference, timestamps/status, matched invoice/payment, error,
+  and a tenant id that remains null until safely matched. RLS: platform and
+  authorized tenant finance roles read the tenant's own matched events.
 - `invoices.control_number` (unique per tenant, backfilled).
 - `tenant_settings` keys: enabled providers, settlement account labels.
 
@@ -86,18 +98,20 @@ fees from schools (control number per tenant subscription).
 
 ## Instalments & debtors (built separately — no external dependency)
 
-Instalment schedules and the debtors (wadaiwa) report do NOT need providers
-and are being built in-repo (migration 0017): `invoice_instalments` with due
-dates, debtors-by-class RPC, reminder integration. This plan assumes they
-exist; webhooks simply make the balances move on their own.
+Instalment schedules and the debtors (wadaiwa) report are built and live
+(migration `0017`, hardened in `0031`): `invoice_instalments` with due dates,
+historical as-of reporting, debtors-by-class, and reminder integration.
+Webhooks would simply move the same balances through the existing payment RPC.
 
 ## Security & compliance checklist
 
 - Store raw payloads append-only; never mutate (audit).
 - Verify signatures before parse; reject clock-skewed replays.
-- TCRA-registered SMS sender ID for receipts/reminders (marketing task).
-- PDPA (2022): msisdn is personal data — encrypt at rest is provided by
-  Supabase; restrict `payment_events` reads to bursar-level permission.
+- Confirm TCRA/provider sender-ID and message requirements; retain written
+  approval before sending receipts/reminders.
+- Treat MSISDN and raw provider payloads as personal data: minimize fields,
+  confirm storage encryption/region/retention contractually, restrict reads to
+  authorized finance/platform users, and complete the Tanzania privacy gate.
 - Receipts SMS on successful match ("Malipo ya TZS X yamepokelewa, risiti
   RCT-…") through the existing outbox.
 
@@ -111,7 +125,7 @@ exist; webhooks simply make the balances move on their own.
 ## Open questions for the founder
 
 1. Which aggregator do we sign first (Selcom vs Azampay pricing)?
-2. Settlement: per-school wallets vs ATLAS collection account + payouts
-   (regulatory difference — start per-school to stay out of money-transmitter
-   territory).
+2. Settlement: per-school merchant accounts vs an ATLAS collection account and
+   payouts. Obtain Tanzanian payments/legal advice before selecting or holding
+   school funds; do not infer regulatory status from this technical plan.
 3. Who owns provider fees — school or parent surcharge?

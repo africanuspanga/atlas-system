@@ -67,7 +67,7 @@ async function buildSchool(label) {
     studentId: students[0].id, lines: [{ feeItemId: fee.body.feeItemId }],
   });
   const payment = await api(`/finance/invoices/${invoice.body.invoiceId}/payments`, owner.token, tenantId, {
-    amount: 50000, method: 'mpesa',
+    amount: 50000, method: 'mpesa', idempotencyKey: crypto.randomUUID(),
   });
   return {
     owner, tenantId,
@@ -145,7 +145,9 @@ for (const [name, path, body, expectedCode] of refAttacks) {
     throw new Error(`REF ATTACK "${name}": expected 400 ${expectedCode}, got ${res.status} ${JSON.stringify(res.body)}`);
   }
 }
-const payB = await api(`/finance/invoices/${B.invoiceId}/payments`, A.owner.token, A.tenantId, { amount: 1000, method: 'cash' });
+const payB = await api(`/finance/invoices/${B.invoiceId}/payments`, A.owner.token, A.tenantId, {
+  amount: 1000, method: 'cash', idempotencyKey: crypto.randomUUID(),
+});
 if (payB.status !== 400 || payB.body.code !== 'PAYMENT_INVOICE_NOT_FOUND') throw new Error(`pay B invoice: ${payB.status}`);
 const revB = await api(`/finance/payments/${B.paymentId}/reverse`, A.owner.token, A.tenantId, { reason: 'attack' });
 if (revB.status !== 400 || revB.body.code !== 'REVERSAL_PAYMENT_NOT_FOUND') throw new Error(`reverse B payment: ${revB.status}`);

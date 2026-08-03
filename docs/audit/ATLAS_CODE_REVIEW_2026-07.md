@@ -1,5 +1,10 @@
 # ATLAS — Full Code Review & Bug Hunt (2026-07-31)
 
+> **Historical review, superseded 3 August 2026.** Do not use its pending-
+> migration statements or proposed commands as the current handover. The
+> verified system is at migration `0033`; see `GO_LIVE_READINESS_2026-08-03.md`
+> and `../ATLAS_TESTING_GUIDE.md`.
+
 Branch `audit/production-readiness`. Scope: entire working tree — 51,508 LOC across
 `apps/api` (NestJS), `apps/web` (Next 16), `apps/workers`, `apps/mobile` (Expo),
 `packages/i18n`, `supabase/migrations` 0001–0028, `apps/api/scripts`.

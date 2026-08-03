@@ -38,9 +38,47 @@ deny-all RLS, API-only via POST/DELETE /devices) · 0029 permission-aware RLS
 (`app.has_permission`, tenant-status gating, parent-membership backfill,
 platform_role trigger) · 0030 student & academic lifecycle
 (set_student_status, set_class_enrolment, create_academic_year +
-activate/grade-level/section writers).
+activate/grade-level/section writers) · 0031 go-live hardening (Tanzania dates,
+payment idempotency/date rules, debtors cutoffs, SMS claims/caps, verified
+payroll + employer journals, A-Level aggregate) · 0032 payroll-settings seed ·
+0033 operational platform-overview scoping.
 
-## HANDOVER (2026-07-31, branch `audit/production-readiness`, all committed)
+## HANDOVER (2026-08-03, branch `audit/production-readiness`)
+
+**Authoritative report:** `docs/audit/GO_LIVE_READINESS_2026-08-03.md`.
+
+- The linked Supabase project is at migration `0033`. Full scratch replay:
+  71 tables, 60 policies, 217 functions, no unintended deny-all table.
+- Existing-data rehearsal upgraded 75 tenants, 422 students and 356 payments;
+  live parent/teacher/finance/platform-escalation probes passed.
+- All 25 live-connected smoke suites passed. Real Moonshot eval: 40/40,
+  security 100%, 17.5s mean latency, 388,805 tokens.
+- Sequential gates passed: lint 3/3, typecheck 7/7, tests 4/4, builds 3/3;
+  dependency audit clean. `.github/workflows/quality.yml` runs this order.
+- The active portfolio contains one school in `configuration` and zero in
+  `live`; archived tests/history are excluded from operational metrics.
+
+Never run the old numeric-range psql loop below. For another environment:
+
+```bash
+./scripts/shadow-migrations.sh
+set -a && source .env && set +a
+pnpm exec supabase db push --dry-run --include-all
+pnpm exec supabase db push --include-all
+```
+
+Open paid onboarding is a **no-go** until production web/API/queue worker/
+outbox drainer, HTTPS/Redis/Sentry/health/Beem/EAS, current full restore,
+PDPC/DPA/cross-border AI, school payroll verification, and supervised
+`training` acceptance are complete. Product backlog: payment webhooks,
+push sending, support impersonation, document RAG, student portal, marketing/
+self-service signup, AI retention/latency/cost work, and broader automated load/
+browser coverage.
+
+## HISTORICAL HANDOVER (2026-07-31 — superseded; do not execute its gate)
+
+<details>
+<summary>Preserved July handover evidence</summary>
 
 **Full detail: `docs/audit/HANDOVER_2026-07-31.md`. Findings register (103
 confirmed): `docs/audit/ATLAS_CODE_REVIEW_2026-07.md`.**
@@ -117,6 +155,8 @@ ARR/churn/LTV snapshot · support impersonation
 (`docs/product/PAYMENTS_INTEGRATION_PLAN.md`) · student portal · marketing
 site. GTM/sales material lives in `docs/sales/`.
 
+</details>
+
 ## Iron rules
 
 - **Business logic lives in NestJS + Postgres (RPCs/constraints), never in
@@ -130,7 +170,7 @@ site. GTM/sales material lives in `docs/sales/`.
   reversals. Every money movement posts a balanced journal entry. Report SQL
   reconciles to the ledger and raises `REPORT_RECONCILE_FAILED` on mismatch.
 - **Migrations are additive-only**, numbered `000000000000NN_name.sql`
-  (currently 0001–0028; one sanctioned exception: 0025 widened
+  (currently 0001–0033; one sanctioned exception: 0025 widened
   `journal_entries_source_type_check` to admit `'payroll'` — existing rows
   unaffected). New `app.*` functions get service-role-only
   `public.*` wrappers (PostgREST exposes only `public`), with explicit
@@ -158,20 +198,19 @@ site. GTM/sales material lives in `docs/sales/`.
 ## Verification (run before calling anything done)
 
 ```bash
-pnpm turbo run lint typecheck test build          # must be green
+pnpm --filter @atlas/web exec next typegen         # keep sequential with build
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm audit --audit-level moderate
 set -a && source .env && set +a                   # root .env, gitignored
 node apps/api/scripts/smoke-<module>.mjs          # E2E per module (API must run)
 node apps/api/scripts/eval-ai.mjs                 # real-provider AI eval (security cats must be 100%)
 ```
 
-25 smoke suites exist (`smoke-onboarding` … `smoke-payroll`; the 10 newest —
-timetable, instalments, necta, hostel, transport, library, inventory, clinic,
-platform-metrics, payroll — need the 0016–0030 batch applied first; so do
-smoke-communication and smoke-ai-actions, which depend on 0026, and
-smoke-lifecycle, which depends on 0030). They
-create throwaway tenants against the live dev Supabase project and archive
-them. `smoke-ai*` needs the API started with `AI_DRIVER=mock`. Onboarding is
-rate-limited (6/min/IP) — space suites out or you'll hit 429s.
+25 smoke suites exist and all require the migration-0033 contract. They create
+throwaway tenants/users, so run them in staging or during an explicitly approved
+readiness exercise and archive leftovers. `smoke-ai*` needs the API started with
+`AI_DRIVER=mock`; `smoke-platform` must run after restart with the normal
+onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
 
 ## Gotchas learned the hard way
 
@@ -180,11 +219,11 @@ rate-limited (6/min/IP) — space suites out or you'll hit 429s.
 - **Rehearse every migration** with `./scripts/shadow-migrations.sh` (throwaway
   local PG 17 cluster, whole chain + seed, then lists any table left
   RLS-enabled with zero policies). It has already caught three real defects.
-- **Migrations must wrap themselves in `begin`/`commit`.** psql autocommits per
-  statement, so a file that fails between `drop policy` and `create policy`
-  leaves a table RLS-enabled with NO policy — deny-all, which looks to a school
-  like the data vanished. 0016–0028 have no wrapper: apply them with
-  `--single-transaction`.
+- **Migrations must be atomic.** New files wrap themselves in `begin`/`commit`.
+  Legacy files 0016–0028 do not; if replaying them manually in an isolated
+  scratch environment, use one transaction per file. For linked Supabase
+  environments, use the rehearsed `supabase db push` workflow above—never the
+  historical numeric-range loop.
 - **`create index if not exists` matches on NAME, not columns** — a
   differently-named index over identical columns is NOT suppressed and just
   doubles write cost.
@@ -244,8 +283,9 @@ rate-limited (6/min/IP) — space suites out or you'll hit 429s.
   the API only (`payroll.view`). The AI payroll tool returns aggregates only.
 - The scratch-Postgres shadow test needs `LC_ALL=en_US.UTF-8` for `pg_ctl`
   on this Mac ("postmaster became multithreaded" otherwise).
-- Writes to the live dev DB (DDL or data) are blocked by the permission
-  classifier — hand the human the exact command instead of retrying.
+- Live database changes require an approved change window, a shadow/data
+  rehearsal, Supabase CLI dry run, backup/restore evidence, and verification;
+  never bypass migration history with ad-hoc DDL.
 
 ## House patterns (copy an existing file, don't invent)
 

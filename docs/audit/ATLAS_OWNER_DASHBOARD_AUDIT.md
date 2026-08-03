@@ -1,78 +1,83 @@
-# ATLAS Owner / Platform Dashboard Audit
+# ATLAS owner/platform control-centre audit
 
-_Audit date: 2026-07-05 · Status: **NOT BUILT** — this is a gap analysis + spec_
+_Updated 3 August 2026 · status: built and live-verified; operations still need
+deployment._
 
-## Finding
+## Implemented
 
-There is **no ATLAS SaaS owner/platform control centre**. The control-plane
-*tables* exist (`plans`, `plan_features`, `subscriptions`, `feature flags`,
-`tenants`, `audit_logs`), but there is no `/platform` app, no platform-staff
-auth, no subscription enforcement, and no tenant-lifecycle management UI. This
-is the biggest single gap between the current build and the CTO's target.
+`/platform` is guarded by a separate `profiles.platform_role` model. Tenant
+membership never grants platform access and ordinary users cannot assign or
+change their own platform role.
 
-The end-to-end flow the CTO letter §7 asks to test —
-`website registration → tenant → subscription → control centre → onboarding →
-usage → plan enforcement → renewal` — **cannot pass today** because the website,
-the control centre, and the enforcement layer do not exist.
+Read-capable platform roles can inspect:
 
-## What exists that the platform layer can build on
+- schools by lifecycle and current operational totals;
+- current subscription state, plan, MRR, paying schools, and trials expiring;
+- school health/activity/headcounts;
+- per-school SMS/AI usage and unit-cost signals;
+- platform and tenant audit trails.
 
-- `tenants` with `status` (configuration/active/suspended/archived) and the
-  archive-never-delete rule (audit_logs FK). Isolation is proven.
-- `plans` + `plan_features` + `subscriptions` schema (unused by any code path).
-- Append-only `audit_logs` per tenant.
-- A working onboarding RPC and invitation system to reuse.
+The 3 August metric hardening uses non-archived tenants and the latest
+subscription per tenant for operational totals. Archived smoke tenants and old
+subscription rows no longer inflate MRR, students, staff, guardian, SMS,
+import, or report-failure metrics. Status breakdown can still expose archived
+counts for historical oversight.
 
-## Required build (specification)
+## Mutations
 
-### Route & auth
-- `/platform` (or `/control-centre`), gated by a **platform-staff** identity
-  that is distinct from tenant membership — a separate `platform_users` table +
-  guard, never a row in `tenant_memberships`. All platform actions audited to a
-  platform-scoped log.
+`super_admin` can, with required reasons/validation:
 
-### Platform overview (read models)
-Totals across all tenants: schools by status, campuses, students, staff,
-parents, active users, new tenants this month, MRR, outstanding subscription
-invoices, SMS/storage/AI/API usage, failed jobs, failed webhooks, platform
-errors, support tickets. These are cross-tenant aggregates — must run under the
-service role in a dedicated platform service, never leak per-tenant PII into the
-overview.
+- suspend and reactivate to a chosen lifecycle stage;
+- change plan/billing cycle while preserving subscription history;
+- extend a genuine trial without downgrading a paying school;
+- record a reconciled school subscription payment and extend paid-through dates;
+- archive a tenant, with an additional force requirement for a live school.
 
-### Tenant management
-Create/approve school, view info + onboarding progress, assign/change plan,
-extend trial, enable/disable modules, set usage limits, suspend/reactivate,
-view usage + billing history, request data export, initiate compliant deletion
-(archive + retention, honouring the audit_logs FK).
+Tenant creation atomically provisions a 30-day trial. TenantGuard enforces
+suspension, lapsed/expired read-only posture, student/staff caps, SMS caps, and
+AI monthly tokens server-side. Actions write `platform_audit_logs` and a tenant
+audit mirror.
 
-### Subscription enforcement (the missing spine)
-`Plan → Subscription → Feature Entitlements → Usage Limits → Billing Status →
-School Access`. Changing a plan must immediately change available modules,
-campus/user/student caps, storage, SMS, AI, report features, API access —
-**enforced in the API guard layer**, not by hiding menu items. Today none of
-this is enforced (`POST /onboarding` lets any account create unlimited tenants —
-AUD-016).
+## Authorization matrix
 
-### Support impersonation
-Requires a platform permission + written reason + expiry; shows an impersonation
-banner; records original + impersonated user + tenant + every action; instantly
-revocable; never exposes passwords. Not built.
+| Platform role        | Aggregate/audit reads |      Tenant/plan/payment mutations       |
+| -------------------- | :-------------------: | :--------------------------------------: |
+| `super_admin`        |          ✅           |                    ✅                    |
+| `support`            |          ✅           |                    ❌                    |
+| `finance`            |          ✅           | ❌ unless separately implemented/granted |
+| `implementation`     |          ✅           |                    ❌                    |
+| `auditor`            |          ✅           |                    ❌                    |
+| ordinary school user |          ❌           |                    ❌                    |
 
-## Recommended sequencing
+The definitive guard, not hidden UI, enforces this matrix.
 
-1. `platform_users` + platform guard + `/platform` shell.
-2. Subscription entitlement model + **API enforcement** (caps on onboarding,
-   students, campuses) — this closes AUD-016 and is a prerequisite for charging.
-3. Tenant lifecycle UI (suspend/reactivate/extend).
-4. Usage metering (SMS/AI/storage counters feeding the overview).
-5. Support impersonation with full audit.
-6. Marketing website + self-serve registration → wire the full §7 flow → add an
-   end-to-end test mirroring the acceptance list.
+## Verification
 
-## Verdict
+`smoke-platform.mjs` covers atomic trial creation, school-owner denial,
+support read-only behavior, suspend/reactivate, plan caps, expired/lapsed
+read-only access, trial extension, onboarding throttling, audit trails, manual
+subscription payment, archive force, and cleanup.
 
-Platform layer is **greenfield**. It does not block a *manually onboarded*
-single-school pilot (an operator runs onboarding directly), but it blocks
-self-serve SaaS operation and paid subscriptions. Prioritise the subscription
-enforcement spine first — it is both the revenue mechanism and the closure of
-the tenant-creation-spam risk.
+`smoke-platform-metrics.mjs` covers revenue/health/unit-cost aggregates. The
+go-live SQL regression and direct metric query verify archived-tenant scoping.
+
+## Current operating state
+
+After test cleanup the linked project contains one school in `configuration`,
+zero `live` schools, and archived historical/test tenants. Current MRR is zero.
+Open paid onboarding must remain disabled until the release-readiness
+infrastructure/compliance gates are complete.
+
+## Remaining platform work
+
+- Production hosting/domain and persistent workers are not configured.
+- Automatic payment-provider webhooks/reconciliation are not built; subscription
+  payments are manually reconciled and recorded.
+- Support impersonation is not built. If added, require explicit permission,
+  written reason, short expiry, visible banner, original actor identity, per-
+  action audit, revocation, and sensitive-action restrictions.
+- Subscription invoicing/tax documents, automated renewal reminders, failed-SMS
+  drill-down, churn/ARR/LTV snapshots, support tickets, and provider costs need
+  product/operations follow-up.
+- Platform role grants remain an owner-controlled administrative operation;
+  establish a documented approval/review process before hiring support staff.

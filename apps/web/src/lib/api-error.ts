@@ -23,6 +23,8 @@ const ERROR_KEYS: Partial<Record<string, DictKey>> = {
 	INVITE_EMAIL_MISMATCH: "err.inviteEmailMismatch",
 	// Finance
 	PAYMENT_EXCEEDS_BALANCE: "err.paymentExceedsBalance",
+	PAYROLL_SETTINGS_UNVERIFIED: "err.payrollSettingsUnverified",
+	PAYROLL_RATES_INVALID: "err.payrollRatesInvalid",
 	// Assessments
 	SCORES_ASSESSMENT_PUBLISHED: "err.assessmentPublished",
 	// Timetable

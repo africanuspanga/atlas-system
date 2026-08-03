@@ -707,6 +707,10 @@ const en = {
 	"err.noSubscription": "This school has no active subscription. Contact ATLAS support.",
 	"err.tenantSuspended": "This school's account is suspended. Contact ATLAS support.",
 	"err.tenantArchived": "This school's account has been archived.",
+	"err.payrollSettingsUnverified":
+		"Verify the current TRA, NSSF, HESLB, WCF and SDL rates before running payroll.",
+	"err.payrollRatesInvalid":
+		"The statutory rates produce an invalid payslip. Review and verify the payroll settings.",
 	"err.rateLimited": "Too many requests. Wait a moment and try again.",
 	"err.notFound": "That record was not found. Refresh the page and try again.",
 	"err.invalid": "Some of the information entered is not valid. Check the form and try again.",
@@ -1538,6 +1542,10 @@ const sw: Record<DictKey, string> = {
 	"err.noSubscription": "Shule hii haina usajili unaotumika. Wasiliana na msaada wa ATLAS.",
 	"err.tenantSuspended": "Akaunti ya shule hii imesimamishwa. Wasiliana na msaada wa ATLAS.",
 	"err.tenantArchived": "Akaunti ya shule hii imefungwa kwenye kumbukumbu.",
+	"err.payrollSettingsUnverified":
+		"Thibitisha viwango vya sasa vya TRA, NSSF, HESLB, WCF na SDL kabla ya kuendesha mishahara.",
+	"err.payrollRatesInvalid":
+		"Viwango vya kisheria vimesababisha hesabu batili ya mshahara. Kagua na uthibitishe mipangilio ya mishahara.",
 	"err.rateLimited": "Maombi ni mengi mno. Subiri kidogo kisha ujaribu tena.",
 	"err.notFound": "Rekodi hiyo haikupatikana. Onyesha upya ukurasa kisha ujaribu tena.",
 	"err.invalid": "Baadhi ya taarifa ulizoingiza si sahihi. Kagua fomu kisha ujaribu tena.",

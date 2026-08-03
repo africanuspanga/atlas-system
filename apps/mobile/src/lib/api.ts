@@ -11,7 +11,15 @@ import { supabase } from "./supabase";
  */
 export function apiBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL;
-  if (configured) return configured.replace(/\/$/, "");
+  if (configured) {
+    if (!__DEV__ && !configured.startsWith("https://")) {
+      throw new Error("EXPO_PUBLIC_API_URL must use HTTPS in production");
+    }
+    return configured.replace(/\/$/, "");
+  }
+  if (!__DEV__) {
+    throw new Error("EXPO_PUBLIC_API_URL must be set for production builds");
+  }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const host = hostUri.split(":")[0];

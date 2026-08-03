@@ -77,17 +77,19 @@ interface RunDetail {
 }
 
 interface PayeBand {
-	from: number;
+	up_to: number | null;
 	rate: number;
 }
 
 interface StatutoryRates {
-	payeBands: PayeBand[];
-	nssfEmployee: number;
-	nssfEmployer: number;
-	heslb: number;
-	wcf: number;
-	sdl: number;
+	paye_bands: PayeBand[];
+	nssf_employee_rate: number;
+	heslb_rate: number;
+	employer: {
+		nssf_rate: number;
+		wcf_rate: number;
+		sdl_rate: number;
+	};
 }
 
 interface SettingsResponse {
@@ -126,21 +128,26 @@ export function PayrollView({
 	const [rowError, setRowError] = useState<string | null>(null);
 
 	const reload = useCallback(async () => {
-		const [salariesRes, runsRes] = await Promise.all([
-			apiFetch("/api/v1/payroll/salaries", { tenantId }),
-			apiFetch("/api/v1/payroll/runs", { tenantId }),
-		]);
-		if (!salariesRes.ok || !runsRes.ok) {
-			setLoadError(
-				`${t("payroll.loadFailed")} (HTTP ${salariesRes.ok ? runsRes.status : salariesRes.status})`,
-			);
-			setLoaded(true);
-			return;
-		}
+		setLoaded(false);
 		setLoadError(null);
-		setSalaries((await salariesRes.json()).data);
-		setRuns((await runsRes.json()).data);
-		setLoaded(true);
+		try {
+			const [salariesRes, runsRes] = await Promise.all([
+				apiFetch("/api/v1/payroll/salaries", { tenantId }),
+				apiFetch("/api/v1/payroll/runs", { tenantId }),
+			]);
+			if (!salariesRes.ok || !runsRes.ok) {
+				setLoadError(
+					`${t("payroll.loadFailed")} (HTTP ${salariesRes.ok ? runsRes.status : salariesRes.status})`,
+				);
+				return;
+			}
+			setSalaries((await salariesRes.json()).data);
+			setRuns((await runsRes.json()).data);
+		} catch {
+			setLoadError(t("common.apiUnreachable"));
+		} finally {
+			setLoaded(true);
+		}
 	}, [tenantId, t]);
 
 	useEffect(() => {
@@ -243,7 +250,14 @@ export function PayrollView({
 				)}
 			</div>
 
-			{loadError && <p className="text-sm text-destructive">{loadError}</p>}
+			{loadError && (
+				<div className="flex items-center gap-3" role="alert">
+					<p className="text-sm text-destructive">{loadError}</p>
+					<Button onClick={() => void reload()} size="sm" variant="outline">
+						{t("common.retry")}
+					</Button>
+				</div>
+			)}
 			{detailError && <p className="text-sm text-destructive">{detailError}</p>}
 
 			<Card className="shadow-none">
@@ -902,15 +916,25 @@ function StatutoryRatesDialog({
 	}
 
 	function patchBand(index: number, key: keyof PayeBand, raw: string) {
-		const value = raw.trim() === "" ? 0 : Number(raw);
-		if (!Number.isFinite(value)) return;
+		const numeric = raw.trim() === "" ? null : Number(raw);
+		if (numeric !== null && !Number.isFinite(numeric)) return;
 		setRates((prev) => {
 			if (!prev) return prev;
-			const payeBands = prev.payeBands.map((band, i) =>
-				i === index ? { ...band, [key]: value } : band,
+			const paye_bands = prev.paye_bands.map((band, i) =>
+				i === index
+					? key === "up_to"
+						? { ...band, up_to: numeric }
+						: { ...band, rate: (numeric ?? 0) / 100 }
+					: band,
 			);
-			return { ...prev, payeBands };
+			return { ...prev, paye_bands };
 		});
+	}
+
+	function patchEmployer(key: keyof StatutoryRates["employer"], value: number) {
+		setRates((prev) =>
+			prev ? { ...prev, employer: { ...prev.employer, [key]: value } } : prev,
+		);
 	}
 
 	async function save() {
@@ -979,24 +1003,25 @@ function StatutoryRatesDialog({
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{rates.payeBands.map((band, i) => (
+										{rates.paye_bands.map((band, i) => (
 											<TableRow key={i}>
 												<TableCell>
 													<Input
 														className="font-mono"
 														min="0"
-														onChange={(e) => patchBand(i, "from", e.target.value)}
-														type="number"
-														value={band.from}
+													onChange={(e) => patchBand(i, "up_to", e.target.value)}
+													type="number"
+													value={band.up_to ?? ""}
 													/>
 												</TableCell>
 												<TableCell>
 													<Input
 														className="font-mono"
+														max="100"
 														min="0"
 														onChange={(e) => patchBand(i, "rate", e.target.value)}
 														type="number"
-														value={band.rate}
+														value={band.rate * 100}
 													/>
 												</TableCell>
 											</TableRow>
@@ -1008,28 +1033,28 @@ function StatutoryRatesDialog({
 							<div className="grid grid-cols-2 gap-3">
 								<RateField
 									label={t("payroll.settings.nssf")}
-									onChange={(v) => patchRate("nssfEmployee", v)}
-									value={rates.nssfEmployee}
+									onChange={(v) => patchRate("nssf_employee_rate", v)}
+									value={rates.nssf_employee_rate}
 								/>
 								<RateField
 									label={t("payroll.settings.nssfEmployer")}
-									onChange={(v) => patchRate("nssfEmployer", v)}
-									value={rates.nssfEmployer}
+									onChange={(v) => patchEmployer("nssf_rate", v)}
+									value={rates.employer.nssf_rate}
 								/>
 								<RateField
 									label={t("payroll.settings.heslb")}
-									onChange={(v) => patchRate("heslb", v)}
-									value={rates.heslb}
+									onChange={(v) => patchRate("heslb_rate", v)}
+									value={rates.heslb_rate}
 								/>
 								<RateField
 									label={t("payroll.settings.wcf")}
-									onChange={(v) => patchRate("wcf", v)}
-									value={rates.wcf}
+									onChange={(v) => patchEmployer("wcf_rate", v)}
+									value={rates.employer.wcf_rate}
 								/>
 								<RateField
 									label={t("payroll.settings.sdl")}
-									onChange={(v) => patchRate("sdl", v)}
-									value={rates.sdl}
+									onChange={(v) => patchEmployer("sdl_rate", v)}
+									value={rates.employer.sdl_rate}
 								/>
 							</div>
 						</div>
@@ -1075,15 +1100,16 @@ function RateField({
 			{label}
 			<Input
 				className="font-mono"
+				max="100"
 				min="0"
 				onChange={(e) => {
 					const raw = e.target.value;
 					const next = raw.trim() === "" ? 0 : Number(raw);
-					if (Number.isFinite(next)) onChange(next);
+					if (Number.isFinite(next)) onChange(next / 100);
 				}}
 				step="0.01"
 				type="number"
-				value={value}
+				value={value * 100}
 			/>
 		</label>
 	);

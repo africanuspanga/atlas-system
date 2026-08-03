@@ -1,59 +1,63 @@
-# ATLAS Performance Audit
+# ATLAS performance audit
 
-_Audit date: 2026-07-05 · Load evidence: `apps/api/scripts/seed-demo.mjs`_
+_Updated 3 August 2026. Pilot evidence exists; multi-school scale has not been
+formally load-tested._
 
-## Load exercise performed
+## Evidence
 
-`seed-demo.mjs` drove ~900 real API calls to build "Chief Sarwatt School": 258
-students, 120 attendance registers, 16 published exams (3,960 scores), 258
-invoices, 312 payments, 1,140 journal lines, announcements, reminders. It
-completed in ~2 minutes with the ledger balanced (TZS 422M) and all
-verification checks passing. This exercised every module's write path under
-volume without errors — a useful first datapoint, not a formal benchmark.
+- `seed-demo.mjs` previously drove roughly 900 API calls to create 258 students,
+  120 attendance registers, 3,960 scores, 258 invoices, 312 payments, 1,140
+  journal lines, and communications in about two minutes with a balanced ledger.
+- Twenty-five live-connected smoke suites passed on the current schema.
+- The production web build generates 32 dynamic routes successfully.
+- The real-provider 40-case AI run averaged 17.5 seconds and used 388,805
+  tokens; the slowest broad prompt observed was roughly 56 seconds.
 
-## Indexing review (migrations 0001–0010)
+These are functional data points, not an SLA or capacity benchmark.
 
-Existing indexes are reasonable and tenant-aware. Present, e.g.:
-`students(tenant_id,status)`, `students(tenant_id,last_name,first_name)`,
-`class_enrolments(tenant_id)` + `(class_section_id)`,
-`attendance_sessions(tenant_id,session_date)`,
-`attendance_records(student_id,status)`,
-`assessment_scores(tenant_id)` + `(student_id)`,
-`invoices(tenant_id,status)` + `(student_id)`, `payments(tenant_id)` +
-`(invoice_id)`, `journal_lines(entry_id)` + `(account_id)`,
-`notification_outbox(status,created_at) where status='pending'`.
+## Hardening already present
 
-**Gaps to add when query plans justify (do not add blindly):**
-- `payments(tenant_id, created_at)` — dashboard "recent payments" orders by
-  created_at within a tenant.
-- `attendance_records(session_id)` — used by report-card + dashboard aggregation
-  (currently reachable via student index only).
-- `invoices(tenant_id, academic_term_id)` — statement/reminder queries.
-- Composite `(tenant_id, status)` already exists where it matters.
+- Tenant/date/status indexes cover the primary student, attendance, finance,
+  outbox, AI, report, and operational paths.
+- Reads that can exceed Supabase's 1,000-row cap use deterministic pagination or
+  aggregate RPCs in the audited high-volume paths.
+- Imports/reports are durable background jobs; outbox and other workers claim in
+  bounded batches and recover stale work.
+- API bodies, import rows, tool results, report jobs, SMS size, retries, and AI
+  monthly usage are bounded.
+- Platform revenue uses latest subscriptions; operational overview excludes
+  archived tenants and avoids counting their historical activity.
 
-## Known performance risks (all P3, bug register)
+## Known performance risks
 
-- **AUD-014** `/portal/children` is N+1 (6 queries per child) and reads
-  attendance unbounded to count statuses. Batch + aggregate in SQL/RPC.
-- **AUD-015** dashboard (`app/page.tsx`), `/accounting`, `/finance`,
-  `/communication` server components read `payments`/`invoices`/`journal_lines`/
-  `notification_outbox` with **no `.limit()`**. Latency grows linearly with
-  school history. Fix: push aggregation into SQL/RPC (e.g. a
-  `dashboard_summary(tenant_id, from, to)` function returning counts + sums)
-  rather than fetching all rows into Node.
-- **AUD-013** `/staff`, `/invitations` unpaginated.
+- Parent `/children` assembles several domains per child and should be measured
+  for large sibling counts and post-results login bursts.
+- Some dashboard/platform aggregates can grow with years of school history;
+  verify query plans and statement timeouts at realistic volumes.
+- Platform health performs per-tenant activity aggregates. Existing indexes
+  help, but 100+ schools/millions of activity rows need `EXPLAIN ANALYZE` and
+  potentially maintained summary tables.
+- AI latency/cost is the main current user-facing performance concern. Track
+  p50/p95 by tool/prompt, provider errors, tokens/answer, and abandonment.
+- Native/web behavior on slow Tanzanian mobile data and low-memory phones has
+  not completed field acceptance.
+- PDF/XLSX concurrency, large imports, and outbox throughput need sustained
+  worker/recovery tests with real production limits.
 
-## Not yet measured (needed before scale sign-off)
+## Scale test required before broad onboarding
 
-Per CTO §18, realistic multi-school volumes (100 schools × 2,000 students,
-millions of attendance/journal rows, thundering-herd parent logins after
-results publication, bulk report-card generation). These require a staging load
-harness and `EXPLAIN ANALYZE` on the hot queries — deferred until the reporting
-and dashboard aggregation refactors land, since those change the query shapes.
+Model at least 100 schools × 2,000 students, multi-year attendance and finance,
+simultaneous morning attendance, report-card release bursts, payroll month-end,
+bulk reports/imports, and parent logins. Measure:
 
-## Verdict
+- API/DB p50/p95/p99 and error/timeout rate;
+- Postgres plans, locks, pool utilization, slow queries, and RLS overhead;
+- Redis/BullMQ depth, claim latency, recovery, and worker memory;
+- outbox provider throughput/cost/duplicate behavior;
+- web Core Web Vitals and mobile startup/list performance;
+- AI latency/tokens/quota contention per tenant;
+- noisy-neighbor behavior between a large and small school.
 
-No performance blocker for a single pilot school at the demonstrated volume.
-Before multi-tenant scale: convert unbounded dashboard/portal reads to SQL
-aggregates, add the four indexes above once plans confirm, and run a formal load
-test.
+Define capacity/SLO budgets before the test. A controlled one-school pilot can
+proceed after the go-live blockers, but marketing should not claim 100-school
+scale or instant AI answers from the present evidence.

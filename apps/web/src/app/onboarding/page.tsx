@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveTenants } from "@/lib/active-tenant";
 import { LogoIcon } from "@/components/logo";
 import { getServerDict } from "@/i18n/server";
 import { OnboardingWizard } from "./onboarding-wizard";
@@ -16,11 +17,7 @@ export default async function OnboardingPage() {
 	}
 
 	// Already a member of a school → straight to the dashboard.
-	const { data: tenants } = await supabase
-		.from("tenants")
-		.select("id")
-		.order("created_at", { ascending: true })
-		.limit(1);
+	const { data: tenants } = await getActiveTenants(supabase);
 	if (tenants && tenants.length > 0) {
 		redirect("/");
 	}

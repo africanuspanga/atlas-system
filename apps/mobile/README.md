@@ -61,6 +61,14 @@ usual. `registerForPushNotifications` also needs `extra.eas.projectId` in
 
 ## Production builds & store submission
 
+Production builds fail fast unless `EXPO_PUBLIC_API_URL` is an explicit HTTPS
+URL. Store the public Supabase values and API URL in the EAS production
+environment; do not rely on the developer's local `.env` during a cloud build.
+Native authentication sessions are stored in chunked `expo-secure-store`
+records (with a one-time migration from the former AsyncStorage value). The
+web build alone continues to use AsyncStorage because browser SecureStore is
+unavailable.
+
 ```bash
 npx eas-cli login          # Expo account
 npx eas-cli init           # once — links the project, sets extra.eas.projectId
@@ -87,14 +95,18 @@ Store checklist:
   and phone + 7"/10" tablet for Play), an app description, and data-safety
   / privacy-nutrition declarations before review.
 
-## Database migration
+## Database compatibility
 
-Push-token storage needs migration `00000000000028_device_tokens.sql`
-applied. The permission layer blocks agents from applying DDL — a human
-runs the handover loop from the repo root (note the range now ends at 28):
+Push-token storage was introduced in migration `0028`; production now requires
+the complete migration chain through `0033`. The linked live Supabase project
+was verified at `0033` on 3 August 2026. For another environment, rehearse and
+use the Supabase CLI so only missing migrations are applied:
 
 ```bash
-set -a && source .env && set +a && for f in supabase/migrations/000000000000{16..28}_*.sql; do /usr/local/opt/postgresql@17/bin/psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f" || break; done
+./scripts/shadow-migrations.sh
+set -a && source .env && set +a
+pnpm exec supabase db push --dry-run --include-all
+pnpm exec supabase db push --include-all
 ```
 
 ## Brand assets

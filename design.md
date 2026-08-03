@@ -220,5 +220,6 @@ circles sit in padded rows for an effective 48px tap zone.
 - The original reference typefaces are licensed; Inter and JetBrains Mono are
   the canonical substitutes and what we ship.
 - Animation timings are out of scope for now.
-- New user-facing strings still require EN + SW keys in
-  `apps/web/src/i18n/index.ts` (see CLAUDE.md).
+- New user-facing strings require matching EN + SW keys in
+  `packages/i18n/src/index.ts`; the web app re-exports that shared catalogue
+  (see `CLAUDE.md`).

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+const isoDate = z.string().date('Expected YYYY-MM-DD');
 
 export const studentRowSchema = z.object({
   firstName: z.string().trim().min(1).max(100),

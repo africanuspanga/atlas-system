@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ATLAS web
 
-## Getting Started
+Next.js 16 App Router application for school staff, parents, and ATLAS platform
+staff. It contains the school dashboard and modules, `/portal`, `/assistant`,
+and the platform control centre at `/platform`.
 
-First, run the development server:
+## Local development
+
+The browser-safe Supabase and API values live in `apps/web/.env.local`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The default URL is `http://localhost:3000`. On a machine where port 3000 is
+occupied, use:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm exec next dev -p 3001
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tenant selection
 
-## Learn More
+Server pages use `src/lib/active-tenant.ts`. Multi-school users choose from the
+tenant switcher; the choice is stored in an HTTP-only cookie through
+`POST /api/tenant`. Do not add a new `.from("tenants").limit(1)` lookup to a
+page. Tenant selection improves correctness; API authorization and RLS remain
+the actual security boundaries.
 
-To learn more about Next.js, take a look at the following resources:
+## UI conventions
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Server `page.tsx` files perform auth/tenant redirects and initial reads.
+- Client views use `apiFetch` for protected mutations and display stable,
+  localized error states with retry paths.
+- Add English and Kiswahili strings to `packages/i18n/src/index.ts`.
+- Preserve the shell skip link, semantic `<main>`, keyboard focus, reduced
+  motion behavior, and targeted transitions.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Production verification
 
-## Deploy on Vercel
+Generate Next route types before the workspace typecheck. Do not run this at
+the same time as `next build`, because both operate on `.next`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm exec next typegen
+pnpm lint
+pnpm typecheck
+pnpm build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production requires the public Supabase values and an HTTPS API URL. The API's
+`WEB_ORIGIN` must exactly match the deployed web origin.

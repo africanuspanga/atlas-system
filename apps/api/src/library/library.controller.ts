@@ -14,6 +14,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { TenantGuard, RequirePermission } from '../tenancy/tenant.guard';
 import type { TenantRequest } from '../tenancy/tenant.guard';
 import { SupabaseService } from '../supabase/supabase.service';
+import { todayInTanzania } from '../common/tanzania-date';
 import { createBookSchema, loanBookSchema } from './library.schema';
 
 const UUID_RE =
@@ -247,7 +248,7 @@ export class LibraryController {
   @Get('overdue')
   @RequirePermission('library.view')
   async overdue(@Req() req: TenantRequest) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayInTanzania();
     const { data, error } = await this.supabase.admin
       .from('library_loans')
       .select(

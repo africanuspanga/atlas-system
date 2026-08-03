@@ -1,16 +1,15 @@
 # ATLAS Administrator & User Guide
 
-_Updated 2026-07-17. Audience: everyone who operates or uses ATLAS — the
+_Updated 2026-08-03. Audience: everyone who operates or uses ATLAS — the
 platform (SaaS) staff, school owners and administrators, teachers, finance
 staff, and parents. For engineering conventions see the root `CLAUDE.md`;
 for the visual language see `design.md`; for audit history see `docs/audit/`._
 
-> **Deployment note:** migrations 0016–0028 (timetable, instalments,
-> NECTA pack, hostel, transport, library, inventory, clinic, platform
-> metrics, payroll, production hardening, security polish, mobile device
-> tokens) must be applied to the database before the sections marked
-> **[0016+]** work. Apply them with the handover command in `CLAUDE.md` →
-> Handover state.
+> **Release note:** the linked live Supabase project is verified through
+> migration `0033`; labels such as **[0016+]** identify when a feature was
+> introduced, not a pending deployment. Open paid onboarding is still on hold
+> until the infrastructure/compliance checklist in
+> `docs/audit/GO_LIVE_READINESS_2026-08-03.md` is complete.
 
 ---
 
@@ -43,7 +42,8 @@ to daily operation. Each step links to the detailed section.
    invoices per student; optionally split an invoice into up to 6
    instalments **[0017+]** (Part III §5).
 7. **Run the daily rhythm** — teachers mark attendance (absent students'
-   guardians get a Kiswahili SMS automatically) and enter marks; finance
+   guardians get a Kiswahili SMS when the production SMS gateway is enabled)
+   and enter marks; finance
    receives payments and prints receipts (Part III §4–5).
 8. **Close the term** — publish results (locks marks), print report cards,
    pull the NECTA CA summary and candidates export **[0018+]**, then chase
@@ -281,7 +281,7 @@ You see everything in your school. Your daily loop:
 - **Instalments [0017+]** (invoice detail): set up to 6 instalments that
   must sum exactly to the invoice total, with ascending due dates. Payments
   fill instalments oldest-first; each shows paid/due/overdue/upcoming.
-- **Receive payments**: cash, M-Pesa, Tigo Pesa, Airtel Money, HaloPesa,
+- **Receive payments**: cash, M-Pesa, Mixx by Yas, Airtel Money, HaloPesa,
   bank, cheque. Every payment posts a balanced journal entry automatically.
   **Mistakes are reversed, never edited** (bursar-only) — the database
   physically refuses edits, even for developers.
@@ -290,16 +290,17 @@ You see everything in your school. Your daily loop:
   reminder SMS button.
 - **Accounting** (`/accounting`): trial balance + journal — always balanced
   by construction. The trial balance is served by the API from the same
-  ledger-reconciled report SQL as printed reports, so screen, PDF and AI
-  answers all match. Reports that don't reconcile **refuse to generate**
+  ledger-reconciled report SQL as printed reports, so screen, PDF and AI use
+  the same financial source. Reports that don't reconcile **refuse to generate**
   (`REPORT_RECONCILE_FAILED`) — treat as P0.
 - **Payroll [0025+]** (`/payroll`): set staff salaries (basic, allowances,
-  HESLB flag). Run a month → draft with PAYE (progressive bands), NSSF
-  (10%), HESLB (15% where flagged), net pay. **Post to ledger** books one
-  balanced journal (Salaries expense / Payroll liabilities / Cash) and
-  locks the run permanently. Employer contributions (NSSF/WCF/SDL) are
-  shown as information. Statutory rates are configurable defaults —
-  **verify them against current TRA/NSSF tables before first live run**.
+  HESLB flag). A run is blocked until the school's authorized accountant has
+  reviewed and verified its current statutory settings; changing a rate clears
+  that verification. Run a month → draft with PAYE, NSSF, HESLB and net pay.
+  **Post to ledger** books two balanced journals—wages/payroll liabilities and
+  employer NSSF/WCF/SDL expense/liabilities—and locks the run permanently.
+  Defaults are guidance only: verify applicability and current values for each
+  school before every live payroll cycle.
 - **Inventory [0022+]** (`/inventory`): school store — items, stock in/out
   (append-only movements; stock can't go negative), low-stock flags.
 
@@ -315,8 +316,9 @@ You see everything in your school. Your daily loop:
 - **Library [0021+]** (`/library`): book catalogue with copy counts, loans
   with due dates (default 14 days), returns, overdue list with days late.
 - **Clinic [0023+]** (`/clinic`): record visits (symptoms, treatment,
-  notes); tick "notify guardian" to send the primary guardian a Kiswahili
-  SMS in the same transaction — parents hear it from the school first.
+  notes); tick "notify guardian" to queue a minimal Kiswahili SMS for the
+  primary guardian. Delivery requires the configured production SMS gateway;
+  sensitive symptoms/treatment are not sent to the AI.
 
 ### 7. Parents / guardians — `/portal`
 
@@ -326,8 +328,9 @@ reaches the portal, which shows only *their* children.
 
 - Per child: class, attendance summary, fee balance, and term report cards
   (published results only).
-- SMS arrives automatically (Kiswahili): absence alerts, fee reminders with
-  the amount due, clinic-visit notices, school announcements.
+- When the production gateway is enabled, SMS arrives in Kiswahili: absence
+  alerts, fee reminders with the amount due, minimal clinic notices, and
+  school announcements.
 - One guardian account covers all their children, even in different classes.
 
 ---
@@ -345,18 +348,19 @@ Two layers, both scoped to the asking user's role:
   timetable, debtors, CA summaries, academics setup, guardians search,
   recent admissions, hostel occupancy, transport routes, library overdues,
   inventory stock, clinic visits, payroll summary (aggregates only — the AI
-  never sees individual salaries). Financial tools call the same
-  ledger-reconciled SQL as printed reports, so AI numbers always match.
-- **Actions** — the AI *proposes*, a human confirms (17 in all): record
+  never sees individual salaries). Financial tools call the same deterministic,
+  ledger-reconciled services as printed reports and refuse unreconciled output.
+- **Actions** — the AI *proposes*, a human confirms (20 in all): record
   payment, create invoice, admit student, link a guardian to a student,
   invite staff, send announcement, send fee reminders, create an assessment
   shell (teachers still enter the marks), **[0016+]** set timetable slot,
   set invoice instalments, assign combination, allocate hostel bed, assign
   transport, loan book, return book, record stock movement, record clinic
-  visit. Nothing executes until you press **Confirm** on the preview card
+  visit, change student status/class, and create an academic year. Nothing
+  executes until you press **Confirm** on the preview card
   (single-use, 10-minute expiry, permission re-checked at confirm).
-  The AI can never: reverse payments, change grades, publish results, post
-  payroll, suspend accounts, delete anything, or change plans.
+  The AI can never: reverse or modify payments, change grades, publish results,
+  run/post payroll, suspend tenants, hard-delete records, or change plans.
 
 **Monthly token quota:** each plan includes an AI token allowance — Trial
 500k, Msingi 2M, Kati 5M, Juu 10M tokens per calendar month. When a school
@@ -367,7 +371,10 @@ immediately).
 
 Every tool call and action is audited (`ai_tool_calls`,
 `ai_proposed_actions`, `audit_logs`). Quality gate: `eval-ai.mjs` must stay
-100% on security categories before any AI change ships.
+100% on security categories before any AI change ships. The real-provider
+baseline on 3 August 2026 passed 40/40 with 17.5-second mean latency; monitor
+both latency and token cost in production. Real-student AI also requires the
+documented Tanzania privacy and cross-border-processing approval.
 
 ---
 
@@ -381,11 +388,9 @@ set -a && source .env && set +a          # root .env holds all secrets
 
 pnpm --filter @atlas/api dev             # API on :4000
 pnpm --filter @atlas/web dev             # web (use -p 3001 on the dev Mac)
-pnpm --filter @atlas/workers build       # then run the workers you need:
-node apps/workers/dist/main.js           # BullMQ workers (needs Redis)
-node apps/workers/dist/drain-outbox.js   # SMS outbox (no Redis needed)
-node apps/workers/dist/process-imports.js
-node apps/workers/dist/process-reports.js
+pnpm --filter @atlas/workers build       # then run BOTH persistent processes:
+pnpm --filter @atlas/workers start       # BullMQ/import/report workers (Redis)
+pnpm --filter @atlas/workers drain       # SMS outbox drainer
 
 pnpm --filter @atlas/mobile start        # mobile dev server (QR for Expo Go)
 ```
@@ -400,14 +405,16 @@ the store checklist live in `apps/mobile/README.md`. Device push tokens
 land in `device_tokens` (migration **0028**, API-only) — sending pushes is
 a future worker; nothing sends yet.
 
-Every worker accepts `--once` (drain then exit) — used by smokes. BullMQ
-only accelerates pickup; the DB is the source of truth, so a Redis outage
-delays jobs but never loses them.
+The standalone outbox/import/report processors support one-pass execution used
+by smokes; the BullMQ `start` process is persistent. BullMQ only accelerates
+pickup—the DB is the source of truth—so a Redis outage delays durable jobs
+rather than erasing their job rows.
 
 ### Configuration (root `.env`; `.env.example` documents every key)
 
 - `SUPABASE_SERVICE_ROLE_KEY` — API/workers only. **Never** in the browser.
-- `WEB_ORIGIN` — required in production (invite links + CORS fail fast).
+- `NODE_ENV=production`, `WEB_ORIGIN`, `TRUST_PROXY` — fail-safe runtime,
+  invitation/CORS origin, and the exact reverse-proxy hop count.
 - `SMS_DRIVER` — `console` (dev) or `beem` (+ `BEEM_*` keys).
 - `MOONSHOT_API_KEY` / `MOONSHOT_MODEL` — AI provider (`kimi-k2.6`; rejects
   non-default temperature, we send none). `AI_DRIVER=mock` for tests.
@@ -431,15 +438,18 @@ delays jobs but never loses them.
 
 ### Backups, restore & release
 
-- Restore procedure (tested): `docs/audit/ATLAS_RESTORE_RUNBOOK.md`. Repeat
-  quarterly; delete dumps afterwards — they contain real PII. (macOS
-  gotcha: start the scratch cluster with `LC_ALL=en_US.UTF-8`.)
-- Release gate: `pnpm turbo run lint typecheck test build`, the full smoke
-  suite (`apps/api/scripts/smoke-*.mjs`, 24 suites), and `eval-ai.mjs`.
-  Migrations are additive; shadow-test before live (runbook), apply in
-  order.
-- Payments/mobile-money integration is **planned, not built** — the full
-  design is `docs/product/PAYMENTS_INTEGRATION_PLAN.md`.
+- Restore procedure: `docs/audit/ATLAS_RESTORE_RUNBOOK.md`. The earlier restore
+  and latest migration-data rehearsal passed, but a full migration-0033 disaster
+  recovery drill remains required before pilot. Delete temporary dumps through
+  the approved process—they contain real PII. (macOS gotcha: start the scratch
+  cluster with `LC_ALL=en_US.UTF-8`.)
+- Release gate: run Next type generation, lint, typecheck, tests and build
+  sequentially, then the full smoke suite (`apps/api/scripts/smoke-*.mjs`, 25
+  suites) and `eval-ai.mjs`. Follow `docs/ATLAS_TESTING_GUIDE.md`; migrations
+  are rehearsed in the shadow and applied through Supabase migration history.
+- Manual in-app payments are built and idempotent. External mobile-money/bank
+  webhooks and automatic reconciliation are **planned, not built**; the design
+  is `docs/product/PAYMENTS_INTEGRATION_PLAN.md`.
 
 ### Demo school
 

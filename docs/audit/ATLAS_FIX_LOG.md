@@ -1,5 +1,9 @@
 # ATLAS Fix Log
 
+> **Historical chronological record.** It ends before migrations `0031`–`0033`
+> and the 3 August verification. Preserve it as evidence; use
+> `GO_LIVE_READINESS_2026-08-03.md` for current status.
+
 _Audit branch: `audit/production-readiness` · Baseline tag: `v0.1.0-pre-audit`_
 
 Chronological record of changes made during the stabilisation pass. Every fix

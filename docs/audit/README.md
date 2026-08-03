@@ -1,47 +1,52 @@
-# ATLAS Production-Readiness Audit
+# ATLAS audit and operations documents
 
-_Conducted 2026-07-05 on branch `audit/production-readiness` (baseline tag
-`v0.1.0-pre-audit`), in response to the CTO stabilisation directive._
+The authoritative current decision is
+[`GO_LIVE_READINESS_2026-08-03.md`](GO_LIVE_READINESS_2026-08-03.md).
+It records the migration-33 live state, 25/25 product smokes, 40/40 real AI
+evaluation, quality gates, remaining infrastructure/compliance blockers, and
+the staged rollout plan.
 
-## Headline
+## Current operating documents
 
-- **0 P0, 0 P1** issues found.
-- **10 P2 issues fixed** this pass (including two database-integrity upgrades).
-- **13 P3 issues** catalogued and triaged; none block a controlled pilot.
-- Quality gates: `lint typecheck test build` = **11/11 green**;
-  `pnpm audit --prod` = **no known vulnerabilities**.
-- New **cross-tenant attack suite** (`smoke-isolation.mjs`) passes; all 7 module
-  smokes still pass.
-- Verdict: **pilot-capable pending three ops steps** (staging restore,
-  monitoring, signed-off imported totals). **Not** self-serve-SaaS-ready — the
-  platform, AI, and reporting pillars are unbuilt (specs included).
+| File                              | Purpose                                                        |
+| --------------------------------- | -------------------------------------------------------------- |
+| `GO_LIVE_READINESS_2026-08-03.md` | CTO verdict, evidence, blockers, release sequence              |
+| `ATLAS_RELEASE_READINESS.md`      | Living go/no-go checklist                                      |
+| `ATLAS_PILOT_RUNBOOK.md`          | One-school training/pilot procedure and sign-off               |
+| `ATLAS_MONITORING.md`             | Health, logs, Sentry, heartbeats, alerts                       |
+| `ATLAS_INCIDENT_RESPONSE.md`      | Severity, containment, privacy decision, recovery and review   |
+| `ATLAS_RESTORE_RUNBOOK.md`        | Backup/restore procedure and current restore gap               |
+| `ATLAS_SYSTEM_INVENTORY.md`       | What is built now                                              |
+| `ATLAS_SECURITY_AUDIT.md`         | Current security controls and residual risks                   |
+| `TANZANIA_PRIVACY_CHECKLIST.md`   | PDPC, DPA, transfer, AI, rights, retention and breach sign-off |
+| `ATLAS_TENANT_ISOLATION_AUDIT.md` | Tenant/RLS design and attack evidence                          |
+| `ATLAS_OWNER_DASHBOARD_AUDIT.md`  | Current platform control-centre capabilities/gaps              |
+| `ATLAS_AI_ASSISTANT_SPEC.md`      | Implemented AI architecture, safety, evaluation                |
 
-## Documents
+The repository-wide verification procedure lives at
+[`../ATLAS_TESTING_GUIDE.md`](../ATLAS_TESTING_GUIDE.md).
 
-| File | What it covers |
-|------|----------------|
-| `ATLAS_SYSTEM_INVENTORY.md` | Honest module status table (evidence-based) |
-| `ATLAS_BUG_REGISTER.md` | All findings AUD-001…AUD-023 with root cause, fix, test |
-| `ATLAS_SECURITY_AUDIT.md` | Auth, secrets, injection, redirects, deps |
-| `ATLAS_TENANT_ISOLATION_AUDIT.md` | Isolation design + automated attack proof |
-| `ATLAS_OWNER_DASHBOARD_AUDIT.md` | Platform layer gap analysis + spec (not built) |
-| `ATLAS_IMPORT_PIPELINE_SPEC.md` | Current importer + staging-pipeline target |
-| `ATLAS_AI_ASSISTANT_SPEC.md` | AI architecture spec (not built) |
-| `ATLAS_REPORTING_SPEC.md` | Reporting/PDF/CSV spec (not built) |
-| `ATLAS_PERFORMANCE_AUDIT.md` | Load evidence, indexing, unbounded-read risks |
-| `ATLAS_RELEASE_READINESS.md` | CTO §21 checklist, pilot vs SaaS verdicts |
-| `ATLAS_FIX_LOG.md` | Chronological change log with verification |
+## Historical records
 
-## How to reproduce the evidence
+The following are point-in-time evidence. Their original findings, counts, and
+commands are intentionally preserved and may be superseded:
 
-```bash
-pnpm install --frozen-lockfile
-pnpm turbo run lint typecheck test build   # 11/11 green
-pnpm audit --prod                          # no known vulnerabilities
+- `ATLAS_BUG_REGISTER.md` and `ATLAS_FIX_LOG.md` — July 5 audit
+- `ATLAS_CODE_REVIEW_2026-07.md` — detailed July adversarial review
+- `HANDOVER_2026-07-31.md` — state before migrations 31–33 and final hardening
+- `../ATLAS_DEEP_BUG_HUNT_2026-07-12.md` — July 12 review
 
-# with the API running (WEB_ORIGIN set) and .env sourced:
-node apps/api/scripts/smoke-isolation.mjs  # cross-tenant attack suite
-for s in onboarding students attendance assessments finance communication parents; do
-  node apps/api/scripts/smoke-$s.mjs
-done
-```
+Do not use a historical file to decide which migrations to apply or whether a
+module is built. Use the testing guide and current go-live report.
+
+## Current evidence snapshot
+
+- Live Supabase migration: `0033`
+- Shadow: 71 tables, 60 policies, 217 functions; no unintended deny-all table
+- Product/API smokes: 25/25
+- Real-provider AI eval: 40/40, security 100%
+- Static gates: lint 3/3, typecheck 7/7, tests 4/4, builds 3/3
+- Dependency audit: no known moderate-or-higher vulnerability
+
+These results are dated 3 August 2026 and must be regenerated for the release
+commit and production environment.
