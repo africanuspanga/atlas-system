@@ -28,7 +28,11 @@ export function Funnel({
 	/** Recorded even when it matched no school. */
 	outreachCode?: string;
 }) {
-	const [step, setStep] = useState(preselected ? 2 : 1);
+	// Always start at the qualify question, even when a tracked SMS link already
+	// identified the school. Skipping to step 2 meant every SMS-sourced lead —
+	// the primary channel — arrived with usesSystem null, losing the one thing
+	// step 1 exists to capture. The preselection still makes step 2 a single tap.
+	const [step, setStep] = useState(1);
 	const [usesSystem, setUsesSystem] = useState<boolean | undefined>();
 	const [school, setSchool] = useState<PublicSchool | null>(preselected);
 
