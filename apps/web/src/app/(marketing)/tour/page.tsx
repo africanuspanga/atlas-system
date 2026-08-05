@@ -31,7 +31,13 @@ const STOPS = [
 		title: "Debtors, class by class",
 		body: "Every student with a balance, grouped by class. Reminders go out from the same screen, each parent getting their own child's figure.",
 		alt: "The debtors report",
-		needs: "/finance/debtors as a bursar",
+		src: "/screenshots/debtors.png",
+	},
+	{
+		title: "Every student, in one list",
+		body: "Admission numbers, class, guardian and status — searchable, and the place a report card is generated from.",
+		alt: "The student register",
+		src: "/screenshots/students.png",
 	},
 	{
 		title: "An invoice and its payments",

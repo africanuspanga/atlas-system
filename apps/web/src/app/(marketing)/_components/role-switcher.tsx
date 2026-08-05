@@ -12,7 +12,7 @@ const SHOTS: Record<string, { alt: string; needs?: string; src?: string }> = {
 	},
 	Accountant: {
 		alt: "The debtors report, class by class",
-		needs: "/finance/debtors as a bursar",
+		src: "/screenshots/debtors.png",
 	},
 	Teacher: {
 		alt: "Marking attendance for a class",

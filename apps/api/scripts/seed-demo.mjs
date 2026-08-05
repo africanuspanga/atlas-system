@@ -217,8 +217,15 @@ for (const ids of bySection.values()) for (const id of ids) ability.set(id, 0.3 
 // ---------------------------------------------------------------------------
 // 4. Attendance — the last 12 school days (weekdays before today)
 // ---------------------------------------------------------------------------
+// Anchored on TODAY, not a hardcoded date. The previous fixed anchor froze the
+// demo on the day it was written, so every later run produced attendance that
+// fell outside the dashboard's 30-day trend window and the chart read
+// "No data yet" on a fully-seeded school.
 const days = [];
-for (let d = new Date('2026-07-05'); days.length < 12; d.setDate(d.getDate() - 1)) {
+const todayTz = new Date(
+  new Date().toLocaleString('en-US', { timeZone: 'Africa/Dar_es_Salaam' }),
+);
+for (let d = todayTz; days.length < 12; d.setDate(d.getDate() - 1)) {
   const day = d.getDay();
   if (day !== 0 && day !== 6) days.push(d.toISOString().slice(0, 10));
 }

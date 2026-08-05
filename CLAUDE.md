@@ -256,6 +256,14 @@ onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
   to `0XXXXXXXXX`.
 - Next 16 uses `src/proxy.ts` (named `proxy` export), not `middleware.ts`;
   web env lives in `apps/web/.env.local`.
+- **Client-side API calls need `WEB_ORIGIN` to match the web port.**
+  `resolveWebOrigin()` (apps/api/src/config.ts) defaults to
+  `http://localhost:3000`, so running web on 3001/3002 fails the CORS
+  allowlist. The preflight still answers 204 but without a matching
+  `Access-Control-Allow-Origin`, so the browser never sends the real request —
+  the API logs NOTHING and the page just sits on "Loading…". Server components
+  keep working, which makes it look like only some pages are broken. Start the
+  API with `WEB_ORIGIN=http://localhost:<web port>`.
 - macOS has no `timeout`; the dev DB direct host doesn't resolve — use the
   session pooler (`DATABASE_URL`); psql/pg_dump live under
   `/usr/local/opt/postgresql@17/bin`.

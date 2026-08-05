@@ -43,7 +43,20 @@ export function NavUser() {
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger render={<Avatar className="size-8" />}><AvatarFallback>{initial}</AvatarFallback></DropdownMenuTrigger>
+			{/*
+			  Base UI's Trigger renders a real <button> by default. Passing
+			  render={<Avatar/>} replaced it with a <span>, which drops native
+			  button semantics — keyboard activation and the implicit role a
+			  screen reader announces. Keep the button and nest the avatar.
+			*/}
+			<DropdownMenuTrigger
+				aria-label={t("user.account")}
+				className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+			>
+				<Avatar className="size-8">
+					<AvatarFallback>{initial}</AvatarFallback>
+				</Avatar>
+			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-60">
 				<DropdownMenuItem className="flex items-center justify-start gap-2">
 					<DropdownMenuLabel className="flex items-center gap-3">

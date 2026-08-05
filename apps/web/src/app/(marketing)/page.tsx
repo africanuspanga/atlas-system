@@ -305,9 +305,9 @@ export default function LandingPage() {
 						<AppWindow
 							alt="The debtors report, class by class"
 							caption="Debtors, class by class — and one button to remind them all."
-							height={1200}
-							needs="/finance/debtors as a bursar"
-							width={1900}
+							height={675}
+							src="/screenshots/debtors.png"
+							width={1568}
 						/>
 					</div>
 				</div>
