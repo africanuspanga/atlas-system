@@ -324,33 +324,12 @@
 }
 
 /* ===================================================================== */
-/* Navigation                                                            */
+/* Footer                                                                */
 /* ===================================================================== */
-
-.atlas-marketing .ap-globalnav {
-	background: var(--ap-black); /* the only place pure black appears */
-	color: var(--ap-on-dark);
-	height: 44px;
-}
-.atlas-marketing .ap-navlink {
-	font-size: 12px;
-	font-weight: 400;
-	letter-spacing: -0.01em;
-	color: var(--ap-on-dark);
-	text-decoration: none;
-	opacity: 0.88;
-}
-.atlas-marketing .ap-navlink:hover {
-	opacity: 1;
-}
-
-.atlas-marketing .ap-subnav {
-	background: color-mix(in srgb, var(--ap-parchment) 80%, transparent);
-	backdrop-filter: saturate(180%) blur(20px);
-	-webkit-backdrop-filter: saturate(180%) blur(20px);
-	border-bottom: 1px solid var(--ap-divider-soft);
-	height: 52px;
-}
+/* Navigation lives at the bottom of this file — ATLAS uses ONE bar, not
+   the reference system's black global bar plus frosted sub-nav. The mark is
+   black with transparency and deserves to be the loudest thing in the bar,
+   which a near-black bar would make impossible. */
 
 .atlas-marketing .ap-footer {
 	background: var(--ap-parchment);
@@ -739,4 +718,85 @@
 	border-bottom: 1px solid var(--ap-primary);
 	padding: 1px 4px;
 	border-radius: 3px;
+}
+
+/* ===================================================================== */
+/* Navigation — ONE bar. Light, because the mark is black.                */
+/* ===================================================================== */
+
+.atlas-marketing .ap-nav {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	background: color-mix(in srgb, var(--ap-canvas) 82%, transparent);
+	backdrop-filter: saturate(180%) blur(20px);
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+	border-bottom: 1px solid var(--ap-divider-soft);
+}
+
+.atlas-marketing .ap-nav-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--ap-lg);
+	min-height: 68px;
+	padding-inline: var(--ap-lg);
+}
+
+/* The mark is the loudest thing in the bar, on purpose. */
+.atlas-marketing .ap-nav-brand {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+}
+.atlas-marketing .ap-nav-brand img {
+	height: 34px;
+	width: auto;
+	display: block;
+}
+
+.atlas-marketing .ap-nav-links {
+	display: flex;
+	align-items: center;
+	gap: var(--ap-lg);
+}
+
+.atlas-marketing .ap-nav-link {
+	font-size: 15px;
+	line-height: 1.2;
+	letter-spacing: -0.016em;
+	color: var(--ap-ink);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.atlas-marketing .ap-nav-link:hover {
+	color: var(--ap-primary);
+}
+.atlas-marketing .ap-nav-link:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 4px;
+	border-radius: 2px;
+}
+
+.atlas-marketing .ap-nav-cta {
+	min-height: 38px;
+	padding: 8px 18px;
+	font-size: 15px;
+}
+
+@media (max-width: 834px) {
+	.atlas-marketing .ap-nav-inner {
+		min-height: 60px;
+		padding-inline: var(--ap-md);
+	}
+	.atlas-marketing .ap-nav-brand img {
+		height: 28px;
+	}
+	/* Keep the two things that matter on a phone: the mark and the CTA. */
+	.atlas-marketing .ap-nav-links {
+		gap: var(--ap-sm);
+	}
+	.atlas-marketing .ap-nav-link {
+		display: none;
+	}
 }

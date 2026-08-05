@@ -83,16 +83,24 @@ export default function TermsPage() {
 
 					<h2>3. SMS allowance</h2>
 					<p>
-						Your allowance is {FREE_SMS.toLocaleString("en-US")} messages for
-						the subscription year. You can see how many you have used and how
-						many remain in the admin screens, and we warn you at 80%.
+						Your annual subscription includes{" "}
+						{FREE_SMS.toLocaleString("en-US")} messages for the subscription
+						year. You can see how many you have used and how many remain in the
+						admin screens, and we warn you at 80%.
 					</p>
 					<p>
-						When the allowance is exhausted, further messages are blocked rather
-						than billed automatically, and the school is told. We do this
-						deliberately: a message that fails silently would be a fee reminder,
-						and a school should never discover that only from an angry parent.
-						Additional messages can be purchased at <Todo>rate per SMS</Todo>.
+						<strong>You can buy additional SMS at any time.</strong> Extra
+						bundles are purchased separately from the subscription, at{" "}
+						<Todo>price per bundle and bundle sizes</Todo>, and are added to
+						your remaining balance. Bought messages are used only once the
+						included allowance is exhausted.
+					</p>
+					<p>
+						If your balance reaches zero and no bundle has been bought, further
+						messages are blocked rather than billed automatically, and the
+						school is told. We do this deliberately: a message that fails
+						silently would be a fee reminder, and a school should never discover
+						that only from an angry parent.
 					</p>
 
 					<h2>4. Renewal, expiry, and what happens to your data</h2>
