@@ -9,17 +9,22 @@ import {
 	perStudentPerMonth,
 	perStudentPerYear,
 } from "@/lib/offer";
-import { ALSO, FAQ, MODULES, PROBLEMS, STEPS } from "./_components/content";
+import { ALSO, FAQ, PROBLEMS, STEPS } from "./_components/content";
+import { BENTO, PILLARS } from "./_components/pillars";
+import { RoleSwitcher } from "./_components/role-switcher";
 import { AppWindow } from "./_components/shot";
 
 /**
- * The landing page. Tile rhythm: light hero -> parchment -> light -> dark ->
- * light -> parchment -> dark pricing -> light FAQ -> parchment close. The
- * surface change is the section divider; there are no rules or borders.
+ * The landing page.
  *
- * Price and inclusions render from lib/offer.ts, and the JSON-LD below is
- * generated from the same constants — so the structured data can never
- * advertise a price the visible page has stopped showing.
+ * Tile rhythm alternates light / parchment / near-black, and the surface
+ * change is the only section divider — there are no rules or borders between
+ * bands. Sections are labelled with a monospace eyebrow: ATLAS is a system of
+ * record, so the utility face carries section identity.
+ *
+ * Price and inclusions render from lib/offer.ts, and the JSON-LD is generated
+ * from the same constants, so the structured data cannot advertise a price the
+ * visible page has stopped showing.
  */
 export default function LandingPage() {
 	const jsonLd = [
@@ -49,7 +54,6 @@ export default function LandingPage() {
 				"@type": "Offer",
 				price: String(PRICE_TZS),
 				priceCurrency: OFFER.currency,
-				priceValidUntil: undefined,
 				category: "Annual subscription",
 			},
 		},
@@ -80,12 +84,12 @@ export default function LandingPage() {
 						style={{
 							marginTop: "var(--ap-md)",
 							color: "var(--ap-ink-80)",
-							maxWidth: 720,
+							maxWidth: 660,
 							marginInline: "auto",
 						}}
 					>
 						Fees and arrears, attendance, marks and report cards, and the
-						messages that go to parents. One system, one price.
+						messages that go to parents.
 					</p>
 					<div
 						style={{
@@ -113,78 +117,104 @@ export default function LandingPage() {
 				</div>
 			</section>
 
-			{/* ---- the problem ------------------------------------------ */}
-			<section className="ap-tile ap-tile-parchment">
-				<div className="ap-inner">
-					<h2 className="ap-display">What a term actually looks like.</h2>
-					<ul
-						style={{
-							marginTop: "var(--ap-xl)",
-							display: "grid",
-							gap: "var(--ap-md)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-							listStyle: "none",
-							padding: 0,
-						}}
-					>
-						{PROBLEMS.map((p) => (
-							<li className="ap-body" key={p} style={{ color: "var(--ap-ink-80)" }}>
-								{p}
-							</li>
-						))}
-					</ul>
+			{/* ---- the offer, stated plainly ---------------------------- */}
+			<section
+				className="ap-tile ap-tile-parchment"
+				style={{ paddingBlock: "var(--ap-xxl)" }}
+			>
+				<div
+					className="ap-inner-wide"
+					style={{
+						display: "flex",
+						flexWrap: "wrap",
+						justifyContent: "center",
+						gap: "var(--ap-lg) var(--ap-xxl)",
+					}}
+				>
+					{[
+						`${fmtTZS(PRICE_TZS)} a year`,
+						`${FREE_SMS.toLocaleString("en-US")} SMS included`,
+						"Unlimited students",
+						"One price, no tiers",
+					].map((item) => (
+						<span className="ap-eyebrow" key={item}>
+							{item}
+						</span>
+					))}
 				</div>
 			</section>
 
-			{/* ---- modules, by role ------------------------------------- */}
-			<section className="ap-tile ap-tile-light" id="modules">
+			{/* ---- what it is ------------------------------------------- */}
+			<section className="ap-tile ap-tile-light">
 				<div className="ap-inner-wide">
-					<h2 className="ap-display" style={{ textAlign: "center" }}>
-						Four people. Four different questions.
-					</h2>
-					<div
-						style={{
-							marginTop: "var(--ap-xxl)",
-							display: "grid",
-							gap: "var(--ap-lg)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-						}}
-					>
-						{MODULES.map((g) => (
-							<div className="ap-card" key={g.role}>
-								<p className="ap-tagline">{g.role}</p>
+					<div className="ap-head">
+						<div>
+							<p className="ap-eyebrow">The platform</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								Built for how a school
+								<br />
+								actually runs.
+							</h2>
+						</div>
+						<p className="ap-body" style={{ color: "var(--ap-ink-80)" }}>
+							Not a filing cabinet with a login. The information a school
+							already keeps, connected — so a payment, a balance and a term&apos;s
+							collection figure are the same fact seen from different angles.
+						</p>
+					</div>
+
+					<div className="ap-grid-4" style={{ marginTop: "var(--ap-xxl)" }}>
+						{PILLARS.map((p) => (
+							<Link className="ap-feature" href={p.href} key={p.title}>
+								<p className="ap-tagline">{p.title}</p>
 								<p
-									className="ap-body"
+									className="ap-caption"
 									style={{
-										color: "var(--ap-ink-48)",
-										marginTop: "var(--ap-xxs)",
-										fontStyle: "italic",
+										marginTop: "var(--ap-xs)",
+										color: "var(--ap-ink-80)",
 									}}
 								>
-									“{g.question}”
+									{p.body}
 								</p>
-								<ul
-									style={{
-										marginTop: "var(--ap-md)",
-										display: "grid",
-										gap: "var(--ap-xs)",
-										paddingLeft: "1.1em",
-									}}
-								>
-									{g.items.map((item) => (
-										<li className="ap-body" key={item}>
-											{item}
-										</li>
-									))}
-								</ul>
-							</div>
+								<span aria-hidden="true" className="ap-feature-arrow">
+									→
+								</span>
+							</Link>
 						))}
+					</div>
+				</div>
+			</section>
+
+			{/* ---- SIGNATURE: four people, four questions --------------- */}
+			<section className="ap-tile ap-tile-parchment" id="roles">
+				<div className="ap-inner-wide">
+					<div style={{ textAlign: "center" }}>
+						<p className="ap-eyebrow">Solutions by role</p>
+						<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+							Four people. Four questions.
+						</h2>
+						<p
+							className="ap-body"
+							style={{
+								marginTop: "var(--ap-sm)",
+								color: "var(--ap-ink-80)",
+								maxWidth: 620,
+								marginInline: "auto",
+							}}
+						>
+							Nobody buys &ldquo;a school system&rdquo;. Each of these four
+							people is buying an answer to their own question. Pick yours.
+						</p>
+					</div>
+
+					<div style={{ marginTop: "var(--ap-xxl)" }}>
+						<RoleSwitcher />
 					</div>
 
 					<p
 						className="ap-caption"
 						style={{
-							marginTop: "var(--ap-xl)",
+							marginTop: "var(--ap-xxl)",
 							textAlign: "center",
 							color: "var(--ap-ink-48)",
 						}}
@@ -194,152 +224,269 @@ export default function LandingPage() {
 				</div>
 			</section>
 
-			{/* ---- how it works ----------------------------------------- */}
-			<section className="ap-tile ap-tile-dark" id="how">
-				<div className="ap-inner">
-					<h2 className="ap-display">From signing to running.</h2>
-					<div
-						style={{
-							marginTop: "var(--ap-xxl)",
-							display: "grid",
-							gap: "var(--ap-xl)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-						}}
+			{/* ---- the problem ------------------------------------------ */}
+			<section className="ap-tile ap-tile-dark">
+				<div className="ap-inner-wide">
+					<div className="ap-head">
+						<div>
+							<p className="ap-eyebrow">Why schools move</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								What a term
+								<br />
+								actually looks like.
+							</h2>
+						</div>
+						<p className="ap-body" style={{ color: "var(--ap-body-muted)" }}>
+							None of this is a discipline problem. It is one structural
+							problem wearing six costumes: the school&apos;s information lives
+							in places that cannot be added together.
+						</p>
+					</div>
+
+					<ul
+						className="ap-grid-3"
+						style={{ marginTop: "var(--ap-xxl)", listStyle: "none", padding: 0 }}
 					>
-						{STEPS.map((s, i) => (
-							<div key={s.title}>
+						{PROBLEMS.map((p) => (
+							<li
+								className="ap-body"
+								key={p}
+								style={{
+									color: "var(--ap-body-muted)",
+									borderTop: "1px solid rgba(255,255,255,0.14)",
+									paddingTop: "var(--ap-md)",
+								}}
+							>
+								{p}
+							</li>
+						))}
+					</ul>
+				</div>
+			</section>
+
+			{/* ---- fees ------------------------------------------------- */}
+			<section className="ap-tile ap-tile-light" id="fees">
+				<div className="ap-inner-wide">
+					<div className="ap-split">
+						<div>
+							<p className="ap-eyebrow">Fees and arrears</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								Arrears are a list, not a figure.
+							</h2>
+							<p
+								className="ap-body"
+								style={{
+									marginTop: "var(--ap-md)",
+									color: "var(--ap-ink-80)",
+								}}
+							>
+								A school cannot chase a total. It can only chase people. Once
+								the list exists and is correct, collection stops being a
+								project and becomes a routine.
+							</p>
+							<ul className="ap-check" style={{ marginTop: "var(--ap-lg)" }}>
+								<li className="ap-body">
+									Every student with a balance, grouped by class
+								</li>
+								<li className="ap-body">
+									Reminders sent automatically, each parent getting their own
+									child&apos;s figure
+								</li>
+								<li className="ap-body">
+									Bank, M-Pesa and cash reconciled against the same ledger
+								</li>
+								<li className="ap-body">
+									Receipts the parent can see for themselves
+								</li>
+							</ul>
+						</div>
+						<AppWindow
+							alt="The debtors report, class by class"
+							caption="Debtors, class by class — and one button to remind them all."
+							height={1200}
+							needs="/finance/debtors as a bursar"
+							width={1900}
+						/>
+					</div>
+				</div>
+			</section>
+
+			{/* ---- assistant -------------------------------------------- */}
+			<section className="ap-tile ap-tile-parchment" id="assistant">
+				<div className="ap-inner-wide">
+					<div className="ap-split ap-split-reverse">
+						<div>
+							<p className="ap-eyebrow">The assistant</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								Ask the school a question.
+							</h2>
+							<p
+								className="ap-body"
+								style={{ marginTop: "var(--ap-md)", color: "var(--ap-ink-80)" }}
+							>
+								&ldquo;How much did we collect this week?&rdquo; &ldquo;Who was
+								absent in Form 2 today?&rdquo; Answers come from the school&apos;s
+								own records, not from a summary of the page you are looking at.
+							</p>
+							<ul className="ap-check" style={{ marginTop: "var(--ap-lg)" }}>
+								<li className="ap-body">
+									It sees exactly what your role permits — a teacher asking a
+									finance question does not get a finance answer
+								</li>
+								<li className="ap-body">
+									It never computes money itself; figures come from the reports
+									that reconcile to the ledger
+								</li>
+								<li className="ap-body">
+									Anything that changes data is proposed, never done. A person
+									presses confirm
+								</li>
+							</ul>
+						</div>
+						<AppWindow
+							alt="The ATLAS assistant answering a question about fee collection"
+							caption="It shows where the answer came from."
+							height={1200}
+							needs="/assistant with a fee-collection question answered"
+							width={1900}
+						/>
+					</div>
+				</div>
+			</section>
+
+			{/* ---- what is included ------------------------------------- */}
+			<section className="ap-tile ap-tile-light">
+				<div className="ap-inner-wide">
+					<div className="ap-head">
+						<div>
+							<p className="ap-eyebrow">What you get</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								Everything, for one price.
+							</h2>
+						</div>
+						<p className="ap-body" style={{ color: "var(--ap-ink-80)" }}>
+							Every line below is in the product today. Nothing here is coming
+							soon, and nothing is a paid add-on.
+						</p>
+					</div>
+
+					<div className="ap-bento" style={{ marginTop: "var(--ap-xxl)" }}>
+						{BENTO.map((tile) => (
+							<div
+								className={`ap-card${tile.wide ? " ap-span-3" : ""}`}
+								key={tile.label}
+								style={
+									tile.dark
+										? {
+												background: "var(--ap-tile-1)",
+												borderColor: "transparent",
+												color: "var(--ap-on-dark)",
+											}
+										: undefined
+								}
+							>
+								{tile.figure ? (
+									<p
+										className="ap-figure"
+										style={{ color: "var(--ap-primary)" }}
+									>
+										{tile.figure}
+									</p>
+								) : null}
 								<p
-									className="ap-caption-strong"
-									style={{ color: "var(--ap-primary-on-dark)" }}
+									className="ap-body-strong"
+									style={{ marginTop: tile.figure ? "var(--ap-xs)" : 0 }}
 								>
-									Step {i + 1}
+									{tile.label}
 								</p>
-								<p
-									className="ap-tagline"
-									style={{ marginTop: "var(--ap-xxs)" }}
-								>
-									{s.title}
-								</p>
-								<p
-									className="ap-body"
-									style={{
-										marginTop: "var(--ap-xs)",
-										color: "var(--ap-body-muted)",
-									}}
-								>
-									{s.body}
-								</p>
+								{tile.body ? (
+									<p
+										className="ap-caption"
+										style={{
+											marginTop: "var(--ap-xxs)",
+											color: tile.dark
+												? "var(--ap-body-muted)"
+												: "var(--ap-ink-48)",
+										}}
+									>
+										{tile.body}
+									</p>
+								) : null}
 							</div>
 						))}
 					</div>
 				</div>
 			</section>
 
-			{/* ---- the assistant ---------------------------------------- */}
-			<section className="ap-tile ap-tile-light">
-				<div className="ap-inner" style={{ textAlign: "center" }}>
-					<h2 className="ap-display">Ask the school a question.</h2>
-					<p
-						className="ap-lead-airy"
-						style={{
-							marginTop: "var(--ap-md)",
-							color: "var(--ap-ink-80)",
-							maxWidth: 720,
-							marginInline: "auto",
-						}}
-					>
-						“How much did we collect this week?” “Who was absent in Form 2
-						today?” “Which parents still owe for this term?” The assistant reads
-						the same permission-checked data you do — so a teacher never sees the
-						finance answers a bursar sees.
-					</p>
-					<p
-						className="ap-body"
-						style={{
-							marginTop: "var(--ap-md)",
-							color: "var(--ap-ink-48)",
-							maxWidth: 720,
-							marginInline: "auto",
-						}}
-					>
-						It never invents a figure: every number comes from the same reports
-						that reconcile to the ledger. Anything that changes your data is
-						only ever proposed — nothing happens until a person presses confirm.
-					</p>
-					<div style={{ marginTop: "var(--ap-xxl)" }}>
-						<AppWindow
-							alt="The ATLAS assistant answering a question about fee collection"
-							caption="The assistant answers from the school's own data, and shows its source."
-							needs="/assistant with a fee-collection question answered"
-						/>
-					</div>
-				</div>
-			</section>
-
-			{/* ---- proof ------------------------------------------------ */}
-			<section className="ap-tile ap-tile-parchment">
+			{/* ---- how it works ----------------------------------------- */}
+			<section className="ap-tile ap-tile-parchment" id="how">
 				<div className="ap-inner-wide">
-					<h2 className="ap-display" style={{ textAlign: "center" }}>
-						Real screens, not mock-ups.
-					</h2>
-					<div
+					<div className="ap-head">
+						<div>
+							<p className="ap-eyebrow">Onboarding</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								From signing to running.
+							</h2>
+						</div>
+						<p className="ap-body" style={{ color: "var(--ap-ink-80)" }}>
+							These four happen in this order for a reason — parent SMS goes on
+							last, after balances are verified.
+						</p>
+					</div>
+
+					<ol
 						style={{
 							marginTop: "var(--ap-xxl)",
 							display: "grid",
-							gap: "var(--ap-xl)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+							gap: "var(--ap-lg)",
+							gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+							listStyle: "none",
+							padding: 0,
+							counterReset: "step",
 						}}
 					>
-						<AppWindow
-							alt="The debtors report, broken down class by class"
-							caption="Debtors, class by class — and one button to send every reminder."
-							height={1200}
-							needs="/finance/debtors as a bursar"
-							width={1900}
-						/>
-						<AppWindow
-							alt="Marking attendance for a class"
-							caption="Attendance for a whole stream, from a phone."
-							height={1200}
-							needs="/attendance with a class register open"
-							width={1900}
-						/>
-						<AppWindow
-							alt="A generated report card"
-							caption="Report cards generated from the marks teachers already entered."
-							height={1200}
-							needs="/students/[id]/report-card with a published term"
-							width={1900}
-						/>
-						<AppWindow
-							alt="An invoice with payments recorded against it"
-							caption="Every payment posts a balanced journal entry. Corrections are reversals."
-							height={1200}
-							needs="/finance/[id] invoice with payments"
-							width={1900}
-						/>
-					</div>
-					<p
-						className="ap-caption"
-						style={{
-							marginTop: "var(--ap-xl)",
-							textAlign: "center",
-						}}
-					>
-						<Link className="ap-link" href="/tour">
-							Look around on your own →
-						</Link>
-					</p>
+						{STEPS.map((s, i) => (
+							<li
+								key={s.title}
+								style={{
+									borderTop: "1px solid var(--ap-hairline)",
+									paddingTop: "var(--ap-md)",
+								}}
+							>
+								<span
+									className="ap-eyebrow"
+									style={{ color: "var(--ap-primary)" }}
+								>
+									Step {i + 1}
+								</span>
+								<p className="ap-tagline" style={{ marginTop: "var(--ap-xs)" }}>
+									{s.title}
+								</p>
+								<p
+									className="ap-caption"
+									style={{
+										marginTop: "var(--ap-xs)",
+										color: "var(--ap-ink-80)",
+									}}
+								>
+									{s.body}
+								</p>
+							</li>
+						))}
+					</ol>
 				</div>
 			</section>
 
 			{/* ---- pricing ---------------------------------------------- */}
 			<section className="ap-tile ap-tile-dark-2" id="pricing">
 				<div className="ap-inner" style={{ textAlign: "center" }}>
-					<h2 className="ap-display">One price. Everything in it.</h2>
+					<p className="ap-eyebrow">Pricing</p>
+					<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+						One price. Everything in it.
+					</h2>
 					<p
-						className="ap-hero"
-						style={{ marginTop: "var(--ap-lg)", fontSize: 48 }}
+						className="ap-figure"
+						style={{ fontSize: 56, marginTop: "var(--ap-lg)" }}
 					>
 						{fmtTZS(PRICE_TZS)}
 					</p>
@@ -357,27 +504,21 @@ export default function LandingPage() {
 						}}
 					>
 						A school with 500 students pays {fmtTZS(perStudentPerYear)} per
-						student per year — about {fmtTZS(perStudentPerMonth)} per student per
-						month, less than it costs to print their report cards. The{" "}
-						{FREE_SMS.toLocaleString("en-US")} included SMS alone are roughly
-						TZS 400,000 to 600,000 of messaging at market rates, so a meaningful
-						part of the fee comes straight back as something you already pay for.
+						student per year — about {fmtTZS(perStudentPerMonth)} a month, less
+						than it costs to print their report cards.
 					</p>
 
 					<ul
+						className="ap-check"
 						style={{
 							marginTop: "var(--ap-xxl)",
-							display: "grid",
-							gap: "var(--ap-xs)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-							listStyle: "none",
-							padding: 0,
 							textAlign: "left",
+							gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+							display: "grid",
 						}}
 					>
 						{INCLUSIONS.map((item) => (
 							<li className="ap-body" key={item}>
-								<span style={{ color: "var(--ap-primary-on-dark)" }}>✓ </span>
 								{item}
 							</li>
 						))}
@@ -393,13 +534,22 @@ export default function LandingPage() {
 
 			{/* ---- FAQ -------------------------------------------------- */}
 			<section className="ap-tile ap-tile-light" id="faq">
-				<div className="ap-inner">
-					<h2 className="ap-display">Questions we actually get.</h2>
+				<div className="ap-inner-wide">
+					<div className="ap-head">
+						<div>
+							<p className="ap-eyebrow">Questions</p>
+							<h2 className="ap-display" style={{ marginTop: "var(--ap-sm)" }}>
+								The ones we actually get.
+							</h2>
+						</div>
+					</div>
+
 					<div
 						style={{
 							marginTop: "var(--ap-xl)",
 							display: "grid",
 							gap: "var(--ap-lg)",
+							gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
 						}}
 					>
 						{FAQ.map((f) => (
@@ -427,14 +577,19 @@ export default function LandingPage() {
 			</section>
 
 			{/* ---- close ------------------------------------------------ */}
-			<section className="ap-tile ap-tile-parchment">
+			<section className="ap-tile ap-tile-dark-3">
 				<div className="ap-inner" style={{ textAlign: "center" }}>
-					<h2 className="ap-display">See it with your own school&apos;s numbers.</h2>
+					<h2 className="ap-hero">Start with your own numbers.</h2>
 					<p
 						className="ap-lead"
-						style={{ marginTop: "var(--ap-md)", color: "var(--ap-ink-80)" }}
+						style={{
+							marginTop: "var(--ap-md)",
+							color: "var(--ap-body-muted)",
+							maxWidth: 560,
+							marginInline: "auto",
+						}}
 					>
-						A demo takes about 30 minutes.
+						A demo takes about 30 minutes. Bring last term&apos;s fee register.
 					</p>
 					<div
 						style={{
@@ -451,6 +606,14 @@ export default function LandingPage() {
 						<Link className="ap-btn-ghost" href="/tour">
 							Look around first
 						</Link>
+					</div>
+					<div style={{ marginTop: "var(--ap-xxl)" }}>
+						<AppWindow
+							alt="ATLAS running a school day"
+							height={1200}
+							needs="/dashboard as a head teacher, demo tenant"
+							width={1900}
+						/>
 					</div>
 				</div>
 			</section>

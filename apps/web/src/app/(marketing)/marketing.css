@@ -450,3 +450,211 @@
 	outline: 2px solid var(--ap-primary-focus);
 	outline-offset: 2px;
 }
+
+/* ===================================================================== */
+/* Editorial structure — eyebrows, splits, cards, bento, role switcher    */
+/* ===================================================================== */
+
+/* Eyebrow: a monospace section label. ATLAS is a system of record —
+   ledgers, admission numbers, receipts — so the utility face carries the
+   section identity rather than a decorative glyph. */
+.atlas-marketing .ap-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ap-ink-48);
+}
+.atlas-marketing .ap-eyebrow::before {
+	content: "";
+	width: 18px;
+	height: 1px;
+	background: currentColor;
+}
+.atlas-marketing .ap-tile-dark .ap-eyebrow,
+.atlas-marketing .ap-tile-dark-2 .ap-eyebrow,
+.atlas-marketing .ap-tile-dark-3 .ap-eyebrow {
+	color: var(--ap-body-muted);
+}
+
+/* Section head: heading left, supporting paragraph right. Reading order
+   stays heading-then-body when it collapses. */
+.atlas-marketing .ap-head {
+	display: grid;
+	gap: var(--ap-lg);
+	grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+	align-items: end;
+}
+@media (max-width: 834px) {
+	.atlas-marketing .ap-head {
+		grid-template-columns: 1fr;
+		gap: var(--ap-sm);
+	}
+}
+
+/* Two-column split: copy one side, product window the other. */
+.atlas-marketing .ap-split {
+	display: grid;
+	gap: var(--ap-xxl);
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+	align-items: center;
+}
+.atlas-marketing .ap-split-reverse > :first-child {
+	order: 2;
+}
+@media (max-width: 900px) {
+	.atlas-marketing .ap-split {
+		grid-template-columns: 1fr;
+		gap: var(--ap-xl);
+	}
+	.atlas-marketing .ap-split-reverse > :first-child {
+		order: 0;
+	}
+}
+
+/* Feature card with a trailing arrow. No shadow — the hairline is enough. */
+.atlas-marketing .ap-feature {
+	display: flex;
+	flex-direction: column;
+	background: var(--ap-canvas);
+	border: 1px solid var(--ap-hairline);
+	border-radius: var(--ap-r-lg);
+	padding: var(--ap-lg);
+	min-height: 190px;
+}
+.atlas-marketing .ap-feature-arrow {
+	margin-top: auto;
+	padding-top: var(--ap-md);
+	color: var(--ap-primary);
+	font-size: 18px;
+	line-height: 1;
+}
+
+.atlas-marketing .ap-grid-4 {
+	display: grid;
+	gap: var(--ap-sm);
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.atlas-marketing .ap-grid-3 {
+	display: grid;
+	gap: var(--ap-sm);
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 1068px) {
+	.atlas-marketing .ap-grid-4 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 834px) {
+	.atlas-marketing .ap-grid-3 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 640px) {
+	.atlas-marketing .ap-grid-4,
+	.atlas-marketing .ap-grid-3 {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Bento — what is included, at mixed weights. Figures in the utility face. */
+.atlas-marketing .ap-bento {
+	display: grid;
+	gap: var(--ap-sm);
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.atlas-marketing .ap-bento > * {
+	grid-column: span 2;
+}
+.atlas-marketing .ap-bento > .ap-span-3 {
+	grid-column: span 3;
+}
+@media (max-width: 834px) {
+	.atlas-marketing .ap-bento {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.atlas-marketing .ap-bento > *,
+	.atlas-marketing .ap-bento > .ap-span-3 {
+		grid-column: span 1;
+	}
+}
+@media (max-width: 480px) {
+	.atlas-marketing .ap-bento {
+		grid-template-columns: 1fr;
+	}
+}
+
+.atlas-marketing .ap-figure {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 34px;
+	font-weight: 500;
+	line-height: 1.1;
+	letter-spacing: -0.03em;
+}
+
+/* Role switcher — the page's signature. Four people, four questions. */
+.atlas-marketing .ap-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--ap-xxs);
+	justify-content: center;
+}
+.atlas-marketing .ap-tab {
+	font-family: var(--ap-font-text);
+	font-size: 17px;
+	line-height: 1.2;
+	padding: 10px 20px;
+	min-height: 44px;
+	border: 1px solid transparent;
+	border-radius: var(--ap-r-pill);
+	background: transparent;
+	color: var(--ap-ink-48);
+	cursor: pointer;
+	transition: transform 0.15s ease;
+}
+.atlas-marketing .ap-tab:active {
+	transform: scale(0.95);
+}
+.atlas-marketing .ap-tab:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 2px;
+}
+.atlas-marketing .ap-tab[aria-selected="true"] {
+	background: var(--ap-ink);
+	color: var(--ap-on-dark);
+}
+
+/* Checklist used beside product windows. */
+.atlas-marketing .ap-check {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: var(--ap-xs);
+}
+.atlas-marketing .ap-check li {
+	display: grid;
+	grid-template-columns: 18px 1fr;
+	gap: var(--ap-xs);
+	align-items: start;
+}
+.atlas-marketing .ap-check li::before {
+	content: "✓";
+	color: var(--ap-primary);
+	line-height: 1.44;
+}
+.atlas-marketing .ap-tile-dark .ap-check li::before,
+.atlas-marketing .ap-tile-dark-2 .ap-check li::before {
+	color: var(--ap-primary-on-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.atlas-marketing * {
+		transition: none !important;
+		animation: none !important;
+	}
+}
