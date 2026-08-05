@@ -39,6 +39,7 @@ import { InventoryController } from './inventory/inventory.controller';
 import { ClinicController } from './clinic/clinic.controller';
 import { PayrollController } from './payroll/payroll.controller';
 import { AiController } from './ai/ai.controller';
+import { ProspectsController } from './prospects/prospects.controller';
 import { DevicesModule } from './devices/devices.module';
 import { AiToolsService } from './ai/ai-tools.service';
 import { AiActionsService } from './ai/ai-actions.service';
@@ -81,6 +82,7 @@ import { AiActionsService } from './ai/ai-actions.service';
     ClinicController,
     PayrollController,
     AiController,
+    ProspectsController,
   ],
   providers: [
     AppService,

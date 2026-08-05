@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,

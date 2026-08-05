@@ -402,3 +402,51 @@
 		font-size: 28px;
 	}
 }
+
+/* ===================================================================== */
+/* Inputs — search and the funnel. Pill geometry matches the CTA grammar. */
+/* ===================================================================== */
+
+.atlas-marketing .ap-input {
+	display: block;
+	width: 100%;
+	margin-top: var(--ap-xxs);
+	background: var(--ap-canvas);
+	color: var(--ap-ink);
+	font-family: var(--ap-font-text);
+	font-size: 17px;
+	line-height: 1.4;
+	padding: 12px 20px;
+	min-height: 44px;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: var(--ap-r-pill);
+}
+.atlas-marketing .ap-input:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 1px;
+	border-color: transparent;
+}
+
+/* An autocomplete result: a full-width tappable cell, 44px minimum. */
+.atlas-marketing .ap-option {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	width: 100%;
+	min-height: 44px;
+	text-align: left;
+	padding: 10px 20px;
+	background: var(--ap-canvas);
+	border: 1px solid var(--ap-hairline);
+	border-radius: var(--ap-r-md);
+	cursor: pointer;
+	transition: transform 0.15s ease;
+}
+.atlas-marketing .ap-option:active {
+	transform: scale(0.99);
+}
+.atlas-marketing .ap-option:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 2px;
+}

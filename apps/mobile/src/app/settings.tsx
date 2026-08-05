@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { Redirect } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 
 import { Card } from "@/components/card";
 import { Header } from "@/components/header";
@@ -10,7 +10,7 @@ import { Screen } from "@/components/screen";
 import { Symbol } from "@/components/symbol";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
-import { color, font, radius, space } from "@/lib/theme";
+import { color, font, space } from "@/lib/theme";
 
 export default function Settings() {
   const t = useT();
