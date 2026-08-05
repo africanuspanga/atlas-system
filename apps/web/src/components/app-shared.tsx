@@ -47,7 +47,7 @@ export type SidebarNavGroup = {
 export function buildNavGroups(t: Translator): SidebarNavGroup[] {
 	return [
 		{
-			items: [{ title: t("nav.overview"), path: "/", icon: <LayoutGridIcon /> }],
+			items: [{ title: t("nav.overview"), path: "/dashboard", icon: <LayoutGridIcon /> }],
 		},
 		{
 			label: t("nav.group.school"),
@@ -107,9 +107,9 @@ export function flattenNavItems(groups: SidebarNavGroup[]): SidebarNavItem[] {
 	);
 }
 
-/** Route-aware active check: exact for "/", prefix match elsewhere. */
+/** Route-aware active check: exact for the dashboard, prefix match elsewhere. */
 export function isNavItemActive(pathname: string, path?: string): boolean {
 	if (!path) return false;
-	if (path === "/") return pathname === "/";
+	if (path === "/dashboard") return pathname === "/dashboard";
 	return pathname === path || pathname.startsWith(`${path}/`);
 }

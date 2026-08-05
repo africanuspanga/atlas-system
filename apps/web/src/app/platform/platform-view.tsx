@@ -333,7 +333,7 @@ export function PlatformView() {
 				<p className="max-w-sm text-sm text-muted-foreground">
 					This area is for ATLAS platform staff only. Your account has no platform role.
 				</p>
-				<Button variant="outline" render={<Link href="/" />}>
+				<Button variant="outline" render={<Link href="/dashboard" />}>
 					Back to the school dashboard
 				</Button>
 			</div>

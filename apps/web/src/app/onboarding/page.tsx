@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
 	// Already a member of a school → straight to the dashboard.
 	const { data: tenants } = await getActiveTenants(supabase);
 	if (tenants && tenants.length > 0) {
-		redirect("/");
+		redirect("/dashboard");
 	}
 
 

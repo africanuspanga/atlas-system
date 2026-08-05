@@ -172,7 +172,7 @@ export function OnboardingWizard({ email }: { email: string }) {
 				return;
 			}
 
-			router.push("/");
+			router.push("/dashboard");
 			router.refresh();
 		} catch {
 			setError(t("onboard.apiUnreachable"));

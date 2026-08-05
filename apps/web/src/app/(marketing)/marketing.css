@@ -1,0 +1,404 @@
+/*
+ * ATLAS marketing design system — the Apple-derived visual language.
+ *
+ * SCOPED ON PURPOSE. Every token and class below lives under `.atlas-marketing`
+ * so the product dashboard keeps its own system (Atlas Blue #0052ff, weight-400
+ * headlines, 24px cards — see design.md). The two languages are deliberately
+ * different: marketing is photography-first and reverent, the product is dense
+ * and institutional. Do not hoist these into globals.css.
+ *
+ * Reference: docs/design-marketing.md
+ */
+
+.atlas-marketing {
+	/* ---- colour: one accent, and nothing else ------------------------- */
+	--ap-primary: #0066cc; /* every interactive element on light surfaces */
+	--ap-primary-focus: #0071e3; /* keyboard focus ring only */
+	--ap-primary-on-dark: #2997ff; /* in-copy links on dark tiles ONLY */
+
+	/* surfaces */
+	--ap-canvas: #ffffff;
+	--ap-parchment: #f5f5f7; /* the signature off-white */
+	--ap-pearl: #fafafc; /* ghost-button fill, lighter than parchment */
+	--ap-tile-1: #272729;
+	--ap-tile-2: #2a2a2c; /* micro-step lighter, for dark-on-dark */
+	--ap-tile-3: #252527; /* micro-step darker, bottom of stack */
+	--ap-black: #000000; /* global nav, video voids — true void only */
+	--ap-chip: rgba(210, 210, 215, 0.64);
+
+	/* text */
+	--ap-ink: #1d1d1f; /* headlines AND body — one near-black */
+	--ap-on-dark: #ffffff;
+	--ap-body-muted: #cccccc; /* secondary copy on dark tiles */
+	--ap-ink-80: #333333;
+	--ap-ink-48: #7a7a7a; /* disabled text, legal fine print */
+
+	/* hairlines */
+	--ap-divider-soft: rgba(0, 0, 0, 0.04);
+	--ap-hairline: #e0e0e0;
+
+	/* ---- type -------------------------------------------------------- */
+	/* system-ui first resolves to real SF Pro on macOS/iOS; Inter (already
+	   loaded by the root layout) is the closest open-source stand-in. */
+	--ap-font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+		system-ui, var(--font-inter), sans-serif;
+	--ap-font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
+		var(--font-inter), sans-serif;
+
+	/* ---- geometry ---------------------------------------------------- */
+	--ap-r-xs: 5px;
+	--ap-r-sm: 8px; /* dark utility buttons, inline card imagery */
+	--ap-r-md: 11px; /* pearl capsules */
+	--ap-r-lg: 18px; /* utility cards */
+	--ap-r-pill: 9999px; /* THE action signal */
+
+	/* ---- spacing (8px base) ------------------------------------------ */
+	--ap-xxs: 4px;
+	--ap-xs: 8px;
+	--ap-sm: 12px;
+	--ap-md: 17px;
+	--ap-lg: 24px;
+	--ap-xl: 32px;
+	--ap-xxl: 48px;
+	--ap-section: 80px;
+
+	/* ---- elevation ---------------------------------------------------
+	   Exactly ONE shadow exists in this system and it belongs to product
+	   photography resting on a surface. Never on cards, buttons or text. */
+	--ap-product-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+
+	background: var(--ap-canvas);
+	color: var(--ap-ink);
+	font-family: var(--ap-font-text);
+	/* Inter runs slightly wider than SF Pro — pull display tracking back. */
+	-webkit-font-smoothing: antialiased;
+}
+
+/* ===================================================================== */
+/* Typography                                                            */
+/* ===================================================================== */
+
+.atlas-marketing .ap-hero {
+	font-family: var(--ap-font-display);
+	font-size: 56px;
+	font-weight: 600; /* 600, never 700 — the Apple headline weight */
+	line-height: 1.07;
+	letter-spacing: -0.01em; /* the signature "Apple tight" cadence */
+}
+
+.atlas-marketing .ap-display {
+	font-family: var(--ap-font-display);
+	font-size: 40px;
+	font-weight: 600;
+	line-height: 1.1;
+	letter-spacing: -0.01em;
+}
+
+.atlas-marketing .ap-display-md {
+	font-family: var(--ap-font-display);
+	font-size: 34px;
+	font-weight: 600;
+	line-height: 1.2;
+	letter-spacing: -0.011em;
+}
+
+.atlas-marketing .ap-lead {
+	font-size: 28px;
+	font-weight: 400;
+	line-height: 1.14;
+	letter-spacing: 0.007em;
+}
+
+/* weight 300 is real and rare — an airy-atmosphere cue, used deliberately */
+.atlas-marketing .ap-lead-airy {
+	font-size: 24px;
+	font-weight: 300;
+	line-height: 1.5;
+}
+
+.atlas-marketing .ap-tagline {
+	font-size: 21px;
+	font-weight: 600;
+	line-height: 1.19;
+	letter-spacing: 0.011em;
+}
+
+/* body runs at 17px, not 16 — the extra pixel sets the reading pace */
+.atlas-marketing .ap-body {
+	font-size: 17px;
+	font-weight: 400;
+	line-height: 1.44; /* 1.47 in SF Pro; Inter's taller x-height needs less */
+	letter-spacing: -0.022em;
+}
+
+.atlas-marketing .ap-body-strong {
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.24;
+	letter-spacing: -0.022em;
+}
+
+.atlas-marketing .ap-caption {
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.43;
+	letter-spacing: -0.016em;
+}
+
+.atlas-marketing .ap-caption-strong {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.29;
+	letter-spacing: -0.016em;
+}
+
+.atlas-marketing .ap-fine {
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	color: var(--ap-ink-48);
+}
+
+/* ===================================================================== */
+/* Tiles — the color change IS the section divider. No borders, no gaps.  */
+/* ===================================================================== */
+
+.atlas-marketing .ap-tile {
+	padding: var(--ap-section) var(--ap-lg);
+	border-radius: 0; /* full-bleed tiles are never rounded */
+}
+.atlas-marketing .ap-tile-light {
+	background: var(--ap-canvas);
+	color: var(--ap-ink);
+}
+.atlas-marketing .ap-tile-parchment {
+	background: var(--ap-parchment);
+	color: var(--ap-ink);
+}
+.atlas-marketing .ap-tile-dark {
+	background: var(--ap-tile-1);
+	color: var(--ap-on-dark);
+}
+.atlas-marketing .ap-tile-dark-2 {
+	background: var(--ap-tile-2);
+	color: var(--ap-on-dark);
+}
+.atlas-marketing .ap-tile-dark-3 {
+	background: var(--ap-tile-3);
+	color: var(--ap-on-dark);
+}
+
+.atlas-marketing .ap-inner {
+	max-width: 980px;
+	margin-inline: auto;
+}
+.atlas-marketing .ap-inner-wide {
+	max-width: 1440px;
+	margin-inline: auto;
+}
+
+/* ===================================================================== */
+/* Buttons — two grammars: blue pill CTA, and compact utility rect        */
+/* ===================================================================== */
+
+.atlas-marketing .ap-btn,
+.atlas-marketing .ap-btn-ghost,
+.atlas-marketing .ap-btn-utility {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--ap-font-text);
+	cursor: pointer;
+	text-decoration: none;
+	border: 0;
+	transition: transform 0.15s ease;
+}
+
+/* the system-wide micro-interaction */
+.atlas-marketing .ap-btn:active,
+.atlas-marketing .ap-btn-ghost:active,
+.atlas-marketing .ap-btn-utility:active {
+	transform: scale(0.95);
+}
+.atlas-marketing .ap-btn:focus-visible,
+.atlas-marketing .ap-btn-ghost:focus-visible,
+.atlas-marketing .ap-btn-utility:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 2px;
+}
+
+.atlas-marketing .ap-btn {
+	background: var(--ap-primary);
+	color: #fff;
+	font-size: 17px;
+	line-height: 1.2;
+	padding: 11px 22px;
+	border-radius: var(--ap-r-pill); /* the full pill IS the action signal */
+	min-height: 44px;
+}
+
+.atlas-marketing .ap-btn-ghost {
+	background: transparent;
+	color: var(--ap-primary);
+	font-size: 17px;
+	line-height: 1.2;
+	padding: 11px 22px;
+	border: 1px solid var(--ap-primary);
+	border-radius: var(--ap-r-pill);
+	min-height: 44px;
+}
+
+.atlas-marketing .ap-btn-utility {
+	background: var(--ap-ink);
+	color: var(--ap-on-dark);
+	font-size: 14px;
+	line-height: 1.29;
+	letter-spacing: -0.016em;
+	padding: 8px 15px;
+	border-radius: var(--ap-r-sm);
+}
+
+.atlas-marketing .ap-link {
+	color: var(--ap-primary);
+	text-decoration: none;
+}
+.atlas-marketing .ap-link:hover {
+	text-decoration: underline;
+}
+/* Sky blue is the dark-tile variant ONLY — never on a light surface. */
+.atlas-marketing .ap-tile-dark .ap-link,
+.atlas-marketing .ap-tile-dark-2 .ap-link,
+.atlas-marketing .ap-tile-dark-3 .ap-link {
+	color: var(--ap-primary-on-dark);
+}
+
+/* ===================================================================== */
+/* Cards & imagery                                                       */
+/* ===================================================================== */
+
+.atlas-marketing .ap-card {
+	background: var(--ap-canvas);
+	border: 1px solid var(--ap-hairline);
+	border-radius: var(--ap-r-lg);
+	padding: var(--ap-lg);
+	/* no shadow by default — elevation comes from surface change */
+}
+
+/* The single drop-shadow in the system: product imagery resting on a tile. */
+.atlas-marketing .ap-shot {
+	border-radius: var(--ap-r-sm);
+	box-shadow: var(--ap-product-shadow);
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
+/* Browser chrome for product screenshots, per the brief: never a stock
+   illustration, always a real screen framed as a window. */
+.atlas-marketing .ap-window {
+	border-radius: var(--ap-r-lg);
+	overflow: hidden;
+	background: var(--ap-canvas);
+	box-shadow: var(--ap-product-shadow);
+}
+.atlas-marketing .ap-window-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 14px;
+	background: var(--ap-parchment);
+	border-bottom: 1px solid var(--ap-divider-soft);
+}
+.atlas-marketing .ap-window-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: #d2d2d7;
+}
+.atlas-marketing .ap-window img,
+.atlas-marketing .ap-window .ap-window-body {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+/* ===================================================================== */
+/* Navigation                                                            */
+/* ===================================================================== */
+
+.atlas-marketing .ap-globalnav {
+	background: var(--ap-black); /* the only place pure black appears */
+	color: var(--ap-on-dark);
+	height: 44px;
+}
+.atlas-marketing .ap-navlink {
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: -0.01em;
+	color: var(--ap-on-dark);
+	text-decoration: none;
+	opacity: 0.88;
+}
+.atlas-marketing .ap-navlink:hover {
+	opacity: 1;
+}
+
+.atlas-marketing .ap-subnav {
+	background: color-mix(in srgb, var(--ap-parchment) 80%, transparent);
+	backdrop-filter: saturate(180%) blur(20px);
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+	border-bottom: 1px solid var(--ap-divider-soft);
+	height: 52px;
+}
+
+.atlas-marketing .ap-footer {
+	background: var(--ap-parchment);
+	color: var(--ap-ink-80);
+	padding-block: 64px;
+}
+/* the relaxed leading is what makes the dense footer columns scannable */
+.atlas-marketing .ap-footer-link {
+	font-size: 14px;
+	line-height: 2.2;
+	color: var(--ap-ink-80);
+	text-decoration: none;
+	display: block;
+}
+.atlas-marketing .ap-footer-link:hover {
+	text-decoration: underline;
+}
+
+/* ===================================================================== */
+/* Responsive — hero steps 56 -> 40 -> 34 -> 28                          */
+/* ===================================================================== */
+
+@media (max-width: 1068px) {
+	.atlas-marketing .ap-hero {
+		font-size: 40px;
+	}
+}
+@media (max-width: 834px) {
+	.atlas-marketing .ap-tile {
+		padding: 56px var(--ap-lg);
+	}
+	.atlas-marketing .ap-display {
+		font-size: 32px;
+	}
+	.atlas-marketing .ap-lead {
+		font-size: 22px;
+	}
+}
+@media (max-width: 640px) {
+	.atlas-marketing .ap-hero {
+		font-size: 34px;
+	}
+	.atlas-marketing .ap-tile {
+		padding: 48px var(--ap-md);
+	}
+}
+@media (max-width: 419px) {
+	.atlas-marketing .ap-hero {
+		font-size: 28px;
+	}
+}

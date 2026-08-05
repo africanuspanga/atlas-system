@@ -25,7 +25,7 @@ export function AppSidebar({
 	return (
 		<Sidebar collapsible="icon" variant="inset">
 			<SidebarHeader className="h-14 justify-center">
-				<SidebarMenuButton render={<Link href="/" />}>
+				<SidebarMenuButton render={<Link href="/dashboard" />}>
 					<LogoIcon />
 					<span className="flex min-w-0 flex-col leading-tight">
 						<span className="font-semibold tracking-tight">ATLAS</span>
