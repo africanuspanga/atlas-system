@@ -658,3 +658,85 @@
 		animation: none !important;
 	}
 }
+
+/* ===================================================================== */
+/* Legal prose — terms, privacy. Narrow measure, generous leading.        */
+/* ===================================================================== */
+
+.atlas-marketing .ap-legal {
+	max-width: 680px;
+}
+.atlas-marketing .ap-legal h2 {
+	font-family: var(--ap-font-display);
+	font-size: 28px;
+	font-weight: 600;
+	line-height: 1.2;
+	letter-spacing: -0.011em;
+	margin-top: var(--ap-xxl);
+}
+.atlas-marketing .ap-legal h3 {
+	font-size: 17px;
+	font-weight: 600;
+	line-height: 1.24;
+	letter-spacing: -0.022em;
+	margin-top: var(--ap-lg);
+}
+.atlas-marketing .ap-legal p,
+.atlas-marketing .ap-legal li {
+	font-size: 17px;
+	font-weight: 400;
+	line-height: 1.55;
+	letter-spacing: -0.022em;
+	color: var(--ap-ink-80);
+}
+.atlas-marketing .ap-legal p {
+	margin-top: var(--ap-md);
+}
+.atlas-marketing .ap-legal ul,
+.atlas-marketing .ap-legal ol {
+	margin-top: var(--ap-md);
+	padding-left: 1.3em;
+	display: grid;
+	gap: var(--ap-xs);
+}
+.atlas-marketing .ap-legal table {
+	width: 100%;
+	margin-top: var(--ap-md);
+	border-collapse: collapse;
+	font-size: 15px;
+}
+.atlas-marketing .ap-legal th,
+.atlas-marketing .ap-legal td {
+	text-align: left;
+	vertical-align: top;
+	padding: 10px 12px 10px 0;
+	border-bottom: 1px solid var(--ap-hairline);
+	letter-spacing: -0.016em;
+}
+.atlas-marketing .ap-legal th {
+	font-weight: 600;
+	color: var(--ap-ink);
+}
+.atlas-marketing .ap-legal td {
+	color: var(--ap-ink-80);
+}
+
+/* A draft banner the owner removes once counsel has signed the page off.
+   Deliberately loud: an unreviewed legal page reading as final is worse than
+   no page at all. */
+.atlas-marketing .ap-draft {
+	border: 1px solid var(--ap-primary);
+	border-radius: var(--ap-r-lg);
+	padding: var(--ap-md) var(--ap-lg);
+	background: var(--ap-parchment);
+}
+
+/* Anything the owner must fill in before publishing. */
+.atlas-marketing .ap-todo {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 0.9em;
+	background: rgba(0, 102, 204, 0.08);
+	border-bottom: 1px solid var(--ap-primary);
+	padding: 1px 4px;
+	border-radius: 3px;
+}

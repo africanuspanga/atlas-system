@@ -24,5 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			lastModified: new Date(`${a.published}T00:00:00Z`),
 			priority: 0.6,
 		})),
+		{ url: `${base}/terms`, lastModified: now, priority: 0.3 },
+		{ url: `${base}/privacy`, lastModified: now, priority: 0.3 },
 	];
 }
