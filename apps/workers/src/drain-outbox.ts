@@ -1,8 +1,8 @@
 /**
  * Notification outbox drain — no Redis required. Polls pending rows in
  * public.notification_outbox and delivers them through the configured SMS
- * driver. A database RPC atomically applies the tenant's monthly SMS limit and
- * claims pending→sending. Only a successful provider response marks a row sent;
+ * driver. A database RPC atomically applies the tenant's SMS allowance —
+ * included annual first, then purchased bundles — and claims pending→sending. Only a successful provider response marks a row sent;
  * stale claims recover after 10 minutes.
  *
  * Usage:
@@ -123,7 +123,8 @@ export async function drainOnce(): Promise<{ sent: number; failed: number }> {
     let attemptedDelivery = 0;
     for (const row of rows as Array<{ id: string }>) {
       // claim_notification serialises usage checks per tenant, so multiple
-      // worker replicas cannot race past the plan's smsMonthly allowance.
+      // worker replicas cannot race past the allowance. It spends the plan's
+      // included annual SMS first, then any purchased bundles (migration 0035).
       const { data, error: claimError } = await supabase.rpc(
         "claim_notification",
         { p_id: row.id },

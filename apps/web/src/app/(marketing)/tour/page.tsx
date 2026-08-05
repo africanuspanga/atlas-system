@@ -25,7 +25,7 @@ const STOPS = [
 		title: "The dashboard",
 		body: "Today's attendance, this month's collections and what is still outstanding — the screen a head teacher can answer a board question from.",
 		alt: "The ATLAS dashboard",
-		needs: "/dashboard as a head teacher, demo tenant",
+		src: "/screenshots/dashboard.png",
 	},
 	{
 		title: "Debtors, class by class",
@@ -106,10 +106,11 @@ export default function TourPage() {
 						<div style={{ marginTop: "var(--ap-xl)" }}>
 							<AppWindow
 								alt={stop.alt}
-								height={1200}
-								needs={stop.needs}
+								height={"src" in stop && stop.src ? 675 : 1200}
+								needs={"needs" in stop ? stop.needs : undefined}
 								priority={i === 0}
-								width={1900}
+								src={"src" in stop ? stop.src : undefined}
+								width={"src" in stop && stop.src ? 1568 : 1900}
 							/>
 						</div>
 					</div>

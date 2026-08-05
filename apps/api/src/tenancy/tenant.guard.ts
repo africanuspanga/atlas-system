@@ -26,7 +26,10 @@ export interface TenantEntitlements {
     students: number | null;
     staff: number | null;
     campuses: number | null;
-    smsMonthly: number | null;
+    /** Legacy, ignored since migration 0035 — remove once no environment reads it. */
+    smsMonthly?: number | null;
+    /** SMS the annual subscription includes. Purchased bundles are added on top. */
+    smsIncludedYear: number | null;
   };
   features: Record<string, boolean>;
   usage: {

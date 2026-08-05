@@ -110,8 +110,10 @@ export default function LandingPage() {
 					<div style={{ marginTop: "var(--ap-xxl)" }}>
 						<AppWindow
 							alt="The ATLAS dashboard showing today's attendance, fee collection and outstanding balances"
-							needs="/dashboard as a head teacher, demo tenant"
+							height={675}
 							priority
+							src="/screenshots/dashboard.png"
+							width={1568}
 						/>
 					</div>
 				</div>
@@ -610,9 +612,9 @@ export default function LandingPage() {
 					<div style={{ marginTop: "var(--ap-xxl)" }}>
 						<AppWindow
 							alt="ATLAS running a school day"
-							height={1200}
-							needs="/dashboard as a head teacher, demo tenant"
-							width={1900}
+							height={675}
+							src="/screenshots/dashboard.png"
+							width={1568}
 						/>
 					</div>
 				</div>

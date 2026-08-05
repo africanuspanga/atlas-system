@@ -5,10 +5,10 @@ import { MODULES } from "./content";
 import { AppWindow } from "./shot";
 
 /** The screen that answers each role's question. */
-const SHOTS: Record<string, { alt: string; needs: string }> = {
+const SHOTS: Record<string, { alt: string; needs?: string; src?: string }> = {
 	"Head teacher": {
 		alt: "The ATLAS dashboard",
-		needs: "/dashboard as a head teacher, demo tenant",
+		src: "/screenshots/dashboard.png",
 	},
 	Accountant: {
 		alt: "The debtors report, class by class",
@@ -76,9 +76,10 @@ export function RoleSwitcher() {
 					</div>
 					<AppWindow
 						alt={shot.alt}
-						height={1200}
+						height={shot.src ? 675 : 1200}
 						needs={shot.needs}
-						width={1900}
+						src={shot.src}
+						width={shot.src ? 1568 : 1900}
 					/>
 				</div>
 			</div>

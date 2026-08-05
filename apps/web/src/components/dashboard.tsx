@@ -30,7 +30,11 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { formatChartAxisTick, formatChartTooltipDate } from "@/components/formater";
+import {
+	formatChartAmountTick,
+	formatChartAxisTick,
+	formatChartTooltipDate,
+} from "@/components/formater";
 import { getDict } from "@/i18n";
 
 export interface DashboardData {
@@ -210,9 +214,10 @@ export function Dashboard({ data }: { data: DashboardData }) {
 								<YAxis
 									axisLine={false}
 									tick={{ className: "tabular-nums" }}
+									tickFormatter={(value) => formatChartAmountTick(Number(value))}
 									tickLine={false}
 									tickMargin={8}
-									width={64}
+									width={52}
 								/>
 								<ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
 								<Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />

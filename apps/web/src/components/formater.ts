@@ -25,6 +25,19 @@ export function formatDate(isoDate: string, style: DashboardDateStyle): string {
 	});
 }
 
+/**
+ * Y-axis for money charts. TZS figures run to hundreds of millions, and a raw
+ * `202966000` overflows the axis gutter and renders clipped — the tail of the
+ * number reads as "0000000", which looks like a broken chart. Compact it.
+ */
+export function formatChartAmountTick(value: number): string {
+	const abs = Math.abs(value);
+	if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+	if (abs >= 1_000_000) return `${Math.round(value / 1_000_000)}M`;
+	if (abs >= 1_000) return `${Math.round(value / 1_000)}k`;
+	return String(value);
+}
+
 /** X-axis for range charts: weekday when showing ~a week, otherwise month + day. */
 export function formatChartAxisTick(
 	isoDate: string,
