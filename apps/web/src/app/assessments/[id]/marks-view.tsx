@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +57,6 @@ export function MarksView({
 	subjectId,
 	roster,
 	scores,
-	lang,
 }: {
 	tenantId: string;
 	assessment: AssessmentInfo;
@@ -65,9 +64,8 @@ export function MarksView({
 	subjectId: string | null;
 	roster: StudentRow[];
 	scores: ScoreRow[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
 	const [publishPending, setPublishPending] = useState(false);
@@ -200,7 +198,7 @@ export function MarksView({
 						<option value="">{t("assessments.selectSubject")}</option>
 						{subjects.map((s) => (
 							<option key={s.id} value={s.id}>
-								{s.code} — {lang === "sw" && s.name_sw ? s.name_sw : s.name}
+								{s.code} — {s.name}
 							</option>
 						))}
 					</select>

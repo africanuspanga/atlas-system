@@ -4,8 +4,8 @@ Tanzania-first multi-tenant school SaaS. pnpm + Turborepo monorepo:
 `apps/web` (Next.js 16, App Router), `apps/api` (NestJS 11, port 4000),
 `apps/workers` (BullMQ + standalone DB pollers), `apps/mobile` (Expo SDK 57 +
 expo-router native iOS/Android app — see its README for dev/EAS),
-`packages/i18n` (shared EN+SW dictionaries — web re-exports it, keep key
-sets mirrored), `supabase/migrations`.
+`packages/i18n` (shared English string catalogue — web re-exports it),
+`supabase/migrations`.
 Operator/role docs: `docs/ADMIN_GUIDE.md`. Audit history/specs: `docs/audit/`.
 Sales/GTM: `docs/sales/` (playbook + founding-schools offer, EN+SW).
 Visual language: `design.md` at repo root (Atlas Blue #0052ff, Inter +
@@ -238,8 +238,8 @@ onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
   silently. Paginate with `.range()` and a deterministic `.order()`
   (`readAllPages` in `imports.controller.ts` is the reference).
 - Business errors must be `{ code: 'STABLE_CODE' }`, never a bare string —
-  both error maps key off `code`, so a message-only exception renders as raw
-  English to a Swahili user.
+  both error maps key off `code`, so a message-only exception bypasses the
+  string catalogue and ships unreviewed copy to users.
 - Adding an AI action is not enough: `SYSTEM_PROMPT` rule 9 in `ai.controller.ts`
   enumerates what the model may never do, and a stale entry there makes it
   refuse a capability it now has.
@@ -259,11 +259,16 @@ onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
 - macOS has no `timeout`; the dev DB direct host doesn't resolve — use the
   session pooler (`DATABASE_URL`); psql/pg_dump live under
   `/usr/local/opt/postgresql@17/bin`.
-- New user-facing strings get EN + SW keys in `packages/i18n/src/index.ts`
-  (shared by web AND mobile; `apps/web/src/i18n/index.ts` is only a
-  re-export — don't add keys there). Keep both key sets exactly mirrored.
-  Exception: students-import `TEMPLATE_HEADERS` stay English — they're the
-  Excel re-import contract.
+- **ATLAS is English-only.** There is one dictionary, no `Lang` type, no
+  language cookie and no switcher. New user-facing strings get an English key
+  in `packages/i18n/src/index.ts` (shared by web AND mobile;
+  `apps/web/src/i18n/index.ts` is only a re-export — don't add keys there).
+  Deliberately kept despite the English-only rule, because they are data or
+  input tolerance rather than UI language: the `subjects.name_sw` /
+  `assessments.name_sw` columns, "Kiswahili" as a taught subject in
+  `subjects.presets.ts` and the HKL combination, and the Swahili spreadsheet
+  header aliases in `imports/import-domains.ts` (schools' existing Excel files
+  really do have `jina la mwanafunzi` headers — removing these breaks import).
 - Mobile/Metro on pnpm: hierarchical lookup must stay ENABLED in
   `apps/mobile/metro.config.js` (transitive deps like `@expo/metro-runtime`
   resolve by walking up from realpaths in `node_modules/.pnpm`;

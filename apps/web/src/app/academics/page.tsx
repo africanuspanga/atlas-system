@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	AcademicsView,
 	type GradeLevelRow,
@@ -102,7 +101,6 @@ export default async function AcademicsPage() {
 		canManageAcademics = keys.has("academics.manage");
 	}
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
@@ -111,7 +109,6 @@ export default async function AcademicsPage() {
 				canManage={canManageAcademics}
 				canManageCombinations={canManageCombinations}
 				gradeLevels={(gradeLevels ?? []) as unknown as GradeLevelRow[]}
-				lang={lang}
 				sections={(sections ?? []) as unknown as SectionRow[]}
 				subjects={(subjects ?? []) as unknown as SubjectRow[]}
 				tenantId={tenant.id}

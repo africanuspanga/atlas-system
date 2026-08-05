@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,14 +58,12 @@ export function ParentsView({
 	guardians,
 	total,
 	tenantId,
-	lang,
 }: {
 	guardians: GuardianRow[];
 	total: number;
 	tenantId: string;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [rows, setRows] = useState<GuardianRow[]>(guardians);
 	const [count, setCount] = useState(total);
 	const [page, setPage] = useState(0);

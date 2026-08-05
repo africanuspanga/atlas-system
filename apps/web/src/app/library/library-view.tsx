@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpenIcon, PlusIcon, Undo2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { dateInTanzaniaAfterDays } from "@/lib/tanzania-date";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -83,15 +83,13 @@ export function LibraryView({
 	students,
 	subjects,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
 	subjects: SubjectOption[];
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [books, setBooks] = useState<BookRow[]>([]);
 	const [overdue, setOverdue] = useState<OverdueRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
@@ -227,7 +225,6 @@ export function LibraryView({
 									<OverdueLoanRow
 										canManage={canManage}
 										key={loan.loanId}
-										lang={lang}
 										loan={loan}
 										onChanged={reload}
 										tenantId={tenantId}
@@ -241,7 +238,6 @@ export function LibraryView({
 
 			{canManage && (
 				<AddBookDialog
-					lang={lang}
 					onClose={() => setAddOpen(false)}
 					onSaved={async () => {
 						setAddOpen(false);
@@ -256,7 +252,6 @@ export function LibraryView({
 				<LoanDialog
 					books={books}
 					key={loanOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setLoanOpen(false)}
 					onSaved={async () => {
 						setLoanOpen(false);
@@ -271,7 +266,6 @@ export function LibraryView({
 				<BookLoansDialog
 					book={openBook}
 					canManage={canManage}
-					lang={lang}
 					onChanged={reload}
 					onClose={() => setOpenBook(null)}
 					tenantId={tenantId}
@@ -286,15 +280,13 @@ function OverdueLoanRow({
 	loan,
 	canManage,
 	onChanged,
-	lang,
 }: {
 	tenantId: string;
 	loan: OverdueRow;
 	canManage: boolean;
 	onChanged: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [pending, setPending] = useState(false);
 
 	async function returnLoan() {
@@ -340,16 +332,14 @@ function AddBookDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	subjects: SubjectOption[];
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [code, setCode] = useState("");
 	const [title, setTitle] = useState("");
 	const [author, setAuthor] = useState("");
@@ -463,7 +453,6 @@ function LoanDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
@@ -471,9 +460,8 @@ function LoanDialog({
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [query, setQuery] = useState("");
 	const [studentId, setStudentId] = useState("");
 	const [bookId, setBookId] = useState("");
@@ -596,16 +584,14 @@ function BookLoansDialog({
 	canManage,
 	onClose,
 	onChanged,
-	lang,
 }: {
 	tenantId: string;
 	book: BookRow;
 	canManage: boolean;
 	onClose: () => void;
 	onChanged: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [loans, setLoans] = useState<BookLoan[] | null>(null);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);

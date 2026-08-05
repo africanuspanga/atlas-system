@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,12 +42,10 @@ function fmt(amount: number) {
  */
 export function TrialBalanceCard({
 	tenantId,
-	lang,
 }: {
 	tenantId: string;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [report, setReport] = useState<TrialBalance | null>(null);
 	const [loaded, setLoaded] = useState(false);
 	const [error, setError] = useState<string | null>(null);

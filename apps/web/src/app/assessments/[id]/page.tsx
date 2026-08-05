@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	MarksView,
 	type AssessmentInfo,
@@ -85,7 +84,6 @@ export default async function MarksPage({
 			`${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`),
 		);
 
-	const { lang } = await getServerDict();
 
 	const info: AssessmentInfo = {
 		id: assessment.id,
@@ -101,7 +99,6 @@ export default async function MarksPage({
 			<MarksView
 				key={`${id}:${subjectId ?? "none"}`}
 				assessment={info}
-				lang={lang}
 				roster={roster}
 				scores={scores}
 				subjectId={subjectId}

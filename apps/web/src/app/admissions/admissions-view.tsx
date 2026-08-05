@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,14 +51,12 @@ export function AdmissionsView({
 	students,
 	total,
 	tenantId,
-	lang,
 }: {
 	students: AdmissionRow[];
 	total: number;
 	tenantId: string;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [rows, setRows] = useState<AdmissionRow[]>(students.slice(0, PAGE_SIZE));
 	const [count, setCount] = useState(total);
 	const [page, setPage] = useState(0);

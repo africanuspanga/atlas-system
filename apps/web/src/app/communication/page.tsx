@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	CommunicationView,
 	type AnnouncementRow,
@@ -75,13 +74,11 @@ export default async function CommunicationPage() {
 		};
 	});
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<CommunicationView
 				announcements={rows}
-				lang={lang}
 				outbox={stats}
 				sections={sectionOptions}
 				tenantId={tenant.id}

@@ -1,13 +1,9 @@
-import { cookies } from "next/headers";
-import { getDict, LANG_COOKIE, type Lang } from "./index";
+import { getDict } from "./index";
 
-export async function getLang(): Promise<Lang> {
-	const store = await cookies();
-	const value = store.get(LANG_COOKIE)?.value;
-	return value === "sw" ? "sw" : "en";
-}
-
+/**
+ * Server-side translator. ATLAS is English-only, so this is a thin wrapper kept
+ * so server components have one import path for copy.
+ */
 export async function getServerDict() {
-	const lang = await getLang();
-	return { lang, t: getDict(lang) };
+	return { t: getDict() };
 }

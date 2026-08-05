@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { StudentsView, type SectionOption, type StudentListRow } from "./students-view";
 
 export const metadata = { title: "Students" };
@@ -81,7 +80,6 @@ export default async function StudentsPage() {
 		canArchive = keys.has("students.archive");
 	}
 
-	const { lang } = await getServerDict();
 
 	// Newest year first, then grade order, then stream label — the same reading
 	// order the class-placement picker groups by.
@@ -113,7 +111,6 @@ export default async function StudentsPage() {
 			<StudentsView
 				canArchive={canArchive}
 				canUpdate={canUpdate}
-				lang={lang}
 				sections={sectionOptions}
 				students={(students ?? []) as unknown as StudentListRow[]}
 				tenantId={tenant.id}

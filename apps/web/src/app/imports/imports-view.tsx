@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { UploadIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,8 +74,8 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 	cancelled: "outline",
 };
 
-export function ImportsView({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+export function ImportsView({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const [jobs, setJobs] = useState<JobRow[]>([]);
 	const [domain, setDomain] = useState("students");
 	const [pending, setPending] = useState(false);

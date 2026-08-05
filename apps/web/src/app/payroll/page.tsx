@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { PayrollView } from "./payroll-view";
 
 export const metadata = { title: "Payroll" };
@@ -48,11 +47,10 @@ export default async function PayrollPage() {
 		canManage = (perms ?? []).length > 0;
 	}
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
-			<PayrollView canManage={canManage} lang={lang} tenantId={tenant.id} />
+			<PayrollView canManage={canManage} tenantId={tenant.id} />
 		</AppShell>
 	);
 }

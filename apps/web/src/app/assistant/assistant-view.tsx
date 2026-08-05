@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,14 +38,12 @@ interface ChatMessage {
 
 export function AssistantView({
 	tenantId,
-	lang,
 	embedded = false,
 }: {
 	tenantId: string;
-	lang: Lang;
 	embedded?: boolean;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const suggestions = [
 		t("assistant.suggestion1"),
 		t("assistant.suggestion2"),

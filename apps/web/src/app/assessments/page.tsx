@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	AssessmentsView,
 	type AssessmentRow,
@@ -67,13 +66,11 @@ export default async function AssessmentsPage() {
 		.sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label))
 		.map(({ id, label }) => ({ id, label }));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<AssessmentsView
 				assessments={(assessments ?? []) as unknown as AssessmentRow[]}
-				lang={lang}
 				sections={sectionOptions}
 				subjects={(subjects ?? []) as unknown as SubjectRow[]}
 				tenantId={tenant.id}

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { TransportView, type StudentOption } from "./transport-view";
 
 export const metadata = { title: "Transport" };
@@ -68,14 +67,12 @@ export default async function TransportPage() {
 		name: `${s.first_name} ${s.last_name}`,
 	}));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<TransportView
 				academicYear={(years ?? [])[0] ?? null}
 				canManage={canManage}
-				lang={lang}
 				students={studentOptions}
 				tenantId={tenant.id}
 			/>

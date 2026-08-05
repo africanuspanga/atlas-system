@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { UserPlusIcon, CopyIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -53,8 +53,8 @@ interface Invitation {
 	expires_at: string;
 }
 
-export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+export function StaffView({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const [members, setMembers] = useState<Member[]>([]);
 	const [invitations, setInvitations] = useState<Invitation[]>([]);
 	const [loaded, setLoaded] = useState(false);
@@ -92,7 +92,7 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
 				<h1 className="text-xl font-semibold">{t("staff.title")}</h1>
-				<InviteDialog lang={lang} onCreated={reload} tenantId={tenantId} />
+				<InviteDialog onCreated={reload} tenantId={tenantId} />
 			</div>
 			{loadError && (
 				<div className="flex items-center gap-3" role="alert">
@@ -170,14 +170,12 @@ export function StaffView({ tenantId, lang }: { tenantId: string; lang: Lang }) 
 
 function InviteDialog({
 	tenantId,
-	lang,
 	onCreated,
 }: {
 	tenantId: string;
-	lang: Lang;
 	onCreated: () => Promise<void>;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [open, setOpen] = useState(false);
 	const [email, setEmail] = useState("");
 	const [roles, setRoles] = useState<string[]>(["teacher"]);

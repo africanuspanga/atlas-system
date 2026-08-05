@@ -3,11 +3,11 @@
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { XIcon } from "lucide-react";
 
-export function LatestChange({ lang = "en" }: { lang?: Lang }) {
-	const t = getDict(lang);
+export function LatestChange() {
+	const t = getDict();
 	// Keep descriptions to a single short line (max ~5 words).
 	const latestChange = {
 		badge: t("pilot.badge"),

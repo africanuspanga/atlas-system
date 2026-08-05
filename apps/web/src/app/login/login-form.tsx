@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/safe-redirect";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,8 +24,8 @@ type Mode = "signin" | "signup";
 const DEMO_EMAIL = "demo@chiefsarwatt.sc.tz";
 const DEMO_PASSWORD = "DemoAtlas2026!";
 
-export function LoginForm({ lang }: { lang: Lang }) {
-	const t = getDict(lang);
+export function LoginForm() {
+	const t = getDict();
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [mode, setMode] = useState<Mode>("signin");

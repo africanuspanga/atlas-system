@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { HostelView, type StudentOption } from "./hostel-view";
 
 export const metadata = { title: "Hostel" };
@@ -70,14 +69,12 @@ export default async function HostelPage() {
 		boardingStatus: s.boarding_status,
 	}));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<HostelView
 				academicYear={(years ?? [])[0] ?? null}
 				canManage={canManage}
-				lang={lang}
 				students={studentOptions}
 				tenantId={tenant.id}
 			/>

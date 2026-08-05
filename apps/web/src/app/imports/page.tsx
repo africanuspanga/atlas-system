@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { ImportsView } from "./imports-view";
 
 export const metadata = { title: "Data Import" };
@@ -16,11 +15,10 @@ export default async function ImportsPage() {
 
 	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenants[0].name}>
-			<ImportsView lang={lang} tenantId={tenants[0].id} />
+			<ImportsView tenantId={tenants[0].id} />
 		</AppShell>
 	);
 }

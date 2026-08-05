@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { StaffView } from "./staff-view";
 
 export const metadata = { title: "Staff" };
@@ -16,11 +15,10 @@ export default async function StaffPage() {
 
 	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenants[0].name}>
-			<StaffView lang={lang} tenantId={tenants[0].id} />
+			<StaffView tenantId={tenants[0].id} />
 		</AppShell>
 	);
 }

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { AdmissionsView, type AdmissionRow } from "./admissions-view";
 
 export const metadata = { title: "Admissions" };
@@ -32,12 +31,10 @@ export default async function AdmissionsPage() {
 		.order("created_at", { ascending: false })
 		.range(0, 999);
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<AdmissionsView
-				lang={lang}
 				students={(students ?? []) as unknown as AdmissionRow[]}
 				tenantId={tenant.id as string}
 				total={count ?? (students ?? []).length}

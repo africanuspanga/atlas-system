@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BanknoteIcon, PlayIcon, SettingsIcon, Trash2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -105,13 +105,11 @@ function fmtTZS(amount: number) {
 export function PayrollView({
 	tenantId,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [salaries, setSalaries] = useState<SalaryRow[]>([]);
 	const [runs, setRuns] = useState<RunRow[]>([]);
 	const [staff, setStaff] = useState<StaffOption[]>([]);
@@ -386,7 +384,6 @@ export function PayrollView({
 			{canManage && (
 				<SetSalaryDialog
 					key={salaryOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setSalaryOpen(false)}
 					onSaved={async () => {
 						setSalaryOpen(false);
@@ -400,7 +397,6 @@ export function PayrollView({
 			{canManage && (
 				<RunPayrollDialog
 					key={runOpen ? "run-open" : "run-closed"}
-					lang={lang}
 					onClose={() => setRunOpen(false)}
 					onSaved={async () => {
 						setRunOpen(false);
@@ -414,7 +410,6 @@ export function PayrollView({
 				<RunDetailDialog
 					canManage={canManage}
 					detail={detail}
-					lang={lang}
 					onClose={() => setDetail(null)}
 					onPosted={async () => {
 						setDetail(null);
@@ -426,7 +421,6 @@ export function PayrollView({
 			{canManage && settingsOpen && (
 				<StatutoryRatesDialog
 					key="settings-open"
-					lang={lang}
 					onClose={() => setSettingsOpen(false)}
 					tenantId={tenantId}
 				/>
@@ -489,16 +483,14 @@ function SetSalaryDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	staff: StaffOption[];
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [query, setQuery] = useState("");
 	const [userId, setUserId] = useState("");
 	const [basic, setBasic] = useState("");
@@ -634,15 +626,13 @@ function RunPayrollDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -707,16 +697,14 @@ function RunDetailDialog({
 	canManage,
 	onClose,
 	onPosted,
-	lang,
 }: {
 	tenantId: string;
 	detail: RunDetail;
 	canManage: boolean;
 	onClose: () => void;
 	onPosted: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [confirming, setConfirming] = useState(false);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -866,13 +854,11 @@ function RunDetailDialog({
 function StatutoryRatesDialog({
 	tenantId,
 	onClose,
-	lang,
 }: {
 	tenantId: string;
 	onClose: () => void;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [rates, setRates] = useState<StatutoryRates | null>(null);
 	const [verifiedAt, setVerifiedAt] = useState<string | null>(null);
 	const [verifiedBy, setVerifiedBy] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -210,7 +210,6 @@ export function StudentsView({
 	sections,
 	canUpdate,
 	canArchive,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentListRow[];
@@ -220,9 +219,8 @@ export function StudentsView({
 	canUpdate: boolean;
 	/** students.archive — additionally required for the terminal statuses. */
 	canArchive: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [rows, setRows] = useState<StudentListRow[]>(students);
 	const [count, setCount] = useState(total);
 	const [page, setPage] = useState(0);
@@ -298,8 +296,8 @@ export function StudentsView({
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h1 className="text-xl font-semibold">{t("students.title")}</h1>
 				<div className="flex gap-2">
-					<ImportDialog lang={lang} tenantId={tenantId} />
-					<AddStudentDialog lang={lang} sections={sections} tenantId={tenantId} />
+					<ImportDialog tenantId={tenantId} />
+					<AddStudentDialog sections={sections} tenantId={tenantId} />
 				</div>
 			</div>
 
@@ -368,14 +366,12 @@ export function StudentsView({
 													{guardian?.email && !guardian.user_id && (
 														<InviteParentButton
 															guardianId={guardian.id}
-															lang={lang}
 															tenantId={tenantId}
 														/>
 													)}
 													{canUpdate && (
 														<>
 															<ClassPlacementDialog
-																lang={lang}
 																onDone={reload}
 																sections={sections}
 																student={s}
@@ -383,7 +379,6 @@ export function StudentsView({
 															/>
 															<StudentStatusDialog
 																canArchive={canArchive}
-																lang={lang}
 																onDone={reload}
 																student={s}
 																tenantId={tenantId}
@@ -438,13 +433,11 @@ export function StudentsView({
 function InviteParentButton({
 	tenantId,
 	guardianId,
-	lang,
 }: {
 	tenantId: string;
 	guardianId: string;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [pending, setPending] = useState(false);
 	const [link, setLink] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -509,16 +502,14 @@ function ClassPlacementDialog({
 	tenantId,
 	student,
 	sections,
-	lang,
 	onDone,
 }: {
 	tenantId: string;
 	student: StudentListRow;
 	sections: SectionOption[];
-	lang: Lang;
 	onDone: () => Promise<void>;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const current = activeEnrolment(student)?.class_sections ?? null;
 	const [open, setOpen] = useState(false);
 	const [sectionId, setSectionId] = useState(current?.id ?? "");
@@ -657,16 +648,14 @@ function StudentStatusDialog({
 	tenantId,
 	student,
 	canArchive,
-	lang,
 	onDone,
 }: {
 	tenantId: string;
 	student: StudentListRow;
 	canArchive: boolean;
-	lang: Lang;
 	onDone: () => Promise<void>;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [open, setOpen] = useState(false);
 	const [status, setStatus] = useState<StudentStatus>(normaliseStatus(student.status));
 	const [reason, setReason] = useState("");
@@ -798,13 +787,11 @@ function StudentStatusDialog({
 function AddStudentDialog({
 	tenantId,
 	sections,
-	lang,
 }: {
 	tenantId: string;
 	sections: SectionOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -965,8 +952,8 @@ function AddStudentDialog({
 	);
 }
 
-function ImportDialog({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+function ImportDialog({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const router = useRouter();
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [open, setOpen] = useState(false);

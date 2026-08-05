@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatChartAxisTick, formatChartTooltipDate } from "@/components/formater";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 
 export interface DashboardData {
 	students: number;
@@ -70,8 +70,8 @@ function fmtTZS(amount: number) {
 	return `${amount.toLocaleString("en-US")} TZS`;
 }
 
-export function Dashboard({ data, lang }: { data: DashboardData; lang: Lang }) {
-	const t = getDict(lang);
+export function Dashboard({ data }: { data: DashboardData }) {
+	const t = getDict();
 	const gradientId = `attendance-grad-${useId().replace(/:/g, "")}`;
 
 	const stats = [

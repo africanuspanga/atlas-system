@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	TimetableView,
 	type PeriodRow,
@@ -113,14 +112,12 @@ export default async function TimetablePage({
 		educationLevel: s.education_level,
 	}));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<TimetableView
 				key={`${sectionId ?? "none"}:${teacherMode ? "me" : "class"}`}
 				canManage={canManage}
-				lang={lang}
 				periods={periodRows}
 				sectionId={sectionId}
 				sections={sectionOptions}

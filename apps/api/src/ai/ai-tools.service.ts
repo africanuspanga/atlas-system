@@ -543,7 +543,7 @@ export const AI_TOOLS: Record<string, ToolDef> = {
   },
   getAcademicsSetup: {
     description:
-      'Academic structure of the school: subjects (with Swahili names), class sections with grade levels, and academic years with their terms.',
+      'Academic structure of the school: subjects, class sections with grade levels, and academic years with their terms.',
     parameters: { type: 'object', properties: {}, required: [] },
     permission: 'students.view',
     execute: async (supabase, ctx) => {

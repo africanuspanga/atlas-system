@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getServerDict } from "@/i18n/server";
 import { PlatformView } from "./platform-view";
 
 export const metadata = { title: "ATLAS Control Centre" };
@@ -16,7 +15,6 @@ export default async function PlatformPage() {
 		data: { user },
 	} = await supabase.auth.getUser();
 	if (!user) redirect("/login?next=/platform");
-	const { lang } = await getServerDict();
 
-	return <PlatformView lang={lang} />;
+	return <PlatformView />;
 }

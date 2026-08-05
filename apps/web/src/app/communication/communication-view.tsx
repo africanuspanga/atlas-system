@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MegaphoneIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,15 +53,13 @@ export function CommunicationView({
 	announcements,
 	outbox,
 	sections,
-	lang,
 }: {
 	tenantId: string;
 	announcements: AnnouncementRow[];
 	outbox: OutboxStats;
 	sections: SectionOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -73,7 +71,7 @@ export function CommunicationView({
 						{outbox.sent} {t("comm.sentStatus").toLowerCase()}
 						{outbox.failed > 0 && ` · ${outbox.failed} ${t("comm.failed").toLowerCase()}`}
 					</Badge>
-					<ComposeDialog lang={lang} sections={sections} tenantId={tenantId} />
+					<ComposeDialog sections={sections} tenantId={tenantId} />
 				</div>
 			</div>
 
@@ -124,13 +122,11 @@ export function CommunicationView({
 function ComposeDialog({
 	tenantId,
 	sections,
-	lang,
 }: {
 	tenantId: string;
 	sections: SectionOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);

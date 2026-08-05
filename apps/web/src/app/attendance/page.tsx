@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { todayInTanzania } from "@/lib/tanzania-date";
 import {
 	AttendanceView,
@@ -97,7 +96,6 @@ export default async function AttendancePage({
 		}
 	}
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
@@ -105,7 +103,6 @@ export default async function AttendancePage({
 				key={`${sectionId ?? "none"}:${date}`}
 				date={date}
 				existing={existing}
-				lang={lang}
 				roster={roster}
 				sectionId={sectionId}
 				sections={sectionOptions}

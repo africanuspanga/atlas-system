@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import {
 	FinanceView,
 	type FeeItemRow,
@@ -104,7 +103,6 @@ export default async function FinancePage() {
 		};
 	});
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
@@ -115,7 +113,6 @@ export default async function FinancePage() {
 					amount: Number(f.amount),
 				})) as FeeItemRow[]}
 				invoices={rows}
-				lang={lang}
 				students={(students ?? []).map((s) => ({
 					id: s.id,
 					label: `${s.first_name} ${s.last_name} (${s.student_number})`,

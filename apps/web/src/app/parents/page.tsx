@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { ParentsView, type GuardianRow } from "./parents-view";
 
 export const metadata = { title: "Parents & Guardians" };
@@ -33,13 +32,11 @@ export default async function ParentsPage() {
 		.order("full_name")
 		.range(0, 49);
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<ParentsView
 				guardians={(guardians ?? []) as unknown as GuardianRow[]}
-				lang={lang}
 				tenantId={tenant.id as string}
 				total={count ?? (guardians ?? []).length}
 			/>

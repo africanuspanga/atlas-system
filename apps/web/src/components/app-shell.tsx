@@ -3,7 +3,6 @@ import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AssistantLauncher } from "@/components/assistant-launcher";
 import { createClient } from "@/lib/supabase/server";
-import { getServerDict } from "@/i18n/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 
 export async function AppShell({
@@ -13,7 +12,6 @@ export async function AppShell({
 	children: React.ReactNode;
 	schoolName?: string;
 }) {
-	const { lang } = await getServerDict();
 
 	// Resolve the caller's tenant so the AI assistant is available on every
 	// page (AI-native: the agent travels with the user, not one route).
@@ -30,16 +28,16 @@ export async function AppShell({
 				Skip to main content
 			</a>
 			<SidebarProvider className="relative h-svh">
-				<AppSidebar lang={lang} schoolName={schoolName} />
+				<AppSidebar schoolName={schoolName} />
 				<SidebarInset className="md:peer-data-[variant=inset]:ml-0">
-					<AppHeader activeTenantId={tenantId} lang={lang} tenants={all} />
+					<AppHeader activeTenantId={tenantId} tenants={all} />
 					<main
 						id="main-content"
 						className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6"
 					>
 						{children}
 					</main>
-					{tenantId && <AssistantLauncher lang={lang} tenantId={tenantId} />}
+					{tenantId && <AssistantLauncher tenantId={tenantId} />}
 				</SidebarInset>
 			</SidebarProvider>
 		</div>

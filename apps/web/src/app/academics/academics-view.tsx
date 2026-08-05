@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DownloadIcon, LayersIcon, PlusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type DictKey, type Lang, type Translator } from "@/i18n";
+import { getDict, type DictKey, type Translator } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,7 +127,6 @@ export function AcademicsView({
 	canManage,
 	canManageCombinations,
 	canExport,
-	lang,
 }: {
 	subjects: SubjectRow[];
 	gradeLevels: GradeLevelRow[];
@@ -138,9 +137,8 @@ export function AcademicsView({
 	canManage: boolean;
 	canManageCombinations: boolean;
 	canExport: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const router = useRouter();
 	const reload = useCallback(() => router.refresh(), [router]);
 	const levelLabel = (level: string) => {
@@ -338,7 +336,6 @@ export function AcademicsView({
 								<TableRow>
 									<TableHead>{t("academics.code")}</TableHead>
 									<TableHead>{t("students.name")}</TableHead>
-									<TableHead>{t("academics.nameSw")}</TableHead>
 									<TableHead>{t("academics.level")}</TableHead>
 									<TableHead>{t("students.status")}</TableHead>
 								</TableRow>
@@ -348,7 +345,6 @@ export function AcademicsView({
 									<TableRow key={s.id}>
 										<TableCell className="font-mono text-xs">{s.code}</TableCell>
 										<TableCell>{s.name}</TableCell>
-										<TableCell>{s.name_sw ?? "—"}</TableCell>
 										<TableCell>{levelLabel(s.education_level)}</TableCell>
 										<TableCell>
 											<Badge variant="outline">{s.status}</Badge>

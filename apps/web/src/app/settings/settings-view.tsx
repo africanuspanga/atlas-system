@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import {
 	Table,
 	TableBody,
@@ -30,12 +29,6 @@ export interface TenantProfile {
 	timezone: string;
 }
 
-export interface TenantLanguageSettings {
-	parent_language: string;
-	report_language: string;
-	invoice_language: string;
-}
-
 interface Member {
 	id: string;
 	status: string;
@@ -43,16 +36,8 @@ interface Member {
 	membership_roles: Array<{ roles: { name: string; key: string } | null }>;
 }
 
-export function SettingsView({
-	tenant,
-	settings,
-	lang,
-}: {
-	tenant: TenantProfile;
-	settings: TenantLanguageSettings | null;
-	lang: Lang;
-}) {
-	const t = getDict(lang);
+export function SettingsView({ tenant }: { tenant: TenantProfile }) {
+	const t = getDict();
 	// RLS only lets a user read their own membership row, so the full member
 	// list comes from the existing staff API endpoint.
 	const [members, setMembers] = useState<Member[] | null>(null);
@@ -71,7 +56,6 @@ export function SettingsView({
 		void loadMembers();
 	}, [loadMembers]);
 
-	const langLabel = (value: string) => (value === "sw" ? t("settings.lang.sw") : t("settings.lang.en"));
 
 	const profileRows: Array<{ label: string; value: string | null; mono?: boolean }> = [
 		{ label: t("students.name"), value: tenant.name },
@@ -103,42 +87,6 @@ export function SettingsView({
 							>
 								<span className="text-muted-foreground">{row.label}</span>
 								<span className={row.mono ? "font-mono" : undefined}>{row.value || "—"}</span>
-							</div>
-						))}
-					</div>
-				</CardContent>
-			</Card>
-
-			<Card className="shadow-none">
-				<CardHeader>
-					<CardTitle className="text-base">{t("settings.interfaceLanguage")}</CardTitle>
-				</CardHeader>
-				<CardContent className="flex items-center justify-between gap-4">
-					<p className="text-sm text-muted-foreground">{t("settings.interfaceLanguageDesc")}</p>
-					<LanguageSwitcher current={lang} />
-				</CardContent>
-			</Card>
-
-			<Card className="shadow-none">
-				<CardHeader>
-					<CardTitle className="text-base">{t("settings.messagingLanguages")}</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="flex flex-col">
-						{[
-							{
-								label: t("settings.parentLanguage"),
-								value: settings?.parent_language ?? tenant.default_language,
-							},
-							{ label: t("settings.reportLanguage"), value: settings?.report_language ?? "en" },
-							{ label: t("settings.invoiceLanguage"), value: settings?.invoice_language ?? "en" },
-						].map((row) => (
-							<div
-								className="flex items-center justify-between gap-4 border-b border-border py-2 text-sm last:border-b-0"
-								key={row.label}
-							>
-								<span className="text-muted-foreground">{row.label}</span>
-								<span>{langLabel(row.value)}</span>
 							</div>
 						))}
 					</div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PrinterIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang, type DictKey } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -56,16 +56,14 @@ export function ReportCardView({
 	schoolName,
 	terms,
 	defaultTermId,
-	lang,
 }: {
 	tenantId: string;
 	studentId: string;
 	schoolName: string;
 	terms: TermOption[];
 	defaultTermId: string | null;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [termId, setTermId] = useState<string | null>(defaultTermId);
 	const [report, setReport] = useState<Report | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -87,7 +85,7 @@ export function ReportCardView({
 			setLoading(false);
 			if (!response.ok) {
 				const body = await response.json().catch(() => null);
-				setError(apiErrorMessage(getDict(lang), body, response.status));
+				setError(apiErrorMessage(getDict(), body, response.status));
 				setReport(null);
 				return;
 			}
@@ -96,7 +94,7 @@ export function ReportCardView({
 		return () => {
 			ignore = true;
 		};
-	}, [termId, studentId, tenantId, lang]);
+	}, [termId, studentId, tenantId]);
 
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
@@ -158,7 +156,7 @@ export function ReportCardView({
 										{report.subjects.map((s) => (
 											<TableRow key={s.subjectId}>
 												<TableCell>
-													{lang === "sw" && s.nameSw ? s.nameSw : s.name}
+													{s.name}
 												</TableCell>
 												<TableCell className="text-right">{s.marks}</TableCell>
 												<TableCell className="text-right font-medium">{s.grade}</TableCell>

@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 
-export function InviteAccept({ token, lang }: { token: string; lang: Lang }) {
-	const t = getDict(lang);
+export function InviteAccept({ token }: { token: string }) {
+	const t = getDict();
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);

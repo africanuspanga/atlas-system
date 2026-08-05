@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BedDoubleIcon, PlusIcon, UserMinusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,15 +75,13 @@ export function HostelView({
 	students,
 	academicYear,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
 	academicYear: { id: string; name: string } | null;
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [hostels, setHostels] = useState<HostelRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -225,7 +223,6 @@ export function HostelView({
 
 			{canManage && (
 				<CreateHostelDialog
-					lang={lang}
 					onClose={() => setCreateOpen(false)}
 					onSaved={async () => {
 						setCreateOpen(false);
@@ -238,7 +235,6 @@ export function HostelView({
 			{canManage && roomHostel && (
 				<CreateRoomDialog
 					hostel={roomHostel}
-					lang={lang}
 					onClose={() => setRoomHostel(null)}
 					onSaved={async () => {
 						setRoomHostel(null);
@@ -252,7 +248,6 @@ export function HostelView({
 					academicYearId={academicYear.id}
 					hostels={hostels}
 					key={allocateOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setAllocateOpen(false)}
 					onSaved={async () => {
 						setAllocateOpen(false);
@@ -266,7 +261,6 @@ export function HostelView({
 			{openRoom && (
 				<OccupantsDialog
 					canManage={canManage}
-					lang={lang}
 					onChanged={reload}
 					onClose={() => setOpenRoom(null)}
 					room={openRoom}
@@ -282,15 +276,13 @@ function CreateHostelDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [name, setName] = useState("");
 	const [gender, setGender] = useState("male");
 	const [pending, setPending] = useState(false);
@@ -359,15 +351,13 @@ function CreateRoomDialog({
 	hostel,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	hostel: HostelRow;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [name, setName] = useState("");
 	const [capacity, setCapacity] = useState("4");
 	const [pending, setPending] = useState(false);
@@ -447,7 +437,6 @@ function AllocateDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
@@ -456,9 +445,8 @@ function AllocateDialog({
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [query, setQuery] = useState("");
 	const [studentId, setStudentId] = useState("");
 	const [roomId, setRoomId] = useState("");
@@ -576,16 +564,14 @@ function OccupantsDialog({
 	canManage,
 	onClose,
 	onChanged,
-	lang,
 }: {
 	tenantId: string;
 	room: RoomRow;
 	canManage: boolean;
 	onClose: () => void;
 	onChanged: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [occupants, setOccupants] = useState<Occupant[] | null>(null);
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);

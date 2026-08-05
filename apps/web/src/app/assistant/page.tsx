@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { AssistantView } from "./assistant-view";
 
 export const metadata = { title: "ATLAS Assistant" };
@@ -16,11 +15,10 @@ export default async function AssistantPage() {
 
 	const { data: tenants } = await getActiveTenants(supabase);
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenants[0].name}>
-			<AssistantView lang={lang} tenantId={tenants[0].id} />
+			<AssistantView tenantId={tenants[0].id} />
 		</AppShell>
 	);
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HeartPulseIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,14 +52,12 @@ export function ClinicView({
 	tenantId,
 	students,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [visits, setVisits] = useState<VisitRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -191,7 +189,6 @@ export function ClinicView({
 			{canManage && (
 				<RecordVisitDialog
 					key={recordOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setRecordOpen(false)}
 					onSaved={async () => {
 						setRecordOpen(false);
@@ -212,16 +209,14 @@ function RecordVisitDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [query, setQuery] = useState("");
 	const [studentId, setStudentId] = useState("");
 	const [symptoms, setSymptoms] = useState("");

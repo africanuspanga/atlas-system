@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { todayInTanzania } from "@/lib/tanzania-date";
 import { ReportCardView, type TermOption } from "./report-card-view";
 
@@ -43,13 +42,11 @@ export default async function ReportCardPage({
 		(terms ?? []).find((t) => t.starts_on <= today && t.ends_on >= today) ??
 		(terms ?? []).at(-1);
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<ReportCardView
 				defaultTermId={current?.id ?? null}
-				lang={lang}
 				schoolName={tenant.name}
 				studentId={student.id}
 				tenantId={tenant.id}

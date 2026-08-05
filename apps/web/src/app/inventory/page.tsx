@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { InventoryView } from "./inventory-view";
 
 export const metadata = { title: "Inventory" };
@@ -48,11 +47,10 @@ export default async function InventoryPage() {
 		canManage = (perms ?? []).length > 0;
 	}
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
-			<InventoryView canManage={canManage} lang={lang} tenantId={tenant.id} />
+			<InventoryView canManage={canManage} tenantId={tenant.id} />
 		</AppShell>
 	);
 }

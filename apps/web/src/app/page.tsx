@@ -4,7 +4,6 @@ import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
 import { Dashboard, type DashboardData } from "@/components/dashboard";
 import { getDict } from "@/i18n";
-import { getServerDict } from "@/i18n/server";
 import type { DictKey } from "@/i18n";
 import { todayInTanzania } from "@/lib/tanzania-date";
 
@@ -117,8 +116,7 @@ export default async function Home() {
 		.map(([date, v]) => ({ date, rate: Math.round((v.present / v.total) * 1000) / 10 }));
 	const todayBucket = byDate.get(today);
 
-	const { lang } = await getServerDict();
-	const t = getDict(lang);
+	const t = getDict();
 
 	// finance: net collections, channels, outstanding (from full paginated reads)
 	const collectedNet = payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -162,7 +160,7 @@ export default async function Home() {
 
 	return (
 		<AppShell schoolName={tenants[0].name}>
-			<Dashboard data={data} lang={lang} />
+			<Dashboard data={data} />
 		</AppShell>
 	);
 }

@@ -12,21 +12,17 @@ import {
 	type SidebarNavItem,
 } from "@/components/app-shared";
 import { NavUser } from "@/components/nav-user";
-import { LanguageSwitcher } from "@/components/language-switcher";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import type { VisibleTenant } from "@/lib/active-tenant";
 import { TenantSwitcher } from "@/components/tenant-switcher";
 
-export function AppHeader({
-	lang = "en",
-	tenants = [],
+export function AppHeader({ tenants = [],
 	activeTenantId,
 }: {
-	lang?: Lang;
 	tenants?: VisibleTenant[];
 	activeTenantId?: string;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const pathname = usePathname();
 
 	// Breadcrumb = the nav item whose path best (longest) matches the route,
@@ -54,13 +50,12 @@ export function AppHeader({
 				<AppBreadcrumbs page={activeItem} />
 			</div>
 			<div className="flex items-center gap-3">
-				<TenantSwitcher activeTenantId={activeTenantId} lang={lang} tenants={tenants} />
-				<LanguageSwitcher current={lang} />
+				<TenantSwitcher activeTenantId={activeTenantId} tenants={tenants} />
 				<Separator
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
 				/>
-				<NavUser lang={lang} />
+				<NavUser />
 			</div>
 		</header>
 	);

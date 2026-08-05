@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { LibraryView, type StudentOption, type SubjectOption } from "./library-view";
 
 export const metadata = { title: "Library" };
@@ -72,13 +71,11 @@ export default async function LibraryPage() {
 		name: s.name,
 	}));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<LibraryView
 				canManage={canManage}
-				lang={lang}
 				students={studentOptions}
 				subjects={subjectOptions}
 				tenantId={tenant.id}

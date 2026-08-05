@@ -13,7 +13,6 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { LangProvider } from "@/lib/i18n";
 import { color } from "@/lib/theme";
 
 // Keep the native splash up until fonts are ready and the session restored.
@@ -41,7 +40,6 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <LangProvider>
         <AuthProvider>
           <SplashGate />
           <StatusBar style="dark" />
@@ -52,7 +50,6 @@ export default function RootLayout() {
             }}
           />
         </AuthProvider>
-      </LangProvider>
     </GestureHandlerRootView>
   );
 }

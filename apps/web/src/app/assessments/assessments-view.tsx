@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang, type DictKey } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -67,25 +67,22 @@ export function AssessmentsView({
 	sections,
 	terms,
 	subjects,
-	lang,
 }: {
 	tenantId: string;
 	assessments: AssessmentRow[];
 	sections: SectionOption[];
 	terms: TermOption[];
 	subjects: SubjectRow[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<h1 className="text-xl font-semibold">{t("assessments.title")}</h1>
 				<div className="flex gap-2">
-					<SubjectsDialog lang={lang} subjects={subjects} tenantId={tenantId} />
+					<SubjectsDialog subjects={subjects} tenantId={tenantId} />
 					<CreateAssessmentDialog
-						lang={lang}
 						sections={sections}
 						tenantId={tenantId}
 						terms={terms}
@@ -152,14 +149,12 @@ function CreateAssessmentDialog({
 	tenantId,
 	sections,
 	terms,
-	lang,
 }: {
 	tenantId: string;
 	sections: SectionOption[];
 	terms: TermOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -265,13 +260,11 @@ function CreateAssessmentDialog({
 function SubjectsDialog({
 	tenantId,
 	subjects,
-	lang,
 }: {
 	tenantId: string;
 	subjects: SubjectRow[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -323,7 +316,7 @@ function SubjectsDialog({
 									{subjects.map((s) => (
 										<TableRow key={s.id}>
 											<TableCell className="font-mono text-xs">{s.code}</TableCell>
-											<TableCell>{lang === "sw" && s.name_sw ? s.name_sw : s.name}</TableCell>
+											<TableCell>{s.name}</TableCell>
 											<TableCell className="text-xs text-muted-foreground">
 												{s.education_level}
 											</TableCell>

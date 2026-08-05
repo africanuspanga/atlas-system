@@ -12,18 +12,16 @@ import {
 import { NavGroup } from "@/components/nav-group";
 import { buildNavGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 
 export function AppSidebar({
 	schoolName,
-	lang = "en",
 }: {
 	schoolName?: string;
-	lang?: Lang;
 }) {
 	// Nav is built client-side from the lang string so icon elements never
 	// cross the server→client boundary.
-	const groups = buildNavGroups(getDict(lang));
+	const groups = buildNavGroups(getDict());
 	return (
 		<Sidebar collapsible="icon" variant="inset">
 			<SidebarHeader className="h-14 justify-center">
@@ -43,7 +41,7 @@ export function AppSidebar({
 				))}
 			</SidebarContent>
 			<SidebarFooter>
-				<LatestChange lang={lang} />
+				<LatestChange />
 			</SidebarFooter>
 		</Sidebar>
 	);

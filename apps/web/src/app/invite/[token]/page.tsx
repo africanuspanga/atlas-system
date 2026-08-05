@@ -20,7 +20,7 @@ export default async function InvitePage({
 		redirect(`/login?next=/invite/${token}`);
 	}
 
-	const { lang, t } = await getServerDict();
+	const { t } = await getServerDict();
 
 	return (
 		<div className="flex min-h-svh flex-col items-center justify-center gap-6 p-4">
@@ -31,7 +31,7 @@ export default async function InvitePage({
 			<div className="w-full max-w-sm text-center">
 				<h1 className="text-lg font-semibold">{t("invite.title")}</h1>
 				<p className="mt-1 text-sm text-muted-foreground">{t("invite.description")}</p>
-				<InviteAccept lang={lang} token={token} />
+				<InviteAccept token={token} />
 			</div>
 		</div>
 	);

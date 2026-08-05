@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { todayInTanzania } from "@/lib/tanzania-date";
 import { InvoiceView, type InvoiceDetail } from "./invoice-view";
 
@@ -130,11 +129,10 @@ export default async function InvoicePage({
 			})),
 	};
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
-			<InvoiceView invoice={detail} lang={lang} tenantId={tenant.id} />
+			<InvoiceView invoice={detail} tenantId={tenant.id} />
 		</AppShell>
 	);
 }

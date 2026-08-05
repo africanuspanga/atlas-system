@@ -36,14 +36,14 @@ export default async function AccountingPage() {
 		.order("created_at", { ascending: false })
 		.limit(20);
 
-	const { lang, t } = await getServerDict();
+	const { t } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<div className="flex flex-col gap-4">
 				<h1 className="text-xl font-semibold">{t("acct.title")}</h1>
 
-				<TrialBalanceCard lang={lang} tenantId={tenantId} />
+				<TrialBalanceCard tenantId={tenantId} />
 
 				<Card className="shadow-none">
 					<CardHeader>

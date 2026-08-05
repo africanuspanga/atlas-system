@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { BellRingIcon, PlusIcon, ReceiptIcon, UsersIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang, type DictKey } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -72,16 +72,14 @@ export function FinanceView({
 	feeItems,
 	students,
 	terms,
-	lang,
 }: {
 	tenantId: string;
 	invoices: InvoiceListRow[];
 	feeItems: FeeItemRow[];
 	students: StudentOption[];
 	terms: TermOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -91,11 +89,10 @@ export function FinanceView({
 					<Button render={<Link href="/finance/debtors" />} size="sm" variant="outline">
 						<UsersIcon /> {t("finance.debtors")}
 					</Button>
-					<SendRemindersButton lang={lang} tenantId={tenantId} />
-					<FeeItemsDialog feeItems={feeItems} lang={lang} tenantId={tenantId} />
+					<SendRemindersButton tenantId={tenantId} />
+					<FeeItemsDialog feeItems={feeItems} tenantId={tenantId} />
 					<CreateInvoiceDialog
 						feeItems={feeItems}
-						lang={lang}
 						students={students}
 						tenantId={tenantId}
 						terms={terms}
@@ -159,8 +156,8 @@ export function FinanceView({
 	);
 }
 
-function SendRemindersButton({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+function SendRemindersButton({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const [pending, setPending] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
 
@@ -201,13 +198,11 @@ function SendRemindersButton({ tenantId, lang }: { tenantId: string; lang: Lang 
 function FeeItemsDialog({
 	tenantId,
 	feeItems,
-	lang,
 }: {
 	tenantId: string;
 	feeItems: FeeItemRow[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -299,15 +294,13 @@ function CreateInvoiceDialog({
 	feeItems,
 	students,
 	terms,
-	lang,
 }: {
 	tenantId: string;
 	feeItems: FeeItemRow[];
 	students: StudentOption[];
 	terms: TermOption[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);

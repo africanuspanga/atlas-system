@@ -3,19 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { VisibleTenant } from "@/lib/active-tenant";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 
 export function TenantSwitcher({
 	tenants,
 	activeTenantId,
-	lang,
 }: {
 	tenants: VisibleTenant[];
 	activeTenantId?: string;
-	lang: Lang;
 }) {
 	const router = useRouter();
-	const t = getDict(lang);
+	const t = getDict();
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	if (tenants.length < 2) return null;

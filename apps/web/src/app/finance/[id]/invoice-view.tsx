@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { BanknoteIcon, CalendarRangeIcon, Undo2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang, type DictKey } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -85,13 +85,11 @@ function instalmentStateVariant(
 export function InvoiceView({
 	tenantId,
 	invoice,
-	lang,
 }: {
 	tenantId: string;
 	invoice: InvoiceDetail;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const balance = invoice.total - invoice.paid;
 
 	return (
@@ -109,7 +107,6 @@ export function InvoiceView({
 						<RecordPaymentDialog
 							balance={balance}
 							invoiceId={invoice.id}
-							lang={lang}
 							tenantId={tenantId}
 						/>
 					)}
@@ -151,7 +148,6 @@ export function InvoiceView({
 					<SetInstalmentsDialog
 						instalments={invoice.instalments}
 						invoiceId={invoice.id}
-						lang={lang}
 						tenantId={tenantId}
 						total={invoice.total}
 					/>
@@ -245,7 +241,6 @@ export function InvoiceView({
 										<TableCell className="text-right">
 											{!p.isReversal && !p.isReversed && (
 												<ReverseDialog
-													lang={lang}
 													paymentId={p.id}
 													receipt={p.receipt}
 													tenantId={tenantId}
@@ -270,14 +265,12 @@ function RecordPaymentDialog({
 	tenantId,
 	invoiceId,
 	balance,
-	lang,
 }: {
 	tenantId: string;
 	invoiceId: string;
 	balance: number;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -377,15 +370,13 @@ function SetInstalmentsDialog({
 	invoiceId,
 	total,
 	instalments,
-	lang,
 }: {
 	tenantId: string;
 	invoiceId: string;
 	total: number;
 	instalments: InstalmentRow[];
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);
@@ -513,14 +504,12 @@ function ReverseDialog({
 	tenantId,
 	paymentId,
 	receipt,
-	lang,
 }: {
 	tenantId: string;
 	paymentId: string;
 	receipt: string;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [pending, setPending] = useState(false);

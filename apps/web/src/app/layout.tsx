@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { getLang } from "@/i18n/server";
 import "./globals.css";
 
 const interSans = Inter({
@@ -26,12 +25,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Same source getServerDict uses (atlas-lang cookie) so screen readers and
-  // translators see the page's actual language.
-  const lang = await getLang();
   return (
     <html
-      lang={lang}
+      lang="en"
       className={`${interSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

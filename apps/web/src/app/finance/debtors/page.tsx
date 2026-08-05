@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { DebtorsView } from "./debtors-view";
 
 export const metadata = { title: "Debtors" };
@@ -18,11 +17,10 @@ export default async function DebtorsPage() {
 	if (!tenants || tenants.length === 0) redirect("/onboarding");
 	const tenant = tenants[0];
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
-			<DebtorsView lang={lang} tenantId={tenant.id} />
+			<DebtorsView tenantId={tenant.id} />
 		</AppShell>
 	);
 }

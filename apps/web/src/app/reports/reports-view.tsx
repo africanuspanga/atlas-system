@@ -5,7 +5,7 @@ import { DownloadIcon, FileTextIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { todayInTanzania } from "@/lib/tanzania-date";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,16 +54,14 @@ function today(): string {
 
 export function ReportsView({
 	tenantId,
-	lang,
 	students,
 	terms,
 }: {
 	tenantId: string;
-	lang: Lang;
 	students: Array<{ id: string; label: string }>;
 	terms: Array<{ id: string; name: string }>;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [catalogue, setCatalogue] = useState<CatalogueEntry[]>([]);
 	const [jobs, setJobs] = useState<ReportJob[]>([]);
 	const [reportKey, setReportKey] = useState("fee_collection");

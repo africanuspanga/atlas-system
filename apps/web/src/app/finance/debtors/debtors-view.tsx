@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BellRingIcon, ChevronDownIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { todayInTanzania } from "@/lib/tanzania-date";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,8 +52,8 @@ function today() {
 	return todayInTanzania();
 }
 
-export function DebtorsView({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+export function DebtorsView({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const [asOf, setAsOf] = useState(today());
 	const [data, setData] = useState<DebtorsPayload | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -92,7 +92,7 @@ export function DebtorsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 						value={asOf}
 						onChange={(e) => setAsOf(e.target.value || today())}
 					/>
-					<SendRemindersButton lang={lang} tenantId={tenantId} />
+					<SendRemindersButton tenantId={tenantId} />
 				</div>
 			</div>
 
@@ -113,7 +113,7 @@ export function DebtorsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 			)}
 
 			{data?.classes.map((cls) => (
-				<ClassDebtors cls={cls} key={cls.className} lang={lang} />
+				<ClassDebtors cls={cls} key={cls.className} />
 			))}
 
 			{data && data.classes.length > 0 && (
@@ -143,8 +143,8 @@ export function DebtorsView({ tenantId, lang }: { tenantId: string; lang: Lang }
 	);
 }
 
-function ClassDebtors({ cls, lang }: { cls: DebtorsClass; lang: Lang }) {
-	const t = getDict(lang);
+function ClassDebtors({ cls }: { cls: DebtorsClass }) {
+	const t = getDict();
 	return (
 		<Card className="shadow-none">
 			<CardContent className="pt-4">
@@ -215,8 +215,8 @@ function ClassDebtors({ cls, lang }: { cls: DebtorsClass; lang: Lang }) {
 	);
 }
 
-function SendRemindersButton({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+function SendRemindersButton({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const [pending, setPending] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
 

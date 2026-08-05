@@ -36,33 +36,32 @@ function renderBodyRaw(template: string, payload: Record<string, unknown>): stri
     return String(payload.body ?? "");
   }
   if (template === "attendance.absent") {
-    // Kiswahili first — the audience is Tanzanian guardians.
     return (
-      `Habari ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
-      `Mwanafunzi ${payload.studentName} (${payload.studentNumber}) ` +
-      `hakuhudhuria shuleni tarehe ${payload.date}. Asante.`
+      `Hello ${payload.guardianName ?? "Parent/Guardian"}. ` +
+      `${payload.studentName} (${payload.studentNumber}) ` +
+      `was absent from school on ${payload.date}. Thank you.`
     );
   }
   if (template === "clinic.visit") {
-    // Kiswahili first — queued by app.record_clinic_visit (migration 0023).
+    // Queued by app.record_clinic_visit (migration 0023).
     const treatment =
       typeof payload.treatment === "string" && payload.treatment.trim() !== ""
-        ? ` Matibabu: ${payload.treatment.slice(0, 120)}.`
+        ? ` Treatment: ${payload.treatment.slice(0, 120)}.`
         : "";
     return (
-      `Mpendwa ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
-      `Mwanafunzi ${payload.studentName} (${payload.studentNumber}) ` +
-      `alihudumiwa katika zahanati ya shule leo.${treatment} ` +
-      `Asante. - ${payload.schoolName ?? "Shule"}`
+      `Dear ${payload.guardianName ?? "Parent/Guardian"}. ` +
+      `${payload.studentName} (${payload.studentNumber}) ` +
+      `was seen at the school clinic today.${treatment} ` +
+      `Thank you. - ${payload.schoolName ?? "School"}`
     );
   }
   if (template === "fees.reminder") {
-    const due = payload.dueOn ? ` kabla ya tarehe ${payload.dueOn}` : "";
+    const due = payload.dueOn ? ` by ${payload.dueOn}` : "";
     return (
-      `Habari ${payload.guardianName ?? "Mzazi/Mlezi"}. ` +
-      `Salio la ada kwa ${payload.studentName} (${payload.studentNumber}) ` +
-      `ni TZS ${Number(payload.balance ?? 0).toLocaleString("en-US")} ` +
-      `(ankara ${payload.invoiceNumber}). Tafadhali lipa${due}. Asante.`
+      `Hello ${payload.guardianName ?? "Parent/Guardian"}. ` +
+      `Fee balance for ${payload.studentName} (${payload.studentNumber}) ` +
+      `is TZS ${Number(payload.balance ?? 0).toLocaleString("en-US")} ` +
+      `(invoice ${payload.invoiceNumber}). Please pay${due}. Thank you.`
     );
   }
   return JSON.stringify(payload);

@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BusIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,15 +55,13 @@ export function TransportView({
 	students,
 	academicYear,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
 	academicYear: { id: string; name: string } | null;
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [routes, setRoutes] = useState<RouteRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -178,7 +176,6 @@ export function TransportView({
 
 			{canManage && (
 				<CreateRouteDialog
-					lang={lang}
 					onClose={() => setCreateOpen(false)}
 					onSaved={async () => {
 						setCreateOpen(false);
@@ -190,7 +187,6 @@ export function TransportView({
 			)}
 			{canManage && stopRoute && (
 				<CreateStopDialog
-					lang={lang}
 					onClose={() => setStopRoute(null)}
 					onSaved={async () => {
 						setStopRoute(null);
@@ -204,7 +200,6 @@ export function TransportView({
 				<AssignDialog
 					academicYearId={academicYear.id}
 					key={assignOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setAssignOpen(false)}
 					onSaved={async () => {
 						setAssignOpen(false);
@@ -218,7 +213,6 @@ export function TransportView({
 			)}
 			{rosterRoute && (
 				<RosterDialog
-					lang={lang}
 					onClose={() => setRosterRoute(null)}
 					route={rosterRoute}
 					tenantId={tenantId}
@@ -233,15 +227,13 @@ function CreateRouteDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [name, setName] = useState("");
 	const [fee, setFee] = useState("0");
 	const [pending, setPending] = useState(false);
@@ -308,15 +300,13 @@ function CreateStopDialog({
 	route,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	route: RouteRow;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [name, setName] = useState("");
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -380,7 +370,6 @@ function AssignDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	students: StudentOption[];
@@ -389,9 +378,8 @@ function AssignDialog({
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [query, setQuery] = useState("");
 	const [studentId, setStudentId] = useState("");
 	const [routeId, setRouteId] = useState("");
@@ -530,14 +518,12 @@ function RosterDialog({
 	tenantId,
 	route,
 	onClose,
-	lang,
 }: {
 	tenantId: string;
 	route: RouteRow;
 	onClose: () => void;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [roster, setRoster] = useState<RosterRow[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 

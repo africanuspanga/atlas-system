@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarRangeIcon, Trash2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -91,7 +91,6 @@ export function TimetableView({
 	periods,
 	subjects,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	sections: SectionOption[];
@@ -100,9 +99,8 @@ export function TimetableView({
 	periods: PeriodRow[];
 	subjects: SubjectOption[];
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const router = useRouter();
 	const [slots, setSlots] = useState<Slot[]>([]);
 	const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -320,7 +318,6 @@ export function TimetableView({
 				<SlotDialog
 					day={editing?.day ?? 1}
 					key={editing ? `${editing.day}:${editing.periodId}:${editingSlot?.id ?? "new"}` : "closed"}
-					lang={lang}
 					onClose={() => setEditing(null)}
 					onSaved={async () => {
 						setEditing(null);
@@ -350,7 +347,6 @@ function SlotDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	sectionId: string;
@@ -362,9 +358,8 @@ function SlotDialog({
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [subjectId, setSubjectId] = useState(slot?.subjectId ?? "");
 	const [teacherUserId, setTeacherUserId] = useState(slot?.teacherUserId ?? "");
 	const [pending, setPending] = useState(false);
@@ -440,7 +435,7 @@ function SlotDialog({
 							<option value="">{t("timetable.selectSubject")}</option>
 							{subjects.map((s) => (
 								<option key={s.id} value={s.id}>
-									{s.code} — {lang === "sw" && s.nameSw ? s.nameSw : s.name}
+									{s.code} — {s.name}
 								</option>
 							))}
 						</select>

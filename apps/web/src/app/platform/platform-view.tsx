@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BuildingIcon, RefreshCwIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { todayInTanzania } from "@/lib/tanzania-date";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -159,8 +159,8 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 	archived: "outline",
 };
 
-export function PlatformView({ lang }: { lang: Lang }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+export function PlatformView() {
+	const t = getDict();
 	const [overview, setOverview] = useState<Overview | null>(null);
 	const [tenants, setTenants] = useState<TenantRow[]>([]);
 	const [plans, setPlans] = useState<Plan[]>([]);

@@ -2380,7 +2380,7 @@ export const AI_ACTIONS: Record<string, ActionDef> = {
 
   linkGuardian: {
     description:
-      'PROPOSE linking an EXISTING guardian (mzazi/mlezi, found by phone number) to an EXISTING student (by student number) with a relationship. Both must already be in this school — use searchGuardians/searchStudents first; a brand-new guardian is created via createStudent instead. The user must confirm.',
+      'PROPOSE linking an EXISTING guardian (found by phone number) to an EXISTING student (by student number) with a relationship. Both must already be in this school — use searchGuardians/searchStudents first; a brand-new guardian is created via createStudent instead. The user must confirm.',
     parameters: {
       type: 'object',
       properties: {

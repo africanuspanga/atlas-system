@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { ReportsView } from "./reports-view";
 
 export const metadata = { title: "Reports" };
@@ -34,12 +33,10 @@ export default async function ReportsPage() {
 			.order("starts_on", { ascending: false })
 			.limit(12),
 	]);
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenants[0].name}>
 			<ReportsView
-				lang={lang}
 				tenantId={tenantId}
 				students={(students ?? []).map((s) => ({
 					id: s.id,

@@ -13,7 +13,7 @@ import {
 
 import { PillButton } from "@/components/pill-button";
 import { Screen } from "@/components/screen";
-import { useLang } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 import { color, font, radius, space } from "@/lib/theme";
 
@@ -26,7 +26,7 @@ const DEMO_EMAIL = "demo@chiefsarwatt.sc.tz";
 const DEMO_PASSWORD = "DemoAtlas2026!";
 
 export default function Login() {
-  const { lang, setLang, t } = useLang();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -86,27 +86,6 @@ export default function Login() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.langRow}>
-            {(["en", "sw"] as const).map((code) => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: lang === code }}
-                key={code}
-                onPress={() => setLang(code)}
-                style={[styles.langPill, lang === code && styles.langActive]}
-              >
-                <Text
-                  style={[
-                    styles.langLabel,
-                    lang === code && styles.langLabelActive,
-                  ]}
-                >
-                  {code === "en" ? t("settings.lang.en") : t("settings.lang.sw")}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
           <View style={styles.hero}>
             <Text style={styles.wordmark}>ATLAS</Text>
             <Text style={styles.tagline}>{t("login.tagline")}</Text>
@@ -179,25 +158,6 @@ export default function Login() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: space(8) },
-  langRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: space(2),
-    paddingTop: space(3),
-  },
-  langPill: {
-    borderRadius: radius.pill,
-    paddingHorizontal: space(3.5),
-    paddingVertical: space(1.5),
-    backgroundColor: color.surfaceStrong,
-  },
-  langActive: { backgroundColor: color.ink },
-  langLabel: {
-    fontFamily: font.medium,
-    fontSize: 13,
-    color: color.ink,
-  },
-  langLabelActive: { color: color.onPrimary },
   hero: {
     alignItems: "center",
     gap: space(2),

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -62,8 +62,8 @@ function Field({
 	);
 }
 
-export function OnboardingWizard({ email, lang }: { email: string; lang: Lang }) {
-	const t = getDict(lang);
+export function OnboardingWizard({ email }: { email: string }) {
+	const t = getDict();
 	const router = useRouter();
 	const [step, setStep] = useState(1);
 	const [pending, setPending] = useState(false);
@@ -75,7 +75,6 @@ export function OnboardingWizard({ email, lang }: { email: string; lang: Lang })
 	const [region, setRegion] = useState("");
 	const [district, setDistrict] = useState("");
 	const [phone, setPhone] = useState("");
-	const [defaultLanguage, setDefaultLanguage] = useState<"en" | "sw">("en");
 	const [levels, setLevels] = useState<EducationLevel[]>([]);
 
 	// Step 2 — academic year (Tanzanian default: January–December, two terms)
@@ -147,7 +146,7 @@ export function OnboardingWizard({ email, lang }: { email: string; lang: Lang })
 					phone: phone || undefined,
 					region: region || undefined,
 					district: district || undefined,
-					defaultLanguage,
+					defaultLanguage: "en",
 				},
 				academicYear: { name: yearName, startsOn: yearStart, endsOn: yearEnd, terms },
 				classes: classes.map((c) => ({
@@ -227,26 +226,6 @@ export function OnboardingWizard({ email, lang }: { email: string; lang: Lang })
 						</div>
 						<Field label={t("parents.phone")}>
 							<Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+255 7XX XXX XXX" />
-						</Field>
-						<Field label={t("onboard.defaultLanguage")}>
-							<div className="flex gap-2">
-								<Button
-									onClick={() => setDefaultLanguage("en")}
-									size="sm"
-									type="button"
-									variant={defaultLanguage === "en" ? "default" : "outline"}
-								>
-									{t("settings.lang.en")}
-								</Button>
-								<Button
-									onClick={() => setDefaultLanguage("sw")}
-									size="sm"
-									type="button"
-									variant={defaultLanguage === "sw" ? "default" : "outline"}
-								>
-									{t("settings.lang.sw")}
-								</Button>
-							</div>
 						</Field>
 						<Field label={t("onboard.levels")}>
 							<div className="flex flex-wrap gap-2">

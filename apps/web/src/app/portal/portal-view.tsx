@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang, type DictKey } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -53,8 +53,8 @@ function fmtTZS(amount: number) {
 	return `${amount.toLocaleString("en-US")} TZS`;
 }
 
-export function PortalView({ lang }: { lang: Lang }) {
-	const t = getDict(lang);
+export function PortalView() {
+	const t = getDict();
 	const [children, setChildren] = useState<Child[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +68,13 @@ export function PortalView({ lang }: { lang: Lang }) {
 					setError("PORTAL_NOT_LINKED");
 					return;
 				}
-				setError(apiErrorMessage(getDict(lang), body, response.status));
+				setError(apiErrorMessage(getDict(), body, response.status));
 				return;
 			}
 			const body = await response.json();
 			setChildren(body.children);
 		})();
-	}, [lang]);
+	}, []);
 
 	if (error === "PORTAL_NOT_LINKED") {
 		return (
@@ -92,14 +92,14 @@ export function PortalView({ lang }: { lang: Lang }) {
 		<div className="flex flex-col gap-4">
 			<h1 className="text-xl font-semibold">{t("portal.children")}</h1>
 			{children.map((child) => (
-				<ChildCard child={child} key={child.studentId} lang={lang} />
+				<ChildCard child={child} key={child.studentId} />
 			))}
 		</div>
 	);
 }
 
-function ChildCard({ child, lang }: { child: Child; lang: Lang }) {
-	const t = getDict(lang);
+function ChildCard({ child }: { child: Child }) {
+	const t = getDict();
 	const [termId, setTermId] = useState(child.terms.at(-1)?.id ?? "");
 	const [report, setReport] = useState<Report | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -194,7 +194,7 @@ function ChildCard({ child, lang }: { child: Child; lang: Lang }) {
 									{report.subjects.map((subject) => (
 										<TableRow key={subject.subjectId}>
 											<TableCell>
-												{lang === "sw" && subject.nameSw ? subject.nameSw : subject.name}
+												{subject.name}
 											</TableCell>
 											<TableCell className="text-right">{subject.marks}</TableCell>
 											<TableCell className="text-right font-medium">

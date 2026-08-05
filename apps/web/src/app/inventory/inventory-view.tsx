@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowDownUpIcon, PlusIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
 import { ListSkeleton } from "@/components/list-skeleton";
-import { getDict, type DictKey, type Lang } from "@/i18n";
+import { getDict, type DictKey } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,13 +52,11 @@ const ERROR_KEYS: Partial<Record<string, DictKey>> = {
 export function InventoryView({
 	tenantId,
 	canManage,
-	lang,
 }: {
 	tenantId: string;
 	canManage: boolean;
-	lang: Lang;
 }) {
-	const t = useMemo(() => getDict(lang), [lang]);
+	const t = getDict();
 	const [items, setItems] = useState<ItemRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -162,7 +160,6 @@ export function InventoryView({
 
 			{canManage && (
 				<AddItemDialog
-					lang={lang}
 					onClose={() => setAddOpen(false)}
 					onSaved={async () => {
 						setAddOpen(false);
@@ -176,7 +173,6 @@ export function InventoryView({
 				<MovementDialog
 					items={items}
 					key={moveOpen ? "open" : "closed"}
-					lang={lang}
 					onClose={() => setMoveOpen(false)}
 					onSaved={async () => {
 						setMoveOpen(false);
@@ -189,7 +185,6 @@ export function InventoryView({
 			{openItem && (
 				<HistoryDialog
 					item={openItem}
-					lang={lang}
 					onClose={() => setOpenItem(null)}
 					tenantId={tenantId}
 				/>
@@ -203,15 +198,13 @@ function AddItemDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [name, setName] = useState("");
 	const [unit, setUnit] = useState("pcs");
 	const [reorderLevel, setReorderLevel] = useState("0");
@@ -303,16 +296,14 @@ function MovementDialog({
 	open,
 	onClose,
 	onSaved,
-	lang,
 }: {
 	tenantId: string;
 	items: ItemRow[];
 	open: boolean;
 	onClose: () => void;
 	onSaved: () => Promise<void>;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [itemId, setItemId] = useState("");
 	const [kind, setKind] = useState("in");
 	const [quantity, setQuantity] = useState("1");
@@ -417,14 +408,12 @@ function HistoryDialog({
 	tenantId,
 	item,
 	onClose,
-	lang,
 }: {
 	tenantId: string;
 	item: ItemRow;
 	onClose: () => void;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const [movements, setMovements] = useState<MovementRow[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 

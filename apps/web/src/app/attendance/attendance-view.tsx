@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +54,6 @@ export function AttendanceView({
 	date,
 	roster,
 	existing,
-	lang,
 }: {
 	tenantId: string;
 	sections: SectionOption[];
@@ -62,9 +61,8 @@ export function AttendanceView({
 	date: string;
 	roster: RosterRow[];
 	existing: ExistingSession | null;
-	lang: Lang;
 }) {
-	const t = getDict(lang);
+	const t = getDict();
 	const router = useRouter();
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);

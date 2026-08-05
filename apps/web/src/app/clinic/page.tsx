@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveTenants } from "@/lib/active-tenant";
 import { AppShell } from "@/components/app-shell";
-import { getServerDict } from "@/i18n/server";
 import { ClinicView, type StudentOption } from "./clinic-view";
 
 export const metadata = { title: "Clinic" };
@@ -62,13 +61,11 @@ export default async function ClinicPage() {
 		name: `${s.first_name} ${s.last_name}`,
 	}));
 
-	const { lang } = await getServerDict();
 
 	return (
 		<AppShell schoolName={tenant.name}>
 			<ClinicView
 				canManage={canManage}
-				lang={lang}
 				students={studentOptions}
 				tenantId={tenant.id}
 			/>

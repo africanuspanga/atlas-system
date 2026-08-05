@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { SparklesIcon } from "lucide-react";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { AssistantView } from "@/app/assistant/assistant-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +14,8 @@ import {
 	SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function AssistantLauncher({ tenantId, lang }: { tenantId: string; lang: Lang }) {
-	const t = getDict(lang);
+export function AssistantLauncher({ tenantId }: { tenantId: string }) {
+	const t = getDict();
 	const pathname = usePathname();
 	const [open, setOpen] = useState(false);
 
@@ -36,7 +36,7 @@ export function AssistantLauncher({ tenantId, lang }: { tenantId: string; lang: 
 					</SheetTitle>
 				</SheetHeader>
 				<div className="min-h-0 flex-1">
-					<AssistantView embedded lang={lang} tenantId={tenantId} />
+					<AssistantView embedded tenantId={tenantId} />
 				</div>
 			</SheetContent>
 		</Sheet>

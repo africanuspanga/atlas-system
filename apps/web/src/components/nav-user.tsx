@@ -13,11 +13,11 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getDict, type Lang } from "@/i18n";
+import { getDict } from "@/i18n";
 import { UserIcon, LifeBuoyIcon, LogOutIcon } from "lucide-react";
 
-export function NavUser({ lang = "en" }: { lang?: Lang }) {
-	const t = getDict(lang);
+export function NavUser() {
+	const t = getDict();
 	const router = useRouter();
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
