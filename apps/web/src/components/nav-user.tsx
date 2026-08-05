@@ -9,12 +9,11 @@ import {
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getDict } from "@/i18n";
-import { UserIcon, LifeBuoyIcon, LogOutIcon } from "lucide-react";
+import { UserIcon, LogOutIcon } from "lucide-react";
 
 export function NavUser() {
 	const t = getDict();
@@ -58,29 +57,32 @@ export function NavUser() {
 				</Avatar>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-60">
-				<DropdownMenuItem className="flex items-center justify-start gap-2">
-					<DropdownMenuLabel className="flex items-center gap-3">
-						<Avatar className="size-10">
-							<AvatarFallback>{initial}</AvatarFallback>
-						</Avatar>
-						<div>
-							<span className="font-medium text-foreground">{name || t("user.account")}</span>{" "}
-							<br />
-							<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-xs">
-								{email}
-							</div>
-						</div>
-					</DropdownMenuLabel>
-				</DropdownMenuItem>
+				{/*
+				  Plain markup, not a MenuItem wrapping a Label. DropdownMenuLabel
+				  renders Base UI's GroupLabel, which throws "MenuGroupContext is
+				  missing" unless it sits inside a Menu.Group — that crash is what
+				  used to happen the moment this menu opened. Nothing here is
+				  interactive, so it should never have been a menu part.
+				*/}
+				<div className="flex items-center gap-3 px-1.5 py-2">
+					<Avatar className="size-10">
+						<AvatarFallback>{initial}</AvatarFallback>
+					</Avatar>
+					<div className="min-w-0">
+						<p className="truncate font-medium text-foreground text-sm">
+							{name || t("user.account")}
+						</p>
+						<p className="truncate text-muted-foreground text-xs">{email}</p>
+					</div>
+				</div>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem>
+					<DropdownMenuItem
+						className="cursor-pointer"
+						onClick={() => router.push("/settings")}
+					>
 						<UserIcon />
 						{t("user.profile")}
-					</DropdownMenuItem>
-					<DropdownMenuItem>
-						<LifeBuoyIcon />
-						{t("nav.support")}
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />

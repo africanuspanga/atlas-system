@@ -7,11 +7,14 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarHeader,
+	SidebarMenu,
 	SidebarMenuButton,
+	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NavGroup } from "@/components/nav-group";
 import { buildNavGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { getDict } from "@/i18n";
 
 export function AppSidebar({
@@ -42,6 +45,11 @@ export function AppSidebar({
 			</SidebarContent>
 			<SidebarFooter>
 				<LatestChange />
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<ThemeToggle />
+					</SidebarMenuItem>
+				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
 	);
