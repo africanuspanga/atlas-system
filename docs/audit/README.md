@@ -1,16 +1,22 @@
 # ATLAS audit and operations documents
 
-The authoritative current decision is
-[`GO_LIVE_READINESS_2026-08-03.md`](GO_LIVE_READINESS_2026-08-03.md).
-It records the migration-33 live state, 25/25 product smokes, 40/40 real AI
-evaluation, quality gates, remaining infrastructure/compliance blockers, and
-the staged rollout plan.
+The authoritative **go/no-go decision** is
+[`GO_LIVE_READINESS_2026-08-03.md`](GO_LIVE_READINESS_2026-08-03.md) — its
+blockers and staged rollout plan still stand. Its *state* facts (migration 33,
+25/25 smokes, 40/40 AI eval) are superseded by
+[`HANDOVER_2026-08-06.md`](HANDOVER_2026-08-06.md), which records the live
+migration-36 state, the English-only decision, the new marketing surface, and
+which evidence was and was not regenerated.
+
+**Read the handover for current state; read the readiness report for whether to
+ship.**
 
 ## Current operating documents
 
 | File                              | Purpose                                                        |
 | --------------------------------- | -------------------------------------------------------------- |
-| `GO_LIVE_READINESS_2026-08-03.md` | CTO verdict, evidence, blockers, release sequence              |
+| `HANDOVER_2026-08-06.md`          | Current state: live migrations, this session's changes, open threads |
+| `GO_LIVE_READINESS_2026-08-03.md` | CTO verdict, blockers, release sequence (state facts superseded) |
 | `ATLAS_RELEASE_READINESS.md`      | Living go/no-go checklist                                      |
 | `ATLAS_PILOT_RUNBOOK.md`          | One-school training/pilot procedure and sign-off               |
 | `ATLAS_MONITORING.md`             | Health, logs, Sentry, heartbeats, alerts                       |
@@ -41,12 +47,22 @@ module is built. Use the testing guide and current go-live report.
 
 ## Current evidence snapshot
 
-- Live Supabase migration: `0033`
-- Shadow: 71 tables, 60 policies, 217 functions; no unintended deny-all table
-- Product/API smokes: 25/25
-- Real-provider AI eval: 40/40, security 100%
+Regenerated **6 August 2026** at `56d3585`:
+
+- Live Supabase migration: `0036`
+- Shadow: 73 tables, 61 policies, 219 functions
+- Deny-all tables: `prospect_submissions` only — intentional, see migration 0034
 - Static gates: lint 3/3, typecheck 7/7, tests 4/4, builds 3/3
+- Funnel capture proven end-to-end against the live database; anon read and
+  insert on the captures table both refused
+
+Dated **3 August 2026** and **NOT re-run since** — do not assume they still
+hold against the `0036` contract:
+
+- Product/API smokes: 25/25 (re-run `smoke-communication` first — 0035 changed
+  `app.claim_notification`)
+- Real-provider AI eval: 40/40, security 100%
 - Dependency audit: no known moderate-or-higher vulnerability
 
-These results are dated 3 August 2026 and must be regenerated for the release
-commit and production environment.
+All of these must be regenerated for the release commit and production
+environment.

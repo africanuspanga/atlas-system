@@ -7,11 +7,17 @@ expo-router native iOS/Android app — see its README for dev/EAS),
 `packages/i18n` (shared English string catalogue — web re-exports it),
 `supabase/migrations`.
 Operator/role docs: `docs/ADMIN_GUIDE.md`. Audit history/specs: `docs/audit/`.
-Sales/GTM: `docs/sales/` (playbook + founding-schools offer, EN+SW).
-Visual language: `design.md` at repo root (Atlas Blue #0052ff, Inter +
-JetBrains Mono, pill buttons, 24px cards) — consult before any UI work.
-Local preview: web runs on **port 3001** (`pnpm --filter @atlas/web exec next
-start -p 3001`) — the user keeps another process on 3000.
+Sales/GTM: `docs/sales/` (playbook + founding-schools offer).
+Visual language: TWO systems, deliberately different, do not merge them.
+The **product** uses `design.md` at repo root (Atlas Blue #0052ff, Inter +
+JetBrains Mono, pill buttons, 24px cards). The **marketing surface** uses an
+Apple-derived system scoped under `.atlas-marketing` in
+`apps/web/src/app/(marketing)/marketing.css` (#0066cc, alternating
+light/parchment/near-black tiles, one shadow). Consult the right one before any
+UI work; never hoist marketing tokens into `globals.css`.
+Local preview: web on **3001 or 3002** — 3000 is taken by another process.
+Whichever you choose, start the API with `WEB_ORIGIN=http://localhost:<port>`
+or every client-side API call fails CORS silently (see gotchas).
 
 ## Module map (what exists, by migration)
 
@@ -41,22 +47,32 @@ platform_role trigger) · 0030 student & academic lifecycle
 activate/grade-level/section writers) · 0031 go-live hardening (Tanzania dates,
 payment idempotency/date rules, debtors cutoffs, SMS claims/caps, verified
 payroll + employer journals, A-Level aggregate) · 0032 payroll-settings seed ·
-0033 operational platform-overview scoping.
+0033 operational platform-overview scoping · 0034 prospect_submissions
+(marketing funnel leads, deny-all RLS, API-only) · 0035 SMS allowance becomes
+annual + purchasable (`plans.limits.smsIncludedYear`, `tenant_sms_balance`,
+`app.tenant_sms_usage`; `claim_notification` spends included then purchased)
+· 0036 lets the service role read `public.tenant_sms_usage`.
 
-## HANDOVER (2026-08-03, branch `audit/production-readiness`)
+## HANDOVER (2026-08-06, `main` == `audit/production-readiness` @ `56d3585`)
 
-**Authoritative report:** `docs/audit/GO_LIVE_READINESS_2026-08-03.md`.
+**Current state:** `docs/audit/HANDOVER_2026-08-06.md`.
+**Whether to ship:** `docs/audit/GO_LIVE_READINESS_2026-08-03.md` — its
+blockers still stand; only its state facts are superseded.
 
-- The linked Supabase project is at migration `0033`. Full scratch replay:
-  71 tables, 60 policies, 217 functions, no unintended deny-all table.
-- Existing-data rehearsal upgraded 75 tenants, 422 students and 356 payments;
-  live parent/teacher/finance/platform-escalation probes passed.
-- All 25 live-connected smoke suites passed. Real Moonshot eval: 40/40,
-  security 100%, 17.5s mean latency, 388,805 tokens.
-- Sequential gates passed: lint 3/3, typecheck 7/7, tests 4/4, builds 3/3;
-  dependency audit clean. `.github/workflows/quality.yml` runs this order.
-- The active portfolio contains one school in `configuration` and zero in
-  `live`; archived tests/history are excluded from operational metrics.
+- The linked Supabase project is at migration **`0036`**. Shadow replay:
+  73 tables, 61 policies, 219 functions. `prospect_submissions` is the only
+  RLS-enabled table with zero policies — intentional, API-only by design.
+- **ATLAS is English-only** (owner decision). No Swahili dictionary, no `Lang`
+  type, no switcher, and the guardian SMS templates are English.
+- A **marketing surface** exists: landing page, blog, `/anza` funnel, no-login
+  tour, draft terms/privacy. The **dashboard moved off `/` to `/dashboard`**;
+  the apex serves marketing and `app.` serves the product via `lib/hosts.ts`.
+- Gates at this commit: lint 3/3, typecheck 7/7, tests 4/4, builds 3/3.
+- **NOT re-run since 3 August — do not assume they hold at `0036`:** the 25
+  smoke suites (start with `smoke-communication`; 0035 changed
+  `app.claim_notification`), `eval-ai.mjs`, and the dependency audit.
+- `/terms` and `/privacy` carry a "Draft — not yet in force" banner and unfilled
+  placeholders. **The banner stays until Tanzanian counsel signs off.**
 
 Never run the old numeric-range psql loop below. For another environment:
 
@@ -256,6 +272,22 @@ onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
   to `0XXXXXXXXX`.
 - Next 16 uses `src/proxy.ts` (named `proxy` export), not `middleware.ts`;
   web env lives in `apps/web/.env.local`.
+- **The apex is marketing, `app.` is the product.** `lib/hosts.ts` is the only
+  source of truth for the split; `proxy.ts` runs the host decision BEFORE any
+  auth or database work, and marketing/shared paths return before the Supabase
+  call so the funnel survives a sleeping database. Redirects are 307, never
+  308. Cross-host links must be plain `<a>` built with `appHref()`/
+  `marketingHref()` — a `<Link>` to the other surface is 307'd straight back.
+  `NEXT_PUBLIC_ROOT_DOMAIN` is production-only; empty means combined mode.
+- **A new public marketing route must be added to `MARKETING_ONLY_PATHS` in
+  `lib/hosts.ts`**, or it 401s for the anonymous visitors it exists to serve.
+  This is the single most likely thing to break.
+- **The price lives only in `apps/web/src/lib/offer.ts`.** The visible page AND
+  the JSON-LD Offer render from it, so structured data can never advertise a
+  retired price. Never write the price as a literal anywhere else.
+- **JSX strips leading whitespace from a text chunk containing a newline**, so
+  `</strong> word` wrapping to the next line renders as `wordword`. Use
+  `{" "}`. Check the RENDERED html, not the source.
 - **Client-side API calls need `WEB_ORIGIN` to match the web port.**
   `resolveWebOrigin()` (apps/api/src/config.ts) defaults to
   `http://localhost:3000`, so running web on 3001/3002 fails the CORS
