@@ -1,0 +1,24 @@
+# What NOT to upload to a Vercel build.
+#
+# The root .turbo cache reached 11GB locally and was being uploaded in full,
+# which is what made the first deploy from the repo root fail. Everything here
+# is either a build artefact, a cache, or something the web build never reads.
+#
+# Do NOT add workspace packages (packages/*, apps/*/package.json). pnpm runs
+# with --frozen-lockfile in CI and a missing workspace importer fails the
+# install with ERR_PNPM_OUTDATED_LOCKFILE.
+
+.git
+.turbo
+node_modules
+.next
+dist
+build
+coverage
+*.log
+.DS_Store
+.vercel
+
+# Not read by the web build.
+docs
+apps/mobile/.expo
