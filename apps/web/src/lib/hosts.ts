@@ -55,7 +55,11 @@ export const MARKETING_ONLY_PATHS = new Set([
 export const MARKETING_ONLY_PREFIXES = ["/blog/", "/anza/"];
 
 /** Answered identically on BOTH hosts. These must NEVER redirect. */
-export const SHARED_PATHS = new Set(["/robots.txt", "/favicon.ico"]);
+export const SHARED_PATHS = new Set([
+	"/robots.txt",
+	"/favicon.ico",
+	"/manifest.webmanifest",
+]);
 export const SHARED_PREFIXES = ["/api/", "/_next/"];
 
 /** Reachable without a session, on either host. */

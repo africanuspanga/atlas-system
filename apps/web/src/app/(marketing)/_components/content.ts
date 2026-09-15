@@ -44,12 +44,12 @@ export const MODULES: readonly ModuleGroup[] = [
 		role: "Accountant",
 		question: "Can I collect fees and account for them?",
 		items: [
-			"Arrears tracking and automatic fee reminders by SMS — the single highest-value thing in the system",
+			"Arrears tracking and automatic fee reminders by SMS, the highest-value thing in the system",
 			"Fee structures per class, per term and per boarding status",
 			"Invoices, receipts and fee instalments",
 			"Payments by bank, M-Pesa or cash, reconciled",
 			"A debtors report you can act on, class by class",
-			"An immutable ledger — corrections are reversals, and every movement is a balanced journal entry",
+			"An immutable ledger: corrections are reversals, and every movement is a balanced journal entry",
 			"Payroll with PAYE, posting straight to the ledger",
 		],
 	},
@@ -91,7 +91,7 @@ export const ALSO: readonly string[] = [
 export const STEPS: readonly { title: string; body: string }[] = [
 	{
 		title: "You pay, we set up",
-		body: "One invoice for the year. Setup begins the day payment clears — we say so up front so it is never a surprise.",
+		body: "One invoice for the year. Setup begins the day payment clears. We say so up front so it is never a surprise.",
 	},
 	{
 		title: "A 45-minute setup call",
@@ -111,7 +111,7 @@ export const STEPS: readonly { title: string; body: string }[] = [
 export const FAQ: readonly { q: string; a: string }[] = [
 	{
 		q: "What happens to our data if we stop paying?",
-		a: "Nothing is ever deleted. Your school moves to read-only access after a grace period — never a hard lockout, and never deletion. Parents keep access to fee and results history regardless, because punishing parents for a school's unpaid invoice is not a collection strategy. This is written into our terms.",
+		a: "Nothing is ever deleted. Your school moves to read-only access after a grace period. Never a hard lockout, and never deletion. Parents keep access to fee and results history regardless, because punishing parents for a school's unpaid invoice is not a collection strategy. This is written into our terms.",
 	},
 	{
 		q: "We already have everything in Excel. Do we start again?",
@@ -123,7 +123,7 @@ export const FAQ: readonly { q: string; a: string }[] = [
 	},
 	{
 		q: "What happens when we use up the 20,000 SMS?",
-		a: "You see a used-and-remaining counter in the admin screens and a warning at 80%, so it is never a surprise. Messages are never silently dropped — the SMS that fails would be the fee reminder.",
+		a: "You see a used-and-remaining counter in the admin screens and a warning at 80%, so it is never a surprise. Messages are never silently dropped, because the SMS that fails would be the fee reminder.",
 	},
 	{
 		q: "Is there a cheaper plan for a smaller school?",
@@ -131,6 +131,6 @@ export const FAQ: readonly { q: string; a: string }[] = [
 	},
 	{
 		q: "Can we ask for features specific to our school?",
-		a: "Yes — up to ten of them are included, built to how your school actually works. We track them as a visible ledger you can see, so there is no argument later about what was promised.",
+		a: "Yes. Up to ten of them are included, built to how your school actually works. We track them as a visible ledger you can see, so there is no argument later about what was promised.",
 	},
 ];

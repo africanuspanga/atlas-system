@@ -5,9 +5,9 @@ const COLUMNS = [
 	{
 		heading: "Product",
 		links: [
-			{ label: "What it does", href: "#modules" },
-			{ label: "Pricing", href: "#pricing" },
-			{ label: "How it works", href: "#how" },
+			{ label: "What it does", href: "/#modules" },
+			{ label: "Pricing", href: "/#pricing" },
+			{ label: "How it works", href: "/#how" },
 			{ label: "Take a look around", href: "/tour" },
 		],
 	},
@@ -15,7 +15,7 @@ const COLUMNS = [
 		heading: "Learn",
 		links: [
 			{ label: "Blog", href: "/blog" },
-			{ label: "Questions", href: "#faq" },
+			{ label: "Questions", href: "/#faq" },
 		],
 	},
 	{
@@ -76,7 +76,7 @@ export function MarketingFooter() {
 					}}
 				>
 					<p className="ap-fine">
-						ATLAS — school management for Tanzania. Dar es Salaam, Tanzania.
+						ATLAS. School management for Tanzania. Dar es Salaam, Tanzania.
 					</p>
 					<p className="ap-fine">
 						© {new Date().getFullYear()} ATLAS. All rights reserved.

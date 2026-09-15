@@ -63,7 +63,7 @@ export const ARTICLES: readonly Article[] = [
 			{
 				type: "list",
 				items: [
-					"Nobody knows total arrears until the term is nearly over — because arrears are a subtraction nobody has done yet.",
+					"Nobody knows total arrears until the term is nearly over, because arrears are a subtraction nobody has done yet.",
 					"A parent says they paid. There is no receipt to check it against, so the school takes their word for it or risks the relationship.",
 					"Report cards are compiled by hand, and it costs teachers days they do not have.",
 					"When a teacher leaves, their mark book leaves with them.",
@@ -88,7 +88,7 @@ export const ARTICLES: readonly Article[] = [
 			},
 			{
 				type: "p",
-				text: "In ATLAS, every money movement posts a balanced journal entry, and financial records are immutable — a correction is a reversal, not an edit. That sounds like accounting pedantry until the first time a parent disputes a payment from four months ago and the answer takes ten seconds instead of an afternoon.",
+				text: "In ATLAS, every money movement posts a balanced journal entry, and financial records are immutable: a correction is a reversal, not an edit. That sounds like accounting pedantry until the first time a parent disputes a payment from four months ago and the answer takes ten seconds instead of an afternoon.",
 			},
 			{
 				type: "quote",
@@ -142,7 +142,7 @@ export const ARTICLES: readonly Article[] = [
 			{ type: "h2", text: "Reminders have to be automatic, or they do not happen" },
 			{
 				type: "p",
-				text: "Every school intends to send fee reminders. Very few send them consistently, because doing it by hand means one person typing 300 messages with 300 different balances in them — and getting one wrong is worse than sending none.",
+				text: "Every school intends to send fee reminders. Very few send them consistently, because doing it by hand means one person typing 300 messages with 300 different balances in them. Getting one wrong is worse than sending none.",
 			},
 			{
 				type: "p",
@@ -216,7 +216,7 @@ export const ARTICLES: readonly Article[] = [
 			},
 			{
 				type: "p",
-				text: "Second: it never computes money. Financial figures come from the same report functions the finance screens use — the ones that reconcile to the ledger and fail loudly if they do not. A language model that does its own arithmetic on fees is a liability, not a feature.",
+				text: "Second: it never computes money. Financial figures come from the same report functions the finance screens use, the ones that reconcile to the ledger and fail loudly if they do not. A language model that does its own arithmetic on fees is a liability, not a feature.",
 			},
 			{
 				type: "image",
@@ -228,7 +228,7 @@ export const ARTICLES: readonly Article[] = [
 			{ type: "h2", text: "Nothing happens without a person" },
 			{
 				type: "p",
-				text: "Reading is one thing; changing the school's records is another. In ATLAS the assistant can only ever propose a write — recording a payment, marking attendance, linking a guardian. The proposal is shown to you with a preview, and it does not happen until you press confirm. The confirm step is not reachable by the model at all, by design.",
+				text: "Reading is one thing; changing the school's records is another. In ATLAS the assistant can only ever propose a write: recording a payment, marking attendance, linking a guardian. The proposal is shown to you with a preview, and it does not happen until you press confirm. The confirm step is not reachable by the model at all, by design.",
 			},
 			{
 				type: "quote",
@@ -241,7 +241,7 @@ export const ARTICLES: readonly Article[] = [
 		slug: "report-cards-from-days-to-an-afternoon",
 		title: "Report cards: from days of work to one afternoon",
 		description:
-			"End of term does not have to mean a week of copying marks by hand. Most of the work is already done — it is just scattered.",
+			"End of term does not have to mean a week of copying marks by hand. Most of the work is already done. It is just scattered.",
 		published: "2026-08-05",
 		readingMinutes: 5,
 		hero: {
@@ -269,7 +269,7 @@ export const ARTICLES: readonly Article[] = [
 			{ type: "h2", text: "Grading should be a rule, not a habit" },
 			{
 				type: "p",
-				text: "Every school has a grading scale. In most schools it lives in a head of department's head and is applied slightly differently by different teachers. Written down once as a rule the system applies, it becomes consistent across every subject and every stream — and it stops being re-litigated every term.",
+				text: "Every school has a grading scale. In most schools it lives in a head of department's head and is applied slightly differently by different teachers. Written down once as a rule the system applies, it becomes consistent across every subject and every stream, and it stops being re-litigated every term.",
 			},
 			{
 				type: "p",
@@ -278,7 +278,7 @@ export const ARTICLES: readonly Article[] = [
 			{ type: "h2", text: "Publishing is a decision, not an accident" },
 			{
 				type: "p",
-				text: "Marks should be visible to teachers while they are being entered and to parents only when the school decides. Publishing an assessment locks the marks — deliberately, because a mark that changes after a parent has seen it is a conversation nobody wants.",
+				text: "Marks should be visible to teachers while they are being entered and to parents only when the school decides. Publishing an assessment locks the marks. That is deliberate: a mark that changes after a parent has seen it is a conversation nobody wants.",
 			},
 			{
 				type: "image",

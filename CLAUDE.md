@@ -8,16 +8,23 @@ expo-router native iOS/Android app — see its README for dev/EAS),
 `supabase/migrations`.
 Operator/role docs: `docs/ADMIN_GUIDE.md`. Audit history/specs: `docs/audit/`.
 Sales/GTM: `docs/sales/` (playbook + founding-schools offer).
-Visual language: TWO systems, deliberately different, do not merge them.
-The **product** uses `design.md` at repo root (Atlas Blue #0052ff, Inter +
-JetBrains Mono, pill buttons, 24px cards). The **marketing surface** uses an
-Apple-derived system scoped under `.atlas-marketing` in
-`apps/web/src/app/(marketing)/marketing.css` (#0066cc, alternating
+Visual language: TWO systems, deliberately different in type, spacing and
+surface, but ONE brand colour. The **product** uses `design.md` at repo root
+(Inter + JetBrains Mono, pill buttons, 24px cards). The **marketing surface**
+uses an Apple-derived system scoped under `.atlas-marketing` in
+`apps/web/src/app/(marketing)/marketing.css` (alternating
 light/parchment/near-black tiles, one shadow). Consult the right one before any
 UI work; never hoist marketing tokens into `globals.css`.
-Local preview: web on **3001 or 3002** — 3000 is taken by another process.
-Whichever you choose, start the API with `WEB_ORIGIN=http://localhost:<port>`
-or every client-side API call fails CORS silently (see gotchas).
+**Atlas Blue is `#0052ff` on BOTH surfaces** (`--primary` in `globals.css`,
+`--ap-primary` in `marketing.css`). Marketing used to carry its own `#0066cc`,
+which read as a second brand colour on any page linking the two surfaces; the
+owner's brand is white, blue and black, and it is one blue. Do not reintroduce
+a second blue. Dark tiles use `--ap-primary-on-dark: #2997ff` (4.7:1 on
+`--ap-tile-1`); plain `#0052ff` on a near-black tile is ~2.2:1 and unreadable.
+Local preview: web on **3000** (it was free as of 2026-09-02; if something else
+has claimed it, use 3001 or 3002). Whichever you choose, start the API with
+`WEB_ORIGIN=http://localhost:<port>` or every client-side API call fails CORS
+silently (see gotchas).
 
 ## Module map (what exists, by migration)
 
@@ -52,6 +59,114 @@ payroll + employer journals, A-Level aggregate) · 0032 payroll-settings seed ·
 annual + purchasable (`plans.limits.smsIncludedYear`, `tenant_sms_balance`,
 `app.tenant_sms_usage`; `claim_notification` spends included then purchased)
 · 0036 lets the service role read `public.tenant_sms_usage`.
+
+## HANDOVER (2026-09-15, `main` + marketing/login work now COMMITTED)
+
+**Read this first, then the 2026-08-06 section below for platform and database
+state, which is unchanged.**
+
+**The 2026-09-02 marketing/login work is committed as of 2026-09-15**, together
+with an SEO pass for the live domain. Gates re-run at that commit: lint 3/3,
+typecheck 7/7, tests 4/4, build 3/3.
+
+**The production domain is `atlasgo.co.tz`.** `NEXT_PUBLIC_ROOT_DOMAIN` must be
+set to the bare apex in Vercel Production and left EMPTY everywhere else, or
+previews redirect their own app routes at production. It is also what makes SEO
+correct: metadataBase, every canonical, the sitemap and the og:image URLs are
+all derived from it, and unset they fall back to localhost. A production build
+with it set was verified to emit `https://atlasgo.co.tz` canonicals and og:image
+URLs. See `apps/web/.env.production.example`.
+
+**The NestJS API is not hosted anywhere.** `NEXT_PUBLIC_API_URL` still points at
+`http://localhost:4000`, so on a web-only deployment the dashboard renders and
+then fetches nothing, and `/anza` leads fall through to the email path in
+`app/api/public/prospect/route.ts` without reaching `prospect_submissions`. That
+fallback only actually reaches a human if `RESEND_API_KEY`, `LEAD_EMAIL_TO` and
+`LEAD_EMAIL_FROM` are set; otherwise the driver resolves to console and the lead
+is lost. Set them before pointing any real traffic at `/anza`.
+
+Gates after the work: lint 3/3, typecheck 7/7, tests 4/4, build 3/3. Every
+marketing route re-checked at 200 (`/`, `/tour`, `/anza`, `/blog`, `/terms`,
+`/privacy`, `/login`).
+
+**What was done: a design and copy pass on the public surfaces.**
+
+- **No em dashes in user-facing copy.** Every one was rewritten into a comma,
+  colon or full stop across the landing page, nav, footer, tour, `/anza`
+  funnel, blog articles, terms, privacy and login. Owner's instruction: the
+  copy should not read as AI-generated. Code comments still use them, which is
+  the existing house style. **Keep new user-facing strings free of them.**
+- **Broken navigation fixed.** "What it does" pointed at `#modules`, which
+  existed nowhere; every section link was a bare hash, so from `/blog` they
+  resolved to `/blog#pricing`. All are absolute now (`/#pricing`) and the
+  landing page carries `id="modules"`. If you add a section link, make it
+  absolute or it breaks on every page except the landing page.
+- **Three "Screenshot pending" grey boxes were shipping live.** `AppWindow`
+  now returns `null` when it has no `src` in production, so the placeholder is
+  a development-only note to ourselves. Two tour stops (the invoice and the
+  report card) still have no capture and render text-only in production.
+  Needed: `/finance/[id]` with payments recorded, and a published report card.
+- **Three panels are drawn, not captured**
+  (`app/(marketing)/_components/panels.tsx`): the fee-reminder and absence SMS
+  on a phone, the attendance register on a phone, and the assistant as a
+  conversation with source chips. A teacher marks a register on a phone and a
+  parent only ever meets ATLAS as a text message, so a desktop screenshot
+  would misrepresent both. Used by the role switcher and the tour. Each says
+  it is an example in its caption.
+- **Still no testimonials, and do not invent any.** `pillars.ts` explains why.
+  The owner asked for school testimonials and was told no; the login showcase
+  carries real product screenshots instead.
+- **Login rebuilt** (`app/login/`): split screen, form left, auto-advancing
+  screenshot carousel right, no social buttons (owner's choice). White and
+  **light-locked** via `.atlas-light-lock` in `globals.css`, so it ignores the
+  dark-mode toggle by owner request. Remove that one class from
+  `login/page.tsx` to hand the page back to the theme.
+- **`ContourField`** (`components/contour-field.tsx`) is the topographic line
+  pattern. It holds no tokens and takes its colours as props, so it belongs to
+  neither design system. It is on the login **form side only**: behind the
+  screenshots it competed with them, and the owner explicitly rejected it in
+  the landing hero. **Do not put it back in the hero.**
+- **Brand assets added**: `app/favicon.ico` (was still the default Next.js
+  triangle), `app/icon.svg`, `app/apple-icon.png`, and a 1200x630
+  `opengraph-image.png` / `twitter-image.png` under `(marketing)/`. They live
+  in the marketing segment because a child `openGraph` object replaces the
+  parent's, so a root-segment OG image never attached. Generated with `sharp`
+  from `node_modules/.pnpm`; no generator script is committed because sharp is
+  only a transitive dependency.
+- **Meta**: title is `School management software for Tanzanian schools`, with
+  the brand appended by the root template. Do NOT put "ATLAS" in the marketing
+  layout's `title.default` again; it rendered the brand twice. The description
+  is templated off `lib/offer.ts` so the SMS figure cannot drift, and the price
+  is deliberately absent from it.
+- **Accessibility fixes**: `--ap-ink-48` darkened to `#6e6e73` (was 4.35:1 on
+  parchment), the ghost button on dark tiles is now white-on-outline (was
+  2.2:1), the nav frost went 82% to 92% because display type read through it,
+  and the role tablist answers arrow keys.
+- **Mobile**: the marketing nav had `display: none` on every link below 834px,
+  leaving a logo and one button. There is a sheet now (`nav.tsx`, client
+  component). The pricing figure was a fixed 56px monospace and overflowed a
+  375px screen; it is `clamp()` now.
+- **Shared i18n changed**: `login.demoDivider`, `login.tryDemo` and
+  `login.demoHint` in `packages/i18n`. `apps/mobile` renders all three, and
+  its login screen has the same divider/button/hint structure, so the new copy
+  reads correctly there too. It was not visually re-checked on device.
+
+**Known gaps, not started:**
+
+- **No password reset flow anywhere.** The redesigned login deliberately has no
+  "Forgot password?" link rather than one that goes nowhere.
+- **`proxy.ts` calls Supabase on `/login`.** Marketing paths return early on
+  purpose so the funnel survives a sleeping database; `/login` does not, so
+  when the database is unreachable the sign-in page takes ~26s and its own
+  assets starve behind it. Worth the same early return, but it is auth code and
+  was not touched without a live database to test against.
+- **The dev Supabase host resolves again.** `zwbsyiwtrabpysylyaaj.supabase.co`
+  was NXDOMAIN on 2026-09-02 but answered on 2026-09-15. Sign-in, the smoke
+  suites and the AI eval have still NOT been re-run against it, so nothing
+  auth-related is verified, only reachable.
+- Mobile viewports were verified with a throwaway iframe harness on a second
+  port, because `resize_window` does not work against a maximised Chrome
+  window. Useful trick; nothing about it is committed.
 
 ## HANDOVER (2026-08-06, `main` == `audit/production-readiness` @ `56d3585`)
 
@@ -175,6 +290,10 @@ site. GTM/sales material lives in `docs/sales/`.
 
 ## Iron rules
 
+- **No em dashes in user-facing copy** (owner decision, 2026-09-02: it reads
+  as AI-generated). Rewrite into a comma, a colon or a full stop; never swap in
+  a hyphen. Applies to every visible string on the marketing surface, in the
+  product and in `packages/i18n`. Code comments are exempt.
 - **Business logic lives in NestJS + Postgres (RPCs/constraints), never in
   React.** The web app renders and calls the API; simple reads may use
   Supabase RLS directly.
@@ -331,6 +450,24 @@ onboarding limit because it asserts 429. Follow `docs/ATLAS_TESTING_GUIDE.md`.
 - Live database changes require an approved change window, a shadow/data
   rehearsal, Supabase CLI dry run, backup/restore evidence, and verification;
   never bypass migration history with ad-hoc DDL.
+- **A bare hash link works only on the landing page.** `<Link href="#pricing">`
+  in the shared nav or footer resolves to `/blog#pricing` on the blog and goes
+  nowhere. Section links must be absolute: `/#pricing`.
+- **Metadata merges shallowly: a child's `openGraph` REPLACES the parent's.**
+  A file-based `opengraph-image.png` attaches to the segment it sits in, so a
+  root-level one silently vanishes from any route that declares its own
+  `openGraph`. Keep the image file in the same segment as the metadata object.
+- **A child's `title.default` still gets the parent's `title.template`
+  applied.** Naming the brand in both renders it twice (`... | ATLAS · ATLAS`).
+  Only one of the two should carry it.
+- Metadata icon routes are served at `/icon.svg`, `/favicon.ico`,
+  `/apple-icon.png` and `/opengraph-image*.png`, all of which the `proxy.ts`
+  matcher already excludes by extension. A code-generated `icon.tsx` would be
+  served at `/icon` instead, which the matcher does NOT exclude, so it would
+  hit the proxy and 307 or 401. Prefer static icon files.
+- `AppWindow` renders its "Screenshot pending" placeholder in development only
+  and returns `null` in production. A slot with no capture collapses on the
+  live site rather than shipping a grey box to a head teacher.
 
 ## House patterns (copy an existing file, don't invent)
 

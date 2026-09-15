@@ -81,7 +81,7 @@ export default function PrivacyPage() {
 					<p>
 						<strong>ATLAS</strong>{" "}
 						stores and processes those records on the
-						school&apos;s instructions in order to provide the service — the{" "}
+						school&apos;s instructions in order to provide the service. The{" "}
 						<strong>data processor</strong>. We do not sell personal data, we do
 						not use it to train AI models, and we do not use children&apos;s data
 						for marketing.
@@ -180,7 +180,7 @@ export default function PrivacyPage() {
 						</li>
 						<li>
 							receives <strong>no clinical detail and no individual salary</strong>{" "}
-							— the payroll tool returns aggregates only;
+							and the payroll tool returns aggregates only;
 						</li>
 						<li>
 							cannot change anything on its own. Every write is proposed and
@@ -193,7 +193,7 @@ export default function PrivacyPage() {
 							or a permit from the Personal Data Protection Commission.
 						</strong>{" "}
 						That work is not complete. Until it is, the assistant must not be
-						enabled against real student data — it is restricted to pilot and
+						enabled against real student data. It is restricted to pilot and
 						synthetic data. Your onboarding will tell you plainly which applies
 						to your school.
 					</p>
@@ -231,7 +231,7 @@ export default function PrivacyPage() {
 					<h2>6. How long we keep it</h2>
 					<p>
 						While your school subscribes, we keep records for as long as the
-						school needs them — a student&apos;s results and fee history are
+						school needs them, because a student&apos;s results and fee history are
 						meant to outlast their time at the school.
 					</p>
 					<p>
@@ -255,7 +255,7 @@ export default function PrivacyPage() {
 					</p>
 					<p>
 						Because your school is the controller,{" "}
-						<strong>please contact your school first</strong> — they hold the
+						<strong>please contact your school first</strong>. They hold the
 						records and can correct them directly. If you cannot resolve it with
 						the school, contact us at <Todo>privacy contact email</Todo> and we
 						will help the school respond.
@@ -265,7 +265,7 @@ export default function PrivacyPage() {
 					<p>
 						Access is separated by school and by role, and enforced in the
 						database as well as the application. Financial records cannot be
-						edited — a correction is a reversal — so the audit trail cannot be
+						edited, because a correction is a reversal, so the audit trail cannot be
 						quietly rewritten. Every change of consequence is logged against the
 						person who made it. Passwords are set by each user and never shared
 						with us.
@@ -279,8 +279,8 @@ export default function PrivacyPage() {
 					<h2>9. This website</h2>
 					<p>
 						The public website sets no advertising or analytics cookies. If you
-						submit the demo enquiry form we store what you enter — your school,
-						your name and your phone number — in order to contact you about
+						submit the demo enquiry form we store what you enter, meaning your school,
+						your name and your phone number, in order to contact you about
 						ATLAS, and for no other purpose. We do not sell it or share it with
 						anyone outside our sub-processors above.
 					</p>

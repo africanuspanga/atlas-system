@@ -11,20 +11,21 @@ import { MARKETING_ORIGIN } from "@/lib/hosts";
  * robots.txt.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-	const base = MARKETING_ORIGIN || "http://localhost:3002";
+	const base = MARKETING_ORIGIN || "http://localhost:3000";
 	const now = new Date();
 
 	return [
-		{ url: `${base}/`, lastModified: now, priority: 1 },
-		{ url: `${base}/anza`, lastModified: now, priority: 0.9 },
-		{ url: `${base}/tour`, lastModified: now, priority: 0.8 },
-		{ url: `${base}/blog`, lastModified: now, priority: 0.7 },
+		{ url: `${base}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
+		{ url: `${base}/anza`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+		{ url: `${base}/tour`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+		{ url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
 		...ARTICLES.map((a) => ({
 			url: `${base}/blog/${a.slug}`,
 			lastModified: new Date(`${a.published}T00:00:00Z`),
+			changeFrequency: "yearly" as const,
 			priority: 0.6,
 		})),
-		{ url: `${base}/terms`, lastModified: now, priority: 0.3 },
-		{ url: `${base}/privacy`, lastModified: now, priority: 0.3 },
+		{ url: `${base}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+		{ url: `${base}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
 	];
 }

@@ -121,7 +121,7 @@ export function Funnel({
 	if (done) {
 		return (
 			<div style={{ textAlign: "center" }}>
-				<h1 className="ap-display">Thank you — we have it.</h1>
+				<h1 className="ap-display">Thank you. We have it.</h1>
 				<p
 					className="ap-lead"
 					style={{ marginTop: "var(--ap-md)", color: "var(--ap-ink-80)" }}
@@ -226,7 +226,7 @@ export function Funnel({
 							/>
 							<p className="ap-fine" ref={liveRef} role="status">
 								{query.trim().length > 0 && query.trim().length < 3
-									? "Keep typing — at least 3 letters."
+									? "Keep typing. At least 3 letters."
 									: searching
 										? "Searching…"
 										: query.trim().length >= 3 && visibleResults.length === 0
@@ -295,7 +295,7 @@ export function Funnel({
 						style={{ marginTop: "var(--ap-md)", color: "var(--ap-ink-80)" }}
 					>
 						A school with 500 students pays {fmtTZS(perStudentPerYear)} per
-						student per year — about {fmtTZS(perStudentPerMonth)} per student per
+						student per year, about {fmtTZS(perStudentPerMonth)} per student per
 						month. The {FREE_SMS.toLocaleString("en-US")} included SMS alone are
 						roughly TZS 400,000 to 600,000 of messaging at market rates.
 					</p>

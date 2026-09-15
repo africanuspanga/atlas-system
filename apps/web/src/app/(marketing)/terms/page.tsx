@@ -50,7 +50,7 @@ export default function TermsPage() {
 					</p>
 					<ul>
 						<li>
-							All modules, for every role — head teacher, accountant, teachers
+							All modules, for every role: head teacher, accountant, teachers
 							and parents.
 						</li>
 						<li>
@@ -107,7 +107,7 @@ export default function TermsPage() {
 					<p>
 						We will contact you before your period ends to arrange renewal. If
 						renewal is not completed by the end of the period, your subscription
-						enters a grace period of <Todo>7–14 — pick one</Todo> days during
+						enters a grace period of <Todo>7 to 14, pick one</Todo> days during
 						which nothing changes. Schools&apos; payment approvals genuinely take
 						this long.
 					</p>

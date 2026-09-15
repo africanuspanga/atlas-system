@@ -12,9 +12,14 @@
 
 .atlas-marketing {
 	/* ---- colour: one accent, and nothing else ------------------------- */
-	--ap-primary: #0066cc; /* every interactive element on light surfaces */
-	--ap-primary-focus: #0071e3; /* keyboard focus ring only */
-	--ap-primary-on-dark: #2997ff; /* in-copy links on dark tiles ONLY */
+	/* Atlas Blue. The same hex as the product's --primary in globals.css, on
+	   purpose: the two design systems stay separate in type, spacing and
+	   surface, but the brand is white, blue and black, and it is ONE blue. This
+	   used to be #0066cc, which read as a second brand colour on any page that
+	   linked the two surfaces together. */
+	--ap-primary: #0052ff; /* every interactive element on light surfaces */
+	--ap-primary-focus: #3d7dff; /* keyboard focus ring only */
+	--ap-primary-on-dark: #2997ff; /* dark tiles ONLY; 4.7:1 on --ap-tile-1 */
 
 	/* surfaces */
 	--ap-canvas: #ffffff;
@@ -31,7 +36,7 @@
 	--ap-on-dark: #ffffff;
 	--ap-body-muted: #cccccc; /* secondary copy on dark tiles */
 	--ap-ink-80: #333333;
-	--ap-ink-48: #7a7a7a; /* disabled text, legal fine print */
+	--ap-ink-48: #6e6e73; /* secondary ink. 5.0:1 on parchment, 5.3:1 on white */
 
 	/* hairlines */
 	--ap-divider-soft: rgba(0, 0, 0, 0.04);
@@ -446,7 +451,7 @@
 	font-weight: 400;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--ap-ink-48);
+	color: var(--ap-primary);
 }
 .atlas-marketing .ap-eyebrow::before {
 	content: "";
@@ -457,7 +462,7 @@
 .atlas-marketing .ap-tile-dark .ap-eyebrow,
 .atlas-marketing .ap-tile-dark-2 .ap-eyebrow,
 .atlas-marketing .ap-tile-dark-3 .ap-eyebrow {
-	color: var(--ap-body-muted);
+	color: var(--ap-primary-on-dark);
 }
 
 /* Section head: heading left, supporting paragraph right. Reading order
@@ -603,7 +608,7 @@
 	outline-offset: 2px;
 }
 .atlas-marketing .ap-tab[aria-selected="true"] {
-	background: var(--ap-ink);
+	background: var(--ap-primary);
 	color: var(--ap-on-dark);
 }
 
@@ -627,7 +632,8 @@
 	line-height: 1.44;
 }
 .atlas-marketing .ap-tile-dark .ap-check li::before,
-.atlas-marketing .ap-tile-dark-2 .ap-check li::before {
+.atlas-marketing .ap-tile-dark-2 .ap-check li::before,
+.atlas-marketing .ap-tile-dark-3 .ap-check li::before {
 	color: var(--ap-primary-on-dark);
 }
 
@@ -714,7 +720,7 @@
 .atlas-marketing .ap-todo {
 	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
 	font-size: 0.9em;
-	background: rgba(0, 102, 204, 0.08);
+	background: rgba(0, 82, 255, 0.08);
 	border-bottom: 1px solid var(--ap-primary);
 	padding: 1px 4px;
 	border-radius: 3px;
@@ -728,7 +734,7 @@
 	position: sticky;
 	top: 0;
 	z-index: 50;
-	background: color-mix(in srgb, var(--ap-canvas) 82%, transparent);
+	background: color-mix(in srgb, var(--ap-canvas) 92%, transparent);
 	backdrop-filter: saturate(180%) blur(20px);
 	-webkit-backdrop-filter: saturate(180%) blur(20px);
 	border-bottom: 1px solid var(--ap-divider-soft);
@@ -798,5 +804,255 @@
 	}
 	.atlas-marketing .ap-nav-link {
 		display: none;
+	}
+}
+
+/* ===================================================================== */
+/* Dark-tile button variant                                              */
+/* ===================================================================== */
+/* #0066cc on a near-black tile is 2.2:1 — the secondary CTA in the close
+   band was effectively unreadable. On dark, the outline carries the button
+   and the label goes white, which is also what design.md specifies for
+   secondary actions on dark bands. */
+.atlas-marketing .ap-tile-dark .ap-btn-ghost,
+.atlas-marketing .ap-tile-dark-2 .ap-btn-ghost,
+.atlas-marketing .ap-tile-dark-3 .ap-btn-ghost {
+	color: var(--ap-on-dark);
+	border-color: rgba(255, 255, 255, 0.42);
+}
+.atlas-marketing .ap-tile-dark .ap-btn-ghost:hover,
+.atlas-marketing .ap-tile-dark-2 .ap-btn-ghost:hover,
+.atlas-marketing .ap-tile-dark-3 .ap-btn-ghost:hover {
+	border-color: var(--ap-on-dark);
+}
+
+/* ===================================================================== */
+/* Feature-card affordance                                               */
+/* ===================================================================== */
+/* These are links. Without a hover state nothing says so, and the arrow
+   reads as decoration rather than a destination. */
+.atlas-marketing .ap-feature {
+	transition:
+		border-color 0.15s ease,
+		background 0.15s ease;
+}
+.atlas-marketing .ap-feature:hover {
+	border-color: var(--ap-primary);
+}
+.atlas-marketing .ap-feature-arrow {
+	transition: transform 0.15s ease;
+}
+.atlas-marketing .ap-feature:hover .ap-feature-arrow {
+	transform: translateX(4px);
+}
+.atlas-marketing .ap-feature:focus-visible,
+.atlas-marketing .ap-footer-link:focus-visible,
+.atlas-marketing .ap-link:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 3px;
+	border-radius: 4px;
+}
+
+/* ===================================================================== */
+/* FAQ — two columns, never four                                         */
+/* ===================================================================== */
+/* auto-fit produced four columns at 1440 and left a ragged half-empty
+   final row. Six answers read as two columns of three. */
+.atlas-marketing .ap-faq {
+	display: grid;
+	gap: var(--ap-xl) var(--ap-xxl);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 834px) {
+	.atlas-marketing .ap-faq {
+		grid-template-columns: 1fr;
+		gap: var(--ap-lg);
+	}
+}
+
+/* ===================================================================== */
+/* The phone — the page's signature object                               */
+/* ===================================================================== */
+/* Fee reminders by SMS are the highest-value thing in the product and the
+   only part of it a parent ever touches. The artifact is a text message on a
+   phone, so the page shows a text message on a phone rather than a screenshot
+   of the screen that sent it. */
+.atlas-marketing .ap-phone {
+	width: 100%;
+	max-width: 320px;
+	margin-inline: auto;
+	padding: 11px;
+	background: var(--ap-ink);
+	border-radius: 46px;
+	box-shadow: var(--ap-product-shadow);
+}
+.atlas-marketing .ap-phone-screen {
+	background: var(--ap-canvas);
+	border-radius: 36px;
+	overflow: hidden;
+	padding: 22px 14px 26px;
+	min-height: 460px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--ap-sm);
+}
+.atlas-marketing .ap-phone-head {
+	text-align: center;
+	padding-bottom: var(--ap-sm);
+	border-bottom: 1px solid var(--ap-hairline);
+}
+.atlas-marketing .ap-sms {
+	background: #e9e9eb;
+	color: var(--ap-ink);
+	border-radius: 20px 20px 20px 6px;
+	padding: 11px 15px;
+	max-width: 90%;
+	font-size: 15px;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+}
+.atlas-marketing .ap-sms-meta {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	color: var(--ap-ink-48);
+	padding-left: 4px;
+}
+
+/* A register row, as a teacher sees it on a phone. */
+.atlas-marketing .ap-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--ap-xs);
+	padding: 9px 2px;
+	border-bottom: 1px solid var(--ap-divider-soft);
+	font-size: 15px;
+	letter-spacing: -0.016em;
+}
+.atlas-marketing .ap-pill-present,
+.atlas-marketing .ap-pill-absent {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	padding: 3px 9px;
+	border-radius: var(--ap-r-pill);
+	white-space: nowrap;
+}
+.atlas-marketing .ap-pill-present {
+	background: rgba(5, 177, 105, 0.12);
+	color: #04794a;
+}
+.atlas-marketing .ap-pill-absent {
+	background: rgba(207, 32, 47, 0.1);
+	color: #a3121f;
+}
+
+/* ===================================================================== */
+/* The assistant panel — a conversation, not a screenshot                 */
+/* ===================================================================== */
+.atlas-marketing .ap-convo {
+	background: var(--ap-canvas);
+	border: 1px solid var(--ap-hairline);
+	border-radius: var(--ap-r-lg);
+	padding: var(--ap-lg);
+	display: grid;
+	gap: var(--ap-md);
+	box-shadow: var(--ap-product-shadow);
+}
+.atlas-marketing .ap-convo-q {
+	justify-self: end;
+	max-width: 82%;
+	background: var(--ap-primary);
+	color: #fff;
+	border-radius: 18px 18px 6px 18px;
+	padding: 11px 16px;
+	font-size: 16px;
+	line-height: 1.4;
+	letter-spacing: -0.016em;
+}
+.atlas-marketing .ap-convo-a {
+	max-width: 92%;
+	background: var(--ap-parchment);
+	border-radius: 18px 18px 18px 6px;
+	padding: var(--ap-md);
+	font-size: 16px;
+	line-height: 1.45;
+	letter-spacing: -0.016em;
+}
+.atlas-marketing .ap-convo-figure {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 22px;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	display: block;
+	margin-bottom: 2px;
+}
+.atlas-marketing .ap-sources {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--ap-xxs);
+	margin-top: var(--ap-sm);
+	padding-top: var(--ap-sm);
+	border-top: 1px solid var(--ap-hairline);
+}
+.atlas-marketing .ap-source {
+	font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--ap-ink-48);
+	border: 1px solid var(--ap-hairline);
+	border-radius: var(--ap-r-pill);
+	padding: 3px 10px;
+}
+
+/* ===================================================================== */
+/* Mobile navigation                                                     */
+/* ===================================================================== */
+/* Below 834px every link used to be display:none, leaving a phone visitor
+   with a logo and one button and no way to reach pricing, the blog or a
+   sign-in. The links move into a sheet instead of disappearing. */
+.atlas-marketing .ap-nav-toggle {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	flex: none;
+	background: transparent;
+	border: 0;
+	border-radius: var(--ap-r-pill);
+	color: var(--ap-ink);
+	cursor: pointer;
+}
+.atlas-marketing .ap-nav-toggle:focus-visible {
+	outline: 2px solid var(--ap-primary-focus);
+	outline-offset: 2px;
+}
+.atlas-marketing .ap-nav-sheet {
+	display: none;
+}
+
+@media (max-width: 834px) {
+	.atlas-marketing .ap-nav-toggle {
+		display: inline-flex;
+	}
+	.atlas-marketing .ap-nav-sheet[data-open="true"] {
+		display: block;
+		border-top: 1px solid var(--ap-hairline);
+		background: var(--ap-canvas);
+		padding: var(--ap-xs) var(--ap-md) var(--ap-lg);
+	}
+	.atlas-marketing .ap-nav-sheet .ap-nav-link {
+		display: flex;
+		align-items: center;
+		min-height: 48px;
+		font-size: 17px;
+		border-bottom: 1px solid var(--ap-divider-soft);
+	}
+	.atlas-marketing .ap-nav-sheet .ap-btn {
+		width: 100%;
+		margin-top: var(--ap-md);
 	}
 }

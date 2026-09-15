@@ -144,3 +144,41 @@
     letter-spacing: -0.02em;
   }
 }
+/*
+ * A subtree that stays on the light palette even when the app is in dark mode.
+ *
+ * Used by /login, which is a pre-sign-in surface and is meant to read as white
+ * regardless of the theme the visitor's browser or the app toggle asks for.
+ * Overriding the tokens rather than stripping the `.dark` class off <html>
+ * keeps the change local and free of a first-paint flash.
+ *
+ * `dark:` utilities inside still match (the variant keys off the ancestor), but
+ * every one of them resolves through these same tokens, so they land on light
+ * values too. Values are copied from :root above; keep them in step.
+ */
+.atlas-light-lock {
+  --background: #ffffff;
+  --foreground: #0a0b0d;
+  --card: #ffffff;
+  --card-foreground: #0a0b0d;
+  --popover: #ffffff;
+  --popover-foreground: #0a0b0d;
+  --primary: #0052ff;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0f3;
+  --secondary-foreground: #0a0b0d;
+  --muted: #f7f7f7;
+  --muted-foreground: #5b616e;
+  --accent: #eef0f3;
+  --accent-foreground: #0a0b0d;
+  --destructive: #cf202f;
+  --border: #dee1e6;
+  --input: #dee1e6;
+  --ring: #0052ff;
+  --up: #05b169;
+  --down: #cf202f;
+
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}

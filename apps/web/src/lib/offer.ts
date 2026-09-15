@@ -29,7 +29,7 @@ export const fmtTZS = (n: number) => `TZS ${n.toLocaleString("en-US")}`;
  *  networks talk, and the moment one head teacher learns another paid less you
  *  lose both. */
 export const INCLUSIONS: readonly string[] = [
-	"All modules — for the head teacher, accountant, teachers and parents",
+	"All modules, for the head teacher, accountant, teachers and parents",
 	`${FREE_SMS.toLocaleString("en-US")} SMS a year for fee reminders, attendance alerts and results`,
 	"The ATLAS AI assistant",
 	`Up to ${FREE_FEATURE_REQUESTS} custom features built to how your school actually works`,

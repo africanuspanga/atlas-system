@@ -388,12 +388,26 @@ const en = {
 		"Account created. Check your email to confirm your address, then sign in.",
 	"login.confirmFailed":
 		"Email confirmation failed or the link expired. Please try again.",
-	"login.demoDivider": "demo",
-	"login.tryDemo": "Try the demo — Chief Sarwatt School",
+	"login.demoDivider": "or",
+	"login.tryDemo": "Try the demo school",
 	"login.demoHint":
-		"Explore ATLAS with a fully populated sample school. Credentials fill in automatically.",
+		"Chief Sarwatt School, fully populated. The credentials fill in for you.",
 	"login.new": "New school? Create an account",
 	"login.existing": "Already have an account? Sign in",
+	"login.showPassword": "Show password",
+	"login.hidePassword": "Hide password",
+	"login.backToSite": "Back to the ATLAS site",
+	"login.showcaseHeading": "Everything a school runs on.",
+	"login.slideDashboardTitle": "One view of the whole school",
+	"login.slideDashboardBody":
+		"Today's attendance, this month's collections and what is still outstanding.",
+	"login.slideDebtorsTitle": "Arrears you can act on",
+	"login.slideDebtorsBody":
+		"Every student with a balance, class by class, and one button to remind them all.",
+	"login.slideStudentsTitle": "Every student, in one register",
+	"login.slideStudentsBody":
+		"Admission numbers, class, guardian and status, all searchable.",
+	"login.goToSlide": "Go to slide",
 	"staff.role.school_admin": "School Administrator",
 	"staff.role.head_teacher": "Head Teacher",
 	"staff.role.academic_master": "Academic Master",

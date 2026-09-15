@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MARKETING_ORIGIN, appHref } from "@/lib/hosts";
+import { MARKETING_ORIGIN } from "@/lib/hosts";
 import {
 	FREE_SMS,
 	INCLUSIONS,
@@ -10,6 +10,7 @@ import {
 	perStudentPerYear,
 } from "@/lib/offer";
 import { ALSO, FAQ, PROBLEMS, STEPS } from "./_components/content";
+import { AssistantPanel } from "./_components/panels";
 import { BENTO, PILLARS } from "./_components/pillars";
 import { RoleSwitcher } from "./_components/role-switcher";
 import { AppWindow } from "./_components/shot";
@@ -33,7 +34,13 @@ export default function LandingPage() {
 			"@type": "Organization",
 			name: "ATLAS",
 			url: MARKETING_ORIGIN || undefined,
+			// A brand SERP needs a logo it can actually fetch. Relative would be
+			// resolved against google.com, so this stays absolute or absent.
+			logo: MARKETING_ORIGIN ? `${MARKETING_ORIGIN}/icon.svg` : undefined,
+			image: MARKETING_ORIGIN ? `${MARKETING_ORIGIN}/icon.svg` : undefined,
 			areaServed: "TZ",
+			address: { "@type": "PostalAddress", addressCountry: "TZ" },
+			knowsLanguage: "en",
 		},
 		{
 			"@context": "https://schema.org",
@@ -48,6 +55,17 @@ export default function LandingPage() {
 			name: "ATLAS",
 			applicationCategory: "BusinessApplication",
 			operatingSystem: "Web, iOS, Android",
+			url: MARKETING_ORIGIN || undefined,
+			inLanguage: "en-TZ",
+			featureList: [
+				"Fees, invoices, receipts and an immutable ledger",
+				"Attendance with absence alerts to parents",
+				"Marks, report cards and NECTA candidate export",
+				"Payroll and PAYE",
+				"Timetable",
+				"Parent portal and parent SMS",
+				"AI assistant over the school's own records",
+			],
 			description:
 				"School management for Tanzania: fees and arrears, attendance, marks and report cards, and messages to parents.",
 			offers: {
@@ -78,7 +96,10 @@ export default function LandingPage() {
 			{/* ---- hero ------------------------------------------------- */}
 			<section className="ap-tile ap-tile-light">
 				<div className="ap-inner" style={{ textAlign: "center" }}>
-					<h1 className="ap-hero">The whole school, in one place.</h1>
+					<p className="ap-eyebrow">For Tanzanian schools</p>
+					<h1 className="ap-hero" style={{ marginTop: "var(--ap-sm)" }}>
+						The whole school, in one place.
+					</h1>
 					<p
 						className="ap-lead"
 						style={{
@@ -103,10 +124,17 @@ export default function LandingPage() {
 						<Link className="ap-btn" href="/anza">
 							Book a demo
 						</Link>
-						<a className="ap-btn-ghost" href={appHref("/login")}>
-							Sign in
-						</a>
+						<Link className="ap-btn-ghost" href="/tour">
+							See it working
+						</Link>
 					</div>
+					<p
+						className="ap-caption"
+						style={{ marginTop: "var(--ap-md)", color: "var(--ap-ink-48)" }}
+					>
+						About 30 minutes, with your own school&apos;s numbers. Nothing to
+						install.
+					</p>
 					<div style={{ marginTop: "var(--ap-xxl)" }}>
 						<AppWindow
 							alt="The ATLAS dashboard showing today's attendance, fee collection and outstanding balances"
@@ -147,7 +175,7 @@ export default function LandingPage() {
 			</section>
 
 			{/* ---- what it is ------------------------------------------- */}
-			<section className="ap-tile ap-tile-light">
+			<section className="ap-tile ap-tile-light" id="modules">
 				<div className="ap-inner-wide">
 					<div className="ap-head">
 						<div>
@@ -160,8 +188,8 @@ export default function LandingPage() {
 						</div>
 						<p className="ap-body" style={{ color: "var(--ap-ink-80)" }}>
 							Not a filing cabinet with a login. The information a school
-							already keeps, connected — so a payment, a balance and a term&apos;s
-							collection figure are the same fact seen from different angles.
+							already keeps, connected. A payment, a balance and a term&apos;s
+							collection figure become the same fact seen from three angles.
 						</p>
 					</div>
 
@@ -304,7 +332,7 @@ export default function LandingPage() {
 						</div>
 						<AppWindow
 							alt="The debtors report, class by class"
-							caption="Debtors, class by class — and one button to remind them all."
+							caption="Debtors, class by class, with one button to remind them all."
 							height={675}
 							src="/screenshots/debtors.png"
 							width={1568}
@@ -332,7 +360,7 @@ export default function LandingPage() {
 							</p>
 							<ul className="ap-check" style={{ marginTop: "var(--ap-lg)" }}>
 								<li className="ap-body">
-									It sees exactly what your role permits — a teacher asking a
+									It sees exactly what your role permits, so a teacher asking a
 									finance question does not get a finance answer
 								</li>
 								<li className="ap-body">
@@ -345,13 +373,7 @@ export default function LandingPage() {
 								</li>
 							</ul>
 						</div>
-						<AppWindow
-							alt="The ATLAS assistant answering a question about fee collection"
-							caption="It shows where the answer came from."
-							height={1200}
-							needs="/assistant with a fee-collection question answered"
-							width={1900}
-						/>
+						<AssistantPanel />
 					</div>
 				</div>
 			</section>
@@ -431,7 +453,7 @@ export default function LandingPage() {
 							</h2>
 						</div>
 						<p className="ap-body" style={{ color: "var(--ap-ink-80)" }}>
-							These four happen in this order for a reason — parent SMS goes on
+							These four happen in this order for a reason. Parent SMS goes on
 							last, after balances are verified.
 						</p>
 					</div>
@@ -455,12 +477,7 @@ export default function LandingPage() {
 									paddingTop: "var(--ap-md)",
 								}}
 							>
-								<span
-									className="ap-eyebrow"
-									style={{ color: "var(--ap-primary)" }}
-								>
-									Step {i + 1}
-								</span>
+								<span className="ap-eyebrow">Step {i + 1}</span>
 								<p className="ap-tagline" style={{ marginTop: "var(--ap-xs)" }}>
 									{s.title}
 								</p>
@@ -488,7 +505,11 @@ export default function LandingPage() {
 					</h2>
 					<p
 						className="ap-figure"
-						style={{ fontSize: 56, marginTop: "var(--ap-lg)" }}
+						style={{
+							color: "var(--ap-primary-on-dark)",
+							fontSize: "clamp(30px, 8.5vw, 56px)",
+							marginTop: "var(--ap-lg)",
+						}}
 					>
 						{fmtTZS(PRICE_TZS)}
 					</p>
@@ -506,8 +527,8 @@ export default function LandingPage() {
 						}}
 					>
 						A school with 500 students pays {fmtTZS(perStudentPerYear)} per
-						student per year — about {fmtTZS(perStudentPerMonth)} a month, less
-						than it costs to print their report cards.
+						student per year, about {fmtTZS(perStudentPerMonth)} a month. That is
+						less than it costs to print their report cards.
 					</p>
 
 					<ul
@@ -546,14 +567,7 @@ export default function LandingPage() {
 						</div>
 					</div>
 
-					<div
-						style={{
-							marginTop: "var(--ap-xl)",
-							display: "grid",
-							gap: "var(--ap-lg)",
-							gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-						}}
-					>
+					<div className="ap-faq" style={{ marginTop: "var(--ap-xl)" }}>
 						{FAQ.map((f) => (
 							<div
 								key={f.q}

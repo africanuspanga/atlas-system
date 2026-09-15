@@ -1,10 +1,18 @@
 import Image from "next/image";
 
 /**
- * A real product screen framed as a browser window — never a stock
- * illustration. Where a capture does not exist yet, renders a labelled
- * placeholder at the right aspect ratio so layout is final and only the pixels
- * are outstanding. `needs` names the exact screen to capture.
+ * A real product screen framed as a browser window, never a stock
+ * illustration.
+ *
+ * Where a capture does not exist yet, a labelled placeholder holds the right
+ * aspect ratio so the layout is final and only the pixels are outstanding.
+ * `needs` names the exact screen to capture.
+ *
+ * That placeholder is a note to ourselves, so it renders in development ONLY.
+ * A grey box reading "Screenshot pending" went out on the live landing page,
+ * where it says to a head teacher that the screen does not exist. In
+ * production the slot collapses instead and the surrounding copy carries the
+ * stop on its own.
  */
 export function AppWindow({
 	src,
@@ -24,6 +32,8 @@ export function AppWindow({
 	width?: number;
 	height?: number;
 }) {
+	if (!src && process.env.NODE_ENV === "production") return null;
+
 	return (
 		<figure style={{ margin: 0 }}>
 			<div className="ap-window">
@@ -55,7 +65,7 @@ export function AppWindow({
 						}}
 					>
 						<span className="ap-caption" style={{ color: "var(--ap-ink-48)" }}>
-							Screenshot pending{needs ? ` — ${needs}` : ""}
+							Screenshot pending{needs ? `: ${needs}` : ""}
 						</span>
 					</div>
 				)}

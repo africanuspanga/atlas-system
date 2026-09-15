@@ -19,7 +19,7 @@ export function Todo({ children }: { children: React.ReactNode }) {
 export function DraftNotice({ page }: { page: string }) {
 	return (
 		<div className="ap-draft" style={{ marginTop: "var(--ap-lg)" }}>
-			<p className="ap-caption-strong">Draft — not yet in force</p>
+			<p className="ap-caption-strong">Draft. Not yet in force</p>
 			<p
 				className="ap-caption"
 				style={{ marginTop: "var(--ap-xxs)", color: "var(--ap-ink-80)" }}

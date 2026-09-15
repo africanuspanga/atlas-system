@@ -11,22 +11,22 @@ export const PILLARS = [
 	{
 		title: "Money",
 		body: "Fee structures, invoices and receipts, arrears, and an immutable ledger where every movement is a balanced journal entry.",
-		href: "#roles",
+		href: "/#roles",
 	},
 	{
 		title: "Records",
-		body: "Students, guardians, staff, classes and streams, attendance and marks — in one place, and still there when a teacher leaves.",
-		href: "#roles",
+		body: "Students, guardians, staff, classes and streams, attendance and marks, in one place and still there when a teacher leaves.",
+		href: "/#roles",
 	},
 	{
 		title: "Messages",
 		body: "Fee reminders, absence alerts and results, sent to the right parent with their own child's figures in them.",
-		href: "#fees",
+		href: "/#fees",
 	},
 	{
 		title: "Answers",
 		body: "Reports that reconcile to the ledger, and an assistant you can ask in plain language without it inventing a number.",
-		href: "#assistant",
+		href: "/#assistant",
 	},
 ] as const;
 
@@ -38,12 +38,23 @@ export interface BentoTile {
 	dark?: boolean;
 }
 
+/**
+ * Ordered so the spans tile the six-column grid exactly: 3+3, 2+2+2, 2+2+2,
+ * 3+3. The previous order left a one-column hole in the first row, which read
+ * as a tile that had failed to load.
+ */
 export const BENTO: readonly BentoTile[] = [
 	{
 		figure: "20,000",
 		label: "SMS included, every year",
-		body: "Roughly TZS 400,000–600,000 of messaging at market rates — a meaningful part of the fee, straight back.",
+		body: "Roughly TZS 400,000 to 600,000 of messaging at market rates, a meaningful part of the fee straight back.",
 		wide: true,
+	},
+	{
+		label: "Immutable by design",
+		body: "Financial records cannot be edited. A correction is a reversal, so the audit trail is the truth.",
+		wide: true,
+		dark: true,
 	},
 	{ figure: "10", label: "Custom features, built to how your school works" },
 	{ figure: "1", label: "Price. No tiers, no per-student billing" },
@@ -56,12 +67,6 @@ export const BENTO: readonly BentoTile[] = [
 		label: "Roles, each with their own view and permissions",
 	},
 	{
-		label: "Immutable by design",
-		body: "Financial records cannot be edited. A correction is a reversal, so the audit trail is the truth.",
-		wide: true,
-		dark: true,
-	},
-	{
 		label: "NECTA-ready",
 		body: "A-Level combinations, continuous-assessment summaries and candidate export.",
 	},
@@ -71,7 +76,12 @@ export const BENTO: readonly BentoTile[] = [
 	},
 	{
 		label: "Your Excel, imported",
-		body: "We read the spreadsheets you already keep — Swahili column headings included — and validate every row.",
+		body: "We read the spreadsheets you already keep, Swahili column headings included, and validate every row.",
+		wide: true,
+	},
+	{
+		label: "Never held hostage",
+		body: "Stop paying and the school moves to read-only. Nothing is deleted, and parents keep their fee and results history.",
 		wide: true,
 	},
 ];

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,7 +17,21 @@ export const metadata: Metadata = {
     default: "ATLAS",
     template: "%s · ATLAS",
   },
-  description: "ATLAS — the operating system of a school. Tanzania-first school management platform.",
+  description:
+    "The operating system of a school. Fees, attendance, marks and parent messaging for Tanzanian schools.",
+};
+
+/**
+ * Colours the mobile browser chrome to match the page it is framing. Two
+ * entries rather than one because the product has a dark mode: a single light
+ * theme-colour leaves a white bar above a near-black dashboard.
+ */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#1d1d1f" },
+  ],
+  colorScheme: "light dark",
 };
 
 /**

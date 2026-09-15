@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+	AssistantPanel,
+	RegisterPhone,
+	SmsPhone,
+} from "../_components/panels";
 import { AppWindow } from "../_components/shot";
 
 /**
@@ -23,7 +28,7 @@ export const metadata: Metadata = {
 const STOPS = [
 	{
 		title: "The dashboard",
-		body: "Today's attendance, this month's collections and what is still outstanding — the screen a head teacher can answer a board question from.",
+		body: "Today's attendance, this month's collections and what is still outstanding. The screen a head teacher answers a board question from.",
 		alt: "The ATLAS dashboard",
 		src: "/screenshots/dashboard.png",
 	},
@@ -35,13 +40,13 @@ const STOPS = [
 	},
 	{
 		title: "Every student, in one list",
-		body: "Admission numbers, class, guardian and status — searchable, and the place a report card is generated from.",
+		body: "Admission numbers, class, guardian and status, all searchable. Report cards are generated from here.",
 		alt: "The student register",
 		src: "/screenshots/students.png",
 	},
 	{
 		title: "An invoice and its payments",
-		body: "Bank, M-Pesa and cash all land here. Records are immutable — a correction is a reversal, and every movement posts a balanced journal entry.",
+		body: "Bank, M-Pesa and cash all land here. Records are immutable: a correction is a reversal, and every movement posts a balanced journal entry.",
 		alt: "An invoice with payments",
 		needs: "/finance/[id] invoice with payments recorded",
 	},
@@ -49,7 +54,7 @@ const STOPS = [
 		title: "Attendance",
 		body: "A whole stream marked in one pass, from a phone or a laptop. Guardians of absent students get an SMS.",
 		alt: "Marking class attendance",
-		needs: "/attendance with a class register open",
+		panel: "register",
 	},
 	{
 		title: "Marks and report cards",
@@ -61,15 +66,26 @@ const STOPS = [
 		title: "The assistant",
 		body: "Ask in plain language. It reads only what your role permits, never computes money itself, and can only propose changes for a person to confirm.",
 		alt: "The ATLAS assistant",
-		needs: "/assistant with a question answered",
+		panel: "assistant",
 	},
 	{
 		title: "The parent portal",
-		body: "Fee balance, payment history with receipts, attendance and results — on the web and on the phone.",
+		body: "Fee balance, payment history with receipts, attendance and results, on the web and on the phone. What most parents actually see is the SMS.",
 		alt: "The parent portal",
-		needs: "/portal as a linked guardian",
+		panel: "sms",
 	},
 ] as const;
+
+/**
+ * The three stops a screenshot would misrepresent: a teacher marks a register
+ * on a phone, and a parent only ever meets ATLAS as a text message. Drawn
+ * rather than captured, in the same panels the landing page uses.
+ */
+const PANELS: Record<string, React.ReactNode> = {
+	register: <RegisterPhone />,
+	sms: <SmsPhone />,
+	assistant: <AssistantPanel />,
+};
 
 export default function TourPage() {
 	return (
@@ -110,14 +126,18 @@ export default function TourPage() {
 							{stop.body}
 						</p>
 						<div style={{ marginTop: "var(--ap-xl)" }}>
-							<AppWindow
-								alt={stop.alt}
-								height={"src" in stop && stop.src ? 675 : 1200}
-								needs={"needs" in stop ? stop.needs : undefined}
-								priority={i === 0}
-								src={"src" in stop ? stop.src : undefined}
-								width={"src" in stop && stop.src ? 1568 : 1900}
-							/>
+							{"panel" in stop ? (
+								PANELS[stop.panel]
+							) : (
+								<AppWindow
+									alt={stop.alt}
+									height={"src" in stop && stop.src ? 675 : 1200}
+									needs={"needs" in stop ? stop.needs : undefined}
+									priority={i === 0}
+									src={"src" in stop ? stop.src : undefined}
+									width={"src" in stop && stop.src ? 1568 : 1900}
+								/>
+							)}
 						</div>
 					</div>
 				</section>
