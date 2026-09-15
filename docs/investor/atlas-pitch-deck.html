@@ -186,27 +186,37 @@ svg{display:block;overflow:visible}
 /* ---- print: one slide per page ------------------------------------ */
 @page{size:13.333in 7.5in;margin:0}
 @media print{
-  html,body{background:#fff;padding:0}
-  #deck{width:1280px;transform:none!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{background:#fff!important;padding:0!important;margin:0!important}
+  /* the preview script writes transform and height inline, so these need
+     !important to win against the element's own style attribute */
+  #deck{width:1280px!important;transform:none!important;height:auto!important;margin:0!important}
   .slide{
-    margin:0;border-radius:0;
+    margin:0!important;border-radius:0;
+    width:1280px;height:720px;
     break-after:page;page-break-after:always;
+    break-inside:avoid;page-break-inside:avoid;
     box-shadow:none;
   }
   .slide:last-child{break-after:auto;page-break-after:auto}
   .no-print{display:none!important}
 }
-/* ---- preview-only toolbar ----------------------------------------- */
-#bar{
-  position:fixed;top:0;left:0;right:0;z-index:50;
-  background:rgba(11,11,13,.86);backdrop-filter:blur(14px);
-  border-bottom:1px solid rgba(255,255,255,.1);
-  display:flex;align-items:center;gap:16px;padding:10px 20px;
-  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8b8b93;
+/* ---- preview-only toolbar, screen ONLY ----------------------------
+   These MUST stay inside @media screen. Declared unscoped they sit after the
+   @media print block and win the cascade, which pushed every slide 74px down
+   and split each one across two PDF pages. */
+@media screen{
+  #bar{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    background:rgba(11,11,13,.86);backdrop-filter:blur(14px);
+    border-bottom:1px solid rgba(255,255,255,.1);
+    display:flex;align-items:center;gap:16px;padding:10px 20px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8b8b93;
+  }
+  #bar b{color:#fff;font-weight:500}
+  #bar span{color:var(--blue-dark)}
+  body{padding-top:74px}
 }
-#bar b{color:#fff;font-weight:500}
-#bar span{color:var(--blue-dark)}
-body{padding-top:74px}
 </style>
 </head>
 <body>
@@ -791,7 +801,7 @@ body{padding-top:74px}
     <div class="hline cols" style="grid-template-columns:1.02fr 1fr;padding-top:22px">
       <div class="pad-r">
         <div class="label" style="margin-bottom:14px">Cumulative cash distributed to the investor, TZS</div>
-        <svg width="560" height="270" viewBox="0 0 560 270" role="img" aria-label="Cumulative cash to the investor reaches 91 million in year two, 243 million in year three, 377 million in year four and 595 million by year five, crossing the 200 million capital return in month 28"><line class="gl" x1="46" y1="163.3846153846154" x2="498" y2="163.3846153846154"/><text class="tk" x="36" y="166.3846153846154" text-anchor="end" style="font-size:9px">200M</text><line class="gl" x1="46" y1="90.76923076923077" x2="498" y2="90.76923076923077"/><text class="tk" x="36" y="93.76923076923077" text-anchor="end" style="font-size:9px">400M</text><line class="gl" x1="46" y1="18.153846153846132" x2="498" y2="18.153846153846132"/><text class="tk" x="36" y="21.153846153846132" text-anchor="end" style="font-size:9px">600M</text><text class="vl n" x="88" y="226" text-anchor="middle">0</text><text class="tk" x="88" y="256" text-anchor="middle">Y1</text><path d="M148 236 L148 206.95999999999998 Q148 202.95999999999998 152 202.95999999999998 L200 202.95999999999998 Q204 202.95999999999998 204 206.95999999999998 L204 236 Z" fill="#6e6e73"/><text class="vl n" x="176" y="192.95999999999998" text-anchor="middle">91M</text><text class="tk" x="176" y="256" text-anchor="middle">Y2</text><path d="M236 236 L236 151.7723076923077 Q236 147.7723076923077 240 147.7723076923077 L288 147.7723076923077 Q292 147.7723076923077 292 151.7723076923077 L292 236 Z" fill="#0052ff"/><text class="vl a" x="264" y="137.7723076923077" text-anchor="middle">243M</text><text class="tk" x="264" y="256" text-anchor="middle">Y3</text><path d="M324 236 L324 103.12 Q324 99.12 328 99.12 L376 99.12 Q380 99.12 380 103.12 L380 236 Z" fill="#0052ff"/><text class="vl a" x="352" y="89.12" text-anchor="middle">377M</text><text class="tk" x="352" y="256" text-anchor="middle">Y4</text><path d="M412 236 L412 23.96923076923079 Q412 19.96923076923079 416 19.96923076923079 L464 19.96923076923079 Q468 19.96923076923079 468 23.96923076923079 L468 236 Z" fill="#0052ff"/><text class="vl a" x="440" y="9.96923076923079" text-anchor="middle">595M</text><text class="tk" x="440" y="256" text-anchor="middle">Y5</text><line x1="46" y1="163.3846153846154" x2="498" y2="163.3846153846154" stroke="#ffffff" stroke-width="1.3" stroke-dasharray="5 4" opacity=".75"/><text x="50" y="181" fill="#ffffff" style="font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase">Capital returned in full</text><text x="50" y="194" fill="#ffffff" opacity=".7" style="font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase">TZS 200M &nbsp;·&nbsp; month 28</text><line class="ax" x1="46" y1="236" x2="498" y2="236"/></svg>
+        <svg width="560" height="270" viewBox="0 0 560 270" role="img" aria-label="Cumulative cash to the investor reaches 91 million in year two, 243 million in year three, 377 million in year four and 595 million by year five, crossing the 200 million capital return in month 28"><line class="gl" x1="46" y1="163.3846153846154" x2="498" y2="163.3846153846154"/><text class="tk" x="36" y="166.3846153846154" text-anchor="end" style="font-size:9px">200M</text><line class="gl" x1="46" y1="90.76923076923077" x2="498" y2="90.76923076923077"/><text class="tk" x="36" y="93.76923076923077" text-anchor="end" style="font-size:9px">400M</text><line class="gl" x1="46" y1="18.153846153846132" x2="498" y2="18.153846153846132"/><text class="tk" x="36" y="21.153846153846132" text-anchor="end" style="font-size:9px">600M</text><text class="vl n" x="88" y="226" text-anchor="middle">0</text><text class="tk" x="88" y="256" text-anchor="middle">Y1</text><path d="M148 236 L148 206.95999999999998 Q148 202.95999999999998 152 202.95999999999998 L200 202.95999999999998 Q204 202.95999999999998 204 206.95999999999998 L204 236 Z" fill="#6e6e73"/><text class="vl n" x="176" y="192.95999999999998" text-anchor="middle">91M</text><text class="tk" x="176" y="256" text-anchor="middle">Y2</text><path d="M236 236 L236 151.7723076923077 Q236 147.7723076923077 240 147.7723076923077 L288 147.7723076923077 Q292 147.7723076923077 292 151.7723076923077 L292 236 Z" fill="#0052ff"/><text class="vl a" x="264" y="137.7723076923077" text-anchor="middle">243M</text><text class="tk" x="264" y="256" text-anchor="middle">Y3</text><path d="M324 236 L324 103.12 Q324 99.12 328 99.12 L376 99.12 Q380 99.12 380 103.12 L380 236 Z" fill="#0052ff"/><text class="vl a" x="352" y="89.12" text-anchor="middle">377M</text><text class="tk" x="352" y="256" text-anchor="middle">Y4</text><path d="M412 236 L412 23.96923076923079 Q412 19.96923076923079 416 19.96923076923079 L464 19.96923076923079 Q468 19.96923076923079 468 23.96923076923079 L468 236 Z" fill="#0052ff"/><text class="vl a" x="440" y="9.96923076923079" text-anchor="middle">595M</text><text class="tk" x="440" y="256" text-anchor="middle">Y5</text><line x1="46" y1="163.3846153846154" x2="498" y2="163.3846153846154" stroke="#ffffff" stroke-width="1.3" stroke-dasharray="5 4" opacity=".75"/><text x="50" y="141" fill="#ffffff" style="font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase">Capital returned in full</text><text x="50" y="154" fill="#ffffff" opacity=".7" style="font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase">TZS 200M &nbsp;·&nbsp; month 28</text><line class="ax" x1="46" y1="236" x2="498" y2="236"/></svg>
         <div style="display:flex;gap:22px;margin-top:6px;align-items:center">
           <div style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:#6e6e73;display:block"></span><span class="note">Capital still outstanding</span></div>
           <div style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border-radius:3px;background:#0052ff;display:block"></span><span class="note">Capital returned, profit share running</span></div>
