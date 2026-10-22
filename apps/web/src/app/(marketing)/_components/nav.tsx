@@ -24,6 +24,7 @@ const LINKS = [
 	{ label: "Pricing", href: "/#pricing" },
 	{ label: "Take a look around", href: "/tour", mobileOnly: true },
 	{ label: "Blog", href: "/blog" },
+	{ label: "About", href: "/about" },
 ];
 
 export function MarketingNav() {

@@ -50,6 +50,7 @@ export const MARKETING_ONLY_PATHS = new Set([
 	"/blog",
 	"/anza",
 	"/tour",
+	"/about",
 	"/sitemap.xml",
 ]);
 export const MARKETING_ONLY_PREFIXES = ["/blog/", "/anza/"];

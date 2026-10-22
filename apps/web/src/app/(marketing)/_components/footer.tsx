@@ -16,6 +16,7 @@ const COLUMNS = [
 		links: [
 			{ label: "Blog", href: "/blog" },
 			{ label: "Questions", href: "/#faq" },
+			{ label: "About ATLAS", href: "/about" },
 		],
 	},
 	{
