@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 	alternates: { canonical: "/about" },
 };
 
-const CONTACT_EMAIL = "africanus@driftmark.co.tz";
+const CONTACT_EMAIL = "africanus@atlasgo.co.tz";
 
 const BELIEFS = [
 	{

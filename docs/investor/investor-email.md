@@ -3,7 +3,7 @@
 Subject: **Atlas: the system African schools run on, and the tutor their students learn with. Raising $1M**
 
 Attach: `Atlas-Seed-Deck.pdf`
-From: africanus@driftmark.co.tz
+From: africanus@atlasgo.co.tz
 
 ---
 
@@ -37,7 +37,7 @@ through the product without logging in at atlasgo.co.tz/tour. Would you take
 
 Africanus Panga
 Founder, Atlas
-africanus@driftmark.co.tz
+africanus@atlasgo.co.tz
 
 ---
 

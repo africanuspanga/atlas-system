@@ -74,7 +74,7 @@ export function resolveEmailDriver(): EmailDriver {
 		return resendDriver(
 			apiKey,
 			to,
-			process.env.LEAD_EMAIL_FROM ?? "atlas@atlas-system.co.tz",
+			process.env.LEAD_EMAIL_FROM ?? "africanus@atlasgo.co.tz",
 		);
 	}
 
