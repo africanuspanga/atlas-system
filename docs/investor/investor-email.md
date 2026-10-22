@@ -1,6 +1,6 @@
 # Investor cold email
 
-Subject: **Atlas: four Tanzanian schools, live product, raising TZS 200m**
+Subject: **Atlas: the system African schools run on, and the tutor their students learn with. Raising $1M**
 
 Attach: `Atlas-Seed-Deck.pdf`
 From: africanus@driftmark.co.tz
@@ -9,29 +9,31 @@ From: africanus@driftmark.co.tz
 
 Hi [First name],
 
-Private schools in Tanzania still run on paper. The head teacher cannot tell you
-today what the school is owed. Parents find out their child missed six weeks of
-class when the report card arrives at the end of term. Marks are added up by
-hand, every term, for every class. There are 5,289 private schools in the
-country and almost none of them have a system.
+Private schools in Tanzania still run on exercise books. The head teacher cannot
+tell you today what the school is owed, parents find out their child is failing
+when the report card arrives, and for three months of holidays a year learning
+simply stops.
 
-I built Atlas to fix that. Fees, attendance, marks, report cards and payroll in
-one place, and it texts each parent their own child's figures. Head teacher,
-accountant, teachers, parents and students each get their own login, on the web,
-on Android and on iPhone. I wrote all of it myself over nine months, after
-eighteen months talking to schools. It is finished and live: four schools are in
-training on it now, in Karatu, Dar es Salaam, Arusha and Zanzibar.
+I built Atlas to run the whole school: fees, attendance, marks, report cards and
+payroll, with every parent texted their own child's figures. It has 25 modules
+on web, Android and iPhone. I wrote it myself over nine months, after eighteen
+months in schools, and four schools in four regions have signed with no sales
+team.
 
-Schools pay TZS 2.5m a year, one price whatever their size. The only real
-competitor charges about TZS 5.5m and has around 490 schools after ten years, so
-nine in ten schools here have never been sold to at all. Tanzania alone is
-TZS 13.2bn a year, and the same product works unchanged in Kenya, Uganda and
-Rwanda. I am raising TZS 200m for 20%, almost all of it to hire salespeople,
-because the hard part is built and what is missing is people to put it in front
-of schools.
+The bigger idea is what that record makes possible. Because Atlas already knows
+every child's marks, already reaches every parent and already sends them a fee
+invoice, it can sell learning in a way apps selling straight to parents never
+could: a planning copilot for teachers, a weekly digest for parents, and an AI
+tutor with holiday exams that parents pay for on the school invoice. The school
+keeps 20%, so the head teacher sells it for us.
 
-The deck is attached and you can see the product at www.atlasgo.co.tz. Would you
-take 15 minutes?
+There are about 57,000 private schools across Tanzania, Kenya and Uganda. I am
+raising $1M for 20% to take Atlas to 250 paying schools, a paid learning pilot
+and a Kenya beachhead within twenty months.
+
+The deck is attached. The site is live at atlasgo.co.tz, and you can walk
+through the product without logging in at atlasgo.co.tz/tour. Would you take
+20 minutes?
 
 Africanus Panga
 Founder, Atlas
@@ -43,13 +45,11 @@ africanus@driftmark.co.tz
 
 | Their question | Where it is answered |
 |---|---|
-| What problem? | Paragraph 1 |
-| What is the solution? | Paragraph 2, first two sentences |
-| Have you launched? | Paragraph 2, last sentence, with the four schools named |
-| Can you write code? | Paragraph 2, "I wrote all of it myself over nine months" |
-| Co-founders? | Implied solo. **Change this if there are others.** |
-| What do you know about the market? | Paragraph 3, competitor price and share |
-| TAM? | Paragraph 3, TZS 13.2bn, without using the word "TAM" |
+| What problem? | Paragraph 1, school side and learning side |
+| What is built, and can you build? | Paragraph 2 |
+| Have you launched? | Paragraph 2, last sentence |
+| Why is this bigger than school software? | Paragraph 3 |
+| How big, and what is the money for? | Paragraph 4 |
+| Can I check it myself? | Paragraph 5, live site and tour |
 
-No jargon: no "SaaS", "ARR", "TAM", "moat", "runway" or "go to market" anywhere
-in the body. No em dashes, per the house rule.
+No jargon in the body, and no em dashes, per the house rule.
