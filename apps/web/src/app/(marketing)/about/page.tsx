@@ -269,6 +269,17 @@ export default function AboutPage() {
 							Email the founder
 						</a>
 					</div>
+					<p
+						className="ap-caption"
+						style={{ marginTop: "var(--ap-xl)", color: "var(--ap-body-muted)" }}
+					>
+						Careers: all official ATLAS job openings are announced here, on our
+						website. Teachers applying for new posts can prepare with{" "}
+						<a className="ap-link" href="https://www.cvchapchap.com/cv-for-teachers">
+							this teacher CV guide from CV Chap Chap
+						</a>
+						.
+					</p>
 				</div>
 			</section>
 		</>
